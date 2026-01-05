@@ -7,7 +7,9 @@ use Illuminate\Support\Facades\Auth;
 use App\Helpers\ApiResponse;
 use App\Models\Attendances;
 use App\Http\Resources\AttendanceResourceCollection;
+use App\Http\Resources\AttendanceResource;
 use App\Http\Requests\AttendanceValidationIndex;
+use App\Http\Requests\AttendanceValidationRequest;
 use App\Models\MsUsers;
 use Carbon\Carbon;
 
@@ -101,5 +103,71 @@ public function checkToday()
         'status' => $checkOut ? 'COMPLETE' : 'IN_ONLY'
     ]);
 }
+
+
+
+public function store(AttendanceValidationRequest $request)
+{
+    $user = auth('api')->user();
+
+    if (!$user) {
+        return ApiResponse::error('Unauthenticated', 401);
+    }
+
+    $today = Carbon::today();
+
+    // 🔍 Ambil attendance hari ini
+    $todayAttendances = Attendances::where('user_id', $user->id_user)
+        ->whereDate('attendance_date', $today)
+        ->get();
+
+    $hasCheckIn  = $todayAttendances->where('attendance_type', 'IN')->isNotEmpty();
+    $hasCheckOut = $todayAttendances->where('attendance_type', 'OUT')->isNotEmpty();
+
+    // ❌ OUT sebelum IN
+    if ($request->attendance_type === 'OUT' && !$hasCheckIn) {
+        return ApiResponse::error(
+            'Tidak bisa Check Out sebelum Check In',
+            422
+        );
+    }
+
+    // ❌ DOUBLE IN
+    if ($request->attendance_type === 'IN' && $hasCheckIn) {
+        return ApiResponse::error(
+            'Anda sudah melakukan Check In hari ini',
+            422
+        );
+    }
+
+    // ❌ DOUBLE OUT
+    if ($request->attendance_type === 'OUT' && $hasCheckOut) {
+        return ApiResponse::error(
+            'Anda sudah melakukan Check Out hari ini',
+            422
+        );
+    }
+
+    // ✅ SIMPAN ATTENDANCE
+    $attendance = Attendances::create([
+        'user_id'              => $user->id_user,
+        'attendance_type'      => $request->attendance_type,
+        'attendance_date'      => $today,
+        'attendance_time'      => now()->format('H:i:s'),
+        'attendance_datetime'  => now(),
+        'location_name'        => $request->location_name,
+        'latitude'             => $request->latitude,
+        'longitude'            => $request->longitude,
+        'device_type'          => $request->device_type,
+        'ip_address'           => request()->ip(),
+        'attendance_status'    => 'READY'
+    ]);
+
+    return ApiResponse::success(
+        new AttendanceResource($attendance),
+        'Attendance berhasil disimpan'
+    );
+}
+
 
 }
