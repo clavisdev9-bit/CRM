@@ -1,0 +1,39 @@
+
+/* 1. FONT & LIBS (Paling awal) */
+@import url('../vendor/assets/vendor/fonts/boxicons.css');
+@import url('../vendor/assets/vendor/libs/perfect-scrollbar/perfect-scrollbar.css');
+
+/* 2. CORE & UMUM */
+@import url('../vendor/assets/vendor/css/core.css');
+@import url('../vendor/assets/css/demo.css');
+
+/* 3. TEMA DAN Halaman Tertentu (Paling Akhir untuk prioritas) */
+@import url('../vendor/assets/vendor/css/theme-default.css'); 
+@import url('../vendor/assets/vendor/css/pages/page-auth.css');
+@import url('../vendor/assets/vendor/css/pages/page-misc.css');
+@import url('../vendor/assets/vendor/css/pages/page-account-settings.css');
+
+
+/* SUCCESS → tulisan hijau */
+.swal2-toast.swal2-icon-success .swal2-title {
+  color: #22c55e !important;
+}
+
+/* ERROR → tulisan merah */
+.swal2-toast.swal2-icon-error .swal2-title {
+  color: #ef4444 !important;
+}
+
+/* WARNING → tulisan kuning */
+.swal2-toast.swal2-icon-warning .swal2-title {
+  color: #facc15 !important;
+}
+
+/* INFO → tulisan biru */
+.swal2-toast.swal2-icon-info .swal2-title {
+  color: #3b82f6 !important;
+}
+
+.swal2-container {
+  z-index: 99999 !important;
+}

@@ -1,0 +1,1527 @@
+<script setup>
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
+import backendLayouts from "../../../../layouts/backendLayouts.vue"
+import { useUsersStore } from '@/stores/usersStore'
+import { useMenuStore } from "@/stores/menuStore"
+import { useAccessSubMenuStore } from '@/stores/accessSubmenuStore'
+import { toasts } from "@/utils/toasts"
+import { useRoute, useRouter } from "vue-router"
+import Multiselect from '@vueform/multiselect'
+import Swal from 'sweetalert2'
+import '@vueform/multiselect/themes/default.css'
+
+const PagesTitle = 'Data Users Management'
+const PagesTitleAccessUser = 'Access User to SubMenu'
+
+/* ===== STORE ===== */
+const dataUsers = useUsersStore()
+const menuStore = useMenuStore()
+const accessUserToSubmenu = useAccessSubMenuStore()
+const route = useRoute()
+const router = useRouter()
+
+/* ===== PERMISSION ===== */
+const permission = ref(null)
+const loadingPermission = ref(true)
+
+//untuk  access user to submenu
+const selectedUser = ref(null)
+
+/* ===== IMAGE ===== */
+const imageFile = ref(null)
+const imagePreview = ref('/storage/users/default.png')
+
+
+/* ===== FORM ===== */
+const formUser = ref({
+  fullname: '',
+  username: '',
+  email: '',
+  password: '',
+  role_id: null,
+  id: null,
+  group_id: null,
+  is_active: 1,
+})
+
+const getUserImage = (image) => {
+  if (!image || image === 'default.png' || image === 'default.png') {
+    return '/storage/users/default.png' // sesuaikan lokasi default
+  }
+  // kalau sudah ada users/
+  if (image.startsWith('users/')) {
+    return `/storage/${image}`
+  }
+  // kalau hanya nama file
+  return `/storage/users/${image}`
+}
+/* ===== EDIT STATE ===== */
+const editUserId = ref(null)
+
+/* ===== LIFECYCLE ===== */
+onMounted(async () => {
+  try {
+    if (!localStorage.getItem("auth_token")) {
+      alert("Silakan login terlebih dahulu!")
+      router.push('/login')
+      return
+    }
+
+    await dataUsers.fetchUsers(dataUsers.buildUrl())
+    await menuStore.fetchMenus()
+    await dataUsers.fetchRoleSelect()
+    await dataUsers.fetchDivisionSelect()
+    await dataUsers.fetchGroupSelect()
+
+     
+
+    permission.value = menuStore.getPermission(route.path)
+  } catch (e) {
+    console.error(e)
+  } finally {
+    loadingPermission.value = false
+  }
+
+  const modal = document.getElementById('modal-add-data')
+
+  modal.addEventListener('hidden.bs.modal', () => {
+    resetForm()
+    dataUsers.errorUser = null
+    dataUsers.savingUser = false
+    dataUsers.updatingUser = false
+  })
+
+
+
+})
+
+/* ===== SEARCH ===== */
+watch(
+  () => dataUsers.searchUsers,
+  dataUsers.searchWithDelay
+)
+
+watch(
+  () => accessUserToSubmenu.searchAccessSubMenu,
+  accessUserToSubmenu.searchWithDelay
+);
+
+/* ===== IMAGE HANDLER ===== */
+const onChangeImage = (e) => {
+  const file = e.target.files[0]
+  if (!file) return
+
+  const allowed = ['image/jpeg', 'image/png']
+  if (!allowed.includes(file.type)) {
+    dataUsers.errorUser = { image: ['Format JPG / PNG saja'] }
+    return
+  }
+
+  if (file.size > 2 * 1024 * 1024) {
+    dataUsers.errorUser = { image: ['Max size 2MB'] }
+    return
+  }
+
+  imageFile.value = file
+  imagePreview.value = URL.createObjectURL(file)
+}
+
+/* ===== OPEN ADD ===== */
+const openAddModal = () => {
+  editUserId.value = null
+  resetForm()
+}
+
+
+const openEditUser = async (user) => {
+  editUserId.value = user.id_user;
+  // 2. Pastikan data options tersedia
+  await Promise.all([
+    dataUsers.fetchDivisionSelect(),
+    dataUsers.fetchGroupSelect(),
+    dataUsers.fetchRoleSelect()
+  ]);
+  // 3. Reset form
+  formUser.value = {
+    fullname: '',
+    role_id: null,
+    divisi_id: null,
+    group_id: null,
+    is_active: 1
+  };
+  await nextTick();
+  // 4. Pengisian dengan Fallback Key (Menangani perbedaan nama field)
+  formUser.value = {
+    fullname: user.fullname,
+    username: user.username,
+    email: user.email,
+    password: '', 
+    
+    // Konversi ke Number() sangat krusial
+    role_id: user.role_id ? Number(user.role_id) : null,
+    
+    // Periksa apakah fieldnya 'division_id' atau 'divisi_id'
+    divisi_id: (user.divisi_id || user.divisi_id) ? Number(user.divisi_id || user.divisi_id) : null,
+    
+    // Periksa apakah fieldnya 'group_id' atau 'id_group'
+    group_id: (user.group_id || user.id_group) ? Number(user.group_id || user.id_group) : null,
+    
+    is_active: Number(user.is_active),
+  };
+
+
+  imagePreview.value = user.image_url || '/storage/users/default.png';
+};
+
+/* ===== RESET ===== */
+const resetForm = () => {
+  formUser.value = {
+    fullname: '',
+    username: '',
+    email: '',
+    password: '',
+    role_id: null,
+    divisi_id: null,
+    group_id: null,
+    is_active: 1,
+  }
+  imageFile.value = null
+  imagePreview.value = '/storage/users/default.png'
+}
+
+/* ===== SAVE ===== */
+const saveUser = async () => {
+  if (dataUsers.savingUser || dataUsers.updatingUser) return
+
+  try {
+    const payload = {
+      ...formUser.value,
+      image: imageFile.value,
+    }
+
+    const isEdit = !!editUserId.value
+
+    if (isEdit) {
+      await dataUsers.updateUser(editUserId.value, payload)
+    } else {
+      await dataUsers.storeUser(payload)
+    }
+
+    const modal = document.getElementById("modal-add-data")
+    const instance =
+      bootstrap.Modal.getInstance(modal) ||
+      new bootstrap.Modal(modal)
+
+    instance.hide()
+
+    modal.addEventListener(
+      "hidden.bs.modal",
+      () => {
+        toasts.fire({
+          icon: 'success',
+          title: isEdit
+            ? 'User berhasil diupdate'
+            : 'User berhasil ditambahkan',
+        })
+      },
+      { once: true }
+    )
+
+  } catch (e) {
+    console.error(e)
+    Swal.fire(
+      'Error',
+      e.response?.data?.message || 'Terjadi kesalahan server',
+      'error'
+    )
+  }
+}
+
+
+const handleDeleteUsers = async (user) => {
+  const { isConfirmed } = await Swal.fire({
+    title: 'Delete User?',
+    html: `User <b>"${user.fullname}"</b> will be permanently deleted.`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    confirmButtonText: 'Yes, delete',
+    cancelButtonText: 'Cancel',
+    reverseButtons: true,
+  })
+
+  if (!isConfirmed) return
+
+  try {
+    Swal.fire({
+      title: 'Deleting...',
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading(),
+    })
+
+    //  ID USER YANG BENAR
+    await dataUsers.deleteUser(user.id_user)
+
+    Swal.fire({
+      icon: 'success',
+      title: 'Deleted!',
+      text: 'User has been deleted successfully.',
+      timer: 1500,
+      showConfirmButton: false,
+    })
+  } catch (e) {
+    console.error(e)
+
+    Swal.fire({
+      icon: 'error',
+      title: 'Failed',
+      text:
+        e.response?.data?.message ||
+        'Failed to delete user.',
+    })
+  }
+}
+
+
+const openDetailUser = async (user) => {
+  await dataUsers.detailUser(user.id_user)
+
+  const modal = document.getElementById('userDetailModal')
+  const instance =
+    bootstrap.Modal.getInstance(modal) ||
+    new bootstrap.Modal(modal)
+
+  instance.show()
+}
+
+
+
+
+
+const openAccessSubMenuModal = async (user) => {
+  selectedUser.value = user
+
+  // 🔥 INI YANG PALING PENTING
+  await accessUserToSubmenu.setUserId(user.id_user)
+
+  await nextTick()
+
+  const modal = new bootstrap.Modal(
+    document.getElementById('accessSubMenuModal')
+  )
+  modal.show()
+}
+
+
+
+
+const updatePermission = async (submenu) => {
+  await accessUserToSubmenu.autoSavePermission(submenu)
+}
+
+
+
+
+// code export excel
+const exportModalOpen = ref(false)
+const exportType = ref('month') // 'month', 'date', 'year'
+const selectedMonth = ref(new Date().getMonth() + 1)
+const selectedYear = ref(new Date().getFullYear())
+const startDate = ref('')
+const endDate = ref('')
+
+const years = ref([])
+const generateYears = () => {
+  const currentYear = new Date().getFullYear();
+  for (let i = currentYear; i >= 2000; i--) {
+    years.value.push(i);
+  }
+}
+
+const openExportModal = () => {
+     generateYears();
+    exportModalOpen.value = true
+}
+
+// // code export pdf
+const exportModalOpenPdf = ref(false)
+const exportTypePdf = ref('month') // 'month', 'date', 'year'
+const selectedMonthPdf = ref(new Date().getMonth() + 1)
+const selectedYearPdf = ref(new Date().getFullYear())
+const startDatePdf = ref('')
+const endDatePdf = ref('')
+
+const yearsPdf = ref([])
+const generateYearsPdf = () => {
+  yearsPdf.value = []
+  const currentYear = new Date().getFullYear()
+  for (let i = currentYear; i >= 2000; i--) {
+    yearsPdf.value.push(i)
+  }
+}
+
+const openExportModalPdf = () => {
+  generateYearsPdf()
+  exportModalOpenPdf.value = true
+}
+
+// import csv
+const importCsvModalOpen = ref(false)
+const selectedCsvFile = ref(null)
+
+const openImportCsvModal = () => {
+  importCsvModalOpen.value = true
+}
+
+// Event ketika file dipilih
+const handleCsvFile = (event) => {
+  selectedCsvFile.value = event.target.files[0]
+}
+
+// Tombol upload (sementara hanya alert)
+const handleImportCsv = () => {
+  if (!selectedCsvFile.value) {
+    alert("Silakan pilih file CSV terlebih dahulu")
+    return
+  }
+  alert(`Mengupload file: ${selectedCsvFile.value.name}`)
+  importCsvModalOpen.value = false
+}
+
+
+// import excel
+const importExcelModalOpen = ref(false)
+const selectedExcelFile = ref(null)
+
+const openImportExcelModal = () => {
+  importExcelModalOpen.value = true
+}
+
+// Event ketika file dipilih
+const handleExcelFile = (event) => {
+  selectedExcelFile.value = event.target.files[0]
+}
+
+// Tombol upload (sementara hanya alert)
+const handleImportExcel = () => {
+  if (!selectedExcelFile.value) {
+    alert("Silakan pilih file Excel terlebih dahulu")
+    return
+  }
+  alert(`Mengupload file: ${selectedExcelFile.value.name}`)
+  importExcelModalOpen.value = false
+}
+</script>
+
+<template>
+  <backendLayouts>
+    <div class="page d-flex flex-column">
+      <!-- Page Header -->
+      <div class="page-header d-print-none">
+        <div class="container-xl">
+          <div class="row g-2 align-items-center">
+            <div class="col">
+              <div class="page-pretitle">Overview</div>
+              <h4 class="page-title"> {{ PagesTitle }}</h4>
+            </div>
+            <div class="col-auto ms-auto d-print-none">
+              <div class="btn-list">
+              
+              <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="#">Dashboard</a></li>
+                    <li class="breadcrumb-item active" aria-current="page"> {{ PagesTitle }}</li>
+                </ol>
+                </nav>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+       <!-- LOADING PERMISSION -->
+        <div v-if="loadingPermission" class="text-center py-5">
+          <div class="spinner-border text-primary"></div>
+          <p class="text-muted mt-2">Loading access rights...</p>
+        </div>
+
+        <!-- NO ACCESS -->
+        <div
+          v-else-if="!permission?.can_view"
+          class="text-center py-5"
+        >
+          <i class="fa fa-lock fa-2x text-muted mb-2"></i>
+          <p class="fw-semibold text-muted">
+            You don't have access to view the data
+          </p>
+        </div>
+
+      <!-- Page Body -->
+      <div v-else class="page-body flex-grow-1">
+        <div class="container-xl">
+
+          <!-- Card: Export/Import -->
+         <div class="card mb-4">
+  <div class="card-header d-flex gap-2 flex-wrap align-items-center">
+    
+    <!-- Tombol kiri -->
+    <div class="d-flex gap-2 flex-wrap">
+ 
+     <div class="dropdown d-inline-block me-2">
+            <button
+                class="btn btn-primary btn-sm dropdown-toggle"
+                type="button"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+            >
+                <i class="fa-solid fa-upload"></i> Export
+            </button>
+
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li>
+                <button class="dropdown-item" @click="openExportModalPdf">
+                    <i class="fas fa-file-pdf"></i> Export PDF
+                </button>
+                </li>
+                <li>
+                <button class="dropdown-item" @click="openExportModal">
+                    <i class="fas fa-file-excel"></i> Export Excel
+                </button>
+                </li>
+               
+             </ul>
+    </div>
+
+            <div class="dropdown d-inline-block">
+                <button
+                    class="btn btn-primary btn-sm dropdown-toggle"
+                    type="button"
+                    data-bs-toggle="dropdown"
+                    aria-expanded="false"
+                >
+                    <i class="fa fa-download"></i> Import
+                </button>
+
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li>
+                    <button class="dropdown-item" @click="openImportCsvModal">
+                        <i class="fas fa-file-import"></i> Import CSV
+                    </button>
+                    </li>
+                     <li>
+                    <button class="dropdown-item" @click="openImportExcelModal">
+                        <i class="fas fa-file-import"></i> Import Excel
+                    </button>
+                    </li>
+                </ul>
+            </div>
+
+    </div>
+
+    <!-- Tombol Reset paling kanan -->
+    <button class="btn btn-warning btn-sm d-flex align-items-center ms-auto" @click="dataUsers.resetFilters">
+      <i class="fas fa-undo"></i> Reset
+    </button>
+
+  </div>
+</div>
+
+
+
+          <!-- Card: Filter & Sort -->
+          <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between flex-wrap gap-3">
+              <!-- Kiri -->
+             <div class="d-flex flex-column gap-3">
+                <!-- Dropdown Tampilkan -->
+                <div class="d-flex align-items-center gap-2">
+                    <label class="mb-0 fw-semibold">
+                    <i class="fas fa-list-ul me-1"></i> Showing:
+                    </label>
+                    <select class="form-select w-auto"
+                       v-model.number="dataUsers.pagination.per_page" 
+                    @change="dataUsers.changePageSize"
+                    >
+                    <option>10</option>
+                    <option>25</option>
+                    <option>50</option>
+                    <option>100</option>
+                    </select>
+                </div>
+
+                <!-- Tombol add -->
+                 <button class="btn btn-primary btn-sm" data-bs-toggle="modal" 
+                  v-if="!loadingPermission && permission?.can_create"
+                 data-bs-target="#modal-add-data" 
+                 @click="openAddModal">
+                    <i class="fa fa-plus"></i> Add Data
+                    </button>
+                </div>
+
+
+              <!-- Kanan -->
+             <div class="d-flex flex-column gap-3 align-items-end" style="min-width:300px;">
+                <!-- Pencarian -->
+                <div class="input-group">
+                    <input type="text" class="form-control" placeholder="Searching...." v-model="dataUsers.searchUsers">
+                    <span class="input-group-text bg-white"><i class="fa fa-search"></i></span>
+                </div>
+
+                <!-- Urutan -->
+                <div class="d-flex gap-2 align-items-center">
+                    <label class="mb-0 fw-semibold">Sort:</label>
+                    <select class="form-select w-auto" v-model="dataUsers.sort.column" @change="dataUsers.changeSorting">
+                    <option value="fullname">By Name</option>
+                    <option value="created_at">By Created Date</option>
+                    </select>
+                    <select class="form-select w-auto" v-model="dataUsers.sort.direction" @change="dataUsers.changeSorting">
+                    <option value="asc">Ascending</option>
+                    <option value="desc">Descending</option>
+                    </select>
+                </div>
+                </div>
+            </div>
+          </div>
+
+          <!-- Card: Table -->
+          <div class="card mb-4">
+            <div class="table-responsive">
+              <table class="table card-table table-vcenter text-nowrap">
+                <thead>
+                  <tr>
+                    <th style="width: 5%;">No.</th>
+                    <th>Full Name</th>
+                    <th>Email</th>
+                    <th>Role</th>
+                    <th>Division</th>
+                    <th>Group</th>
+                    <th>image</th>
+                  
+                    <th style="width: 8%;">Actions</th>
+                  </tr>
+                </thead>
+
+
+                 <!-- LOADING DATA -->
+                  <tbody v-if="dataUsers.loadingUsers">
+                    <tr>
+                      <td colspan="8" class="text-center py-4">
+                        <div class="spinner-border text-primary"></div>
+                      </td>
+                    </tr>
+                  </tbody>
+
+                  <!-- EMPTY DATA -->
+                  <tbody v-else-if="dataUsers.usersData.length === 0">
+                    <tr>
+                                  <td colspan="8" class="text-center">
+                                    <div class="d-flex flex-column align-items-center justify-content-center">
+                                      <img
+                                        src="https://cdn.dribbble.com/users/285475/screenshots/2083086/dribbble_1.gif"
+                                        alt="No data found"
+                                        style="max-width: 250px; height: auto;"
+                                        class="mb-3"
+                                      />
+                                      <p class="text-danger fw-bold fst-italic">
+                                        <i class="fa fa-exclamation-circle me-1"></i>
+                                        user data not found.
+                                      </p>
+                                    </div>
+                                  </td>
+                                </tr>
+                  </tbody>
+              
+                  <tbody v-else>
+                    <tr
+                      v-for="(user, index) in dataUsers.usersData"
+                      :key="`${user.id_user}-${dataUsers.pagination.current_page}`"
+                    >
+                      <td>
+                        {{
+                          (dataUsers.pagination.current_page - 1) *
+                            dataUsers.pagination.per_page +
+                          index +
+                          1
+                        }}
+                      </td>
+                  <td>{{ user.fullname }}</td>
+                  <td>{{ user.email }}</td>
+                  <td>
+                    <span class="badge bg-primary">
+                      {{ user.role?.role ?? "-" }}
+                    </span>
+                  </td>
+                  <td>
+                    <span class="badge bg-primary">
+                      {{ user.division?.name_division ?? "-" }}
+                    </span>
+                  </td>
+                  <td>
+                    <span class="badge bg-primary">
+                      {{ user.groups?.name_group ?? "-" }}
+                    </span>
+                  </td>
+                  <td>
+                    <img
+                      :src="getUserImage(user.image)"
+                      alt="avatar"
+                      width="40"
+                      height="40"
+                      class="rounded-circle object-fit-cover"
+                    />
+                  </td>
+                   <td>
+                      <!-- UPDATE -->
+                      <button
+                        v-if="!loadingPermission && permission?.can_update"
+                        class="btn btn-outline-warning btn-sm me-1"
+                        data-bs-toggle="modal"
+                        data-bs-target="#modal-add-data"
+                        @click="openEditUser(user)"
+                      >
+                        <i class="fa fa-edit"></i>
+                      </button>
+                      <!-- DELETE -->
+                      <button
+                        v-if="!loadingPermission && permission?.can_delete"
+                        class="btn btn-outline-danger btn-sm me-1"
+                        @click="handleDeleteUsers(user)"
+                      >
+                        <i class="fa fa-trash"></i>
+                      </button>
+                      <!-- DETAIL -->
+                      <button
+                        v-if="!loadingPermission && permission?.can_view"
+                        class="btn btn-outline-primary btn-sm me-1"
+                        data-bs-toggle="modal"
+                        data-bs-target="#userDetailModal"
+                          @click="openDetailUser(user)"
+                        >
+                        <i class="fa fa-circle-info"></i>
+                      </button>
+                       
+                         
+                      <button
+                       v-if="!loadingPermission && permission?.can_update"
+                        class="btn btn-outline-primary btn-sm me-1"
+                        @click="openAccessSubMenuModal(user)"
+                      >
+                        <i class="fa-solid fa-eye-low-vision"></i>
+                      </button>
+
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Card: Pagination -->
+          <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <button class="btn btn-danger btn-sm" 
+              :disabled="!dataUsers.pagination.prev_page_url || dataUsers.loadingUsers"
+                              @click="dataUsers.fetchUsers(dataUsers.pagination.prev_page_url)"
+                 >
+                <i class="fa-solid fa-circle-chevron-left"
+                ></i> Prev
+              </button>
+  
+                <div class="mx-2 d-flex flex-column flex-sm-row align-items-center gap-1">
+                     <span class="badge border text-secondary px-3 py-2"> {{ dataUsers.usersData.length }} data | on page {{ dataUsers.pagination.current_page }}</span>
+                                <span class="badge border text-secondary px-3 py-2">Total: {{ dataUsers.pagination.total }} data</span>
+                </div>
+  
+                <button class="btn btn-danger btn-sm"
+                 :disabled="!dataUsers.pagination.next_page_url || dataUsers.loadingUsers"
+                              @click="dataUsers.fetchUsers(dataUsers.pagination.next_page_url)"
+               >
+                    Next <i class="fa-solid fa-circle-chevron-right"></i>
+                </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+
+
+      <!-- Modal: Detail User -->
+      <div
+        class="modal modal-blur fade"
+        id="userDetailModal"
+        tabindex="-1"
+        aria-hidden="true"
+      >
+        <div class="modal-dialog modal-lg modal-dialog-centered">
+          <div class="modal-content">
+
+            <!-- HEADER -->
+            <div class="modal-header">
+              <h5 class="modal-title">Detail User</h5>
+              <button
+                type="button"
+                class="btn-close"
+                data-bs-dismiss="modal"
+              ></button>
+            </div>
+
+            <!-- BODY -->
+            <div class="modal-body">
+
+              <!-- LOADING -->
+              <div
+                v-if="dataUsers.loadingDetailUser"
+                class="d-flex justify-content-center align-items-center"
+                style="min-height:150px;"
+              >
+                <div class="spinner-border text-secondary" role="status">
+                  <span class="visually-hidden">Loading...</span>
+                </div>
+              </div>
+
+              <table class="table" v-else-if="dataUsers.usersDetail">
+              <thead>
+                <tr>
+                  <th scope="col">Fullname</th>
+                  <th scope="col">Username</th>
+                  <th scope="col">Email</th>
+                  <th scope="col">Role</th>
+                  <th scope="col">Status</th>
+                </tr>
+              </thead>
+                <tbody>
+                  <tr>
+                    <th>{{ dataUsers.usersDetail.fullname }}</th>
+                    <td>{{ dataUsers.usersDetail.username }}</td>
+                    <td>{{ dataUsers.usersDetail.email }}</td>
+                    <td>{{ dataUsers.usersDetail.role?.role }}</td>
+                    <td><span
+                            class="badge"
+                            :class="dataUsers.usersDetail.is_active ? 'bg-success' : 'bg-danger'"
+                          >
+                            {{ dataUsers.usersDetail.is_active ? 'Active' : 'Inactive' }}
+                        </span>
+                    </td>
+                  </tr>
+                </tbody>
+            </table>
+              <!-- EMPTY -->
+              <div v-else class="text-center text-muted">
+                Data not available
+              </div>
+            </div>
+
+            <!-- FOOTER -->
+            <div class="modal-footer">
+              <button
+                type="button"
+                class="btn btn-link"
+                data-bs-dismiss="modal"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+
+
+          <!-- Modal: Add / Edit User -->
+          <div class="modal modal-blur fade" id="modal-add-data" tabindex="-1" aria-hidden="true">
+            <div class="modal-dialog modal-lg modal-dialog-centered">
+              <div class="modal-content">
+
+                <!-- HEADER -->
+                <div class="modal-header">
+                  <h5 class="modal-title">
+                    {{ editUserId ? 'Edit User' : 'Add User' }}
+                  </h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+
+                <!-- BODY -->
+                <div class="modal-body">
+                  <form enctype="multipart/form-data">
+
+                    <div class="row">
+
+                      <!-- FULLNAME -->
+                      <div class="col-md-6 mb-3">
+                        <label class="form-label">Fullname</label>
+                        <input
+                          type="text"
+                          v-model="formUser.fullname"
+                          class="form-control"
+                          :class="{ 'is-invalid': dataUsers.errorUser?.fullname }"
+                          placeholder="Enter fullname"
+                        />
+                        <div v-if="dataUsers.errorUser?.fullname" class="invalid-feedback">
+                          {{ dataUsers.errorUser.fullname[0] }}
+                        </div>
+                      </div>
+
+                      <!-- USERNAME -->
+                      <div class="col-md-6 mb-3">
+                        <label class="form-label">Username</label>
+                        <input
+                          type="text"
+                          v-model="formUser.username"
+                          class="form-control"
+                          :class="{ 'is-invalid': dataUsers.errorUser?.username }"
+                          placeholder="Enter username"
+                        />
+                        <div v-if="dataUsers.errorUser?.username" class="invalid-feedback">
+                          {{ dataUsers.errorUser.username[0] }}
+                        </div>
+                      </div>
+
+                      <!-- EMAIL -->
+                      <div class="col-md-6 mb-3">
+                        <label class="form-label">Email</label>
+                        <input
+                          type="email"
+                          v-model="formUser.email"
+                          class="form-control"
+                          :class="{ 'is-invalid': dataUsers.errorUser?.email }"
+                          placeholder="Enter email"
+                        />
+                        <div v-if="dataUsers.errorUser?.email" class="invalid-feedback">
+                          {{ dataUsers.errorUser.email[0] }}
+                        </div>
+                      </div>
+
+                      <!-- PASSWORD -->
+                      <div class="col-md-6 mb-3">
+                        <label class="form-label">
+                          Password
+                          <small v-if="editUserId" class="text-muted">(kosongkan jika tidak diganti)</small>
+                        </label>
+                        <input
+                          type="password"
+                          v-model="formUser.password"
+                          class="form-control"
+                          :class="{ 'is-invalid': dataUsers.errorUser?.password }"
+                        />
+                        <div v-if="dataUsers.errorUser?.password" class="invalid-feedback">
+                          {{ dataUsers.errorUser.password[0] }}
+                        </div>
+                      </div>
+
+                      <!-- ROLE -->
+                      <div class="col-md-6 mb-3">
+                        <label class="form-label">Select Role</label>
+                        <Multiselect
+                          v-model="formUser.role_id"
+                          :options="dataUsers.roleSelect"
+                          label="role"
+                          valueProp="id_role"
+                          placeholder="Select Role..."
+                          :searchable="true"
+                          :loading="dataUsers.loadingSelect"
+                        />
+                        <div v-if="dataUsers.errorUser?.role_id" class="invalid-feedback d-block">
+                          {{ dataUsers.errorUser.role_id[0] }}
+                        </div>
+                      </div>
+
+                    <div class="col-md-6 mb-3">
+                      <label class="form-label">Select Division</label>
+                    <Multiselect
+                    :key="formUser.divisi_id"
+                    v-model="formUser.divisi_id"
+                    :options="dataUsers.divisionSelect"
+                    label="name_division"
+                    valueProp="id"
+                    placeholder="Pilih Divisi"
+                  />
+                      <div v-if="dataUsers.errorUsers?.divisi_id" class="invalid-feedback d-block">
+                          {{ dataUsers.errorUsers.divisi_id[0] }}
+                      </div>
+                  </div>
+
+                  <div class="col-md-6 mb-3">
+                      <label class="form-label">Select Group</label>
+                      <Multiselect
+                          v-model="formUser.group_id"
+                          :options="dataUsers.groupSelect"
+                          label="name_group"
+                          valueProp="id_group" 
+                          placeholder="Pilih Group"
+                          :searchable="true"
+                      />
+                      <div v-if="dataUsers.errorUsers?.group_id" class="invalid-feedback d-block">
+                          {{ dataUsers.errorUsers.group_id[0] }}
+                      </div>
+                  </div>
+
+                      <!-- STATUS -->
+                      <div class="col-md-6 mb-3">
+                        <label class="form-label">Status</label>
+                        <Multiselect
+                          v-model="formUser.is_active"
+                          :options="dataUsers.statusStatis"
+                          label="label"
+                          valueProp="value"
+                          placeholder="Select Status"
+                        />
+                        <div v-if="dataUsers.errorUser?.is_active" class="invalid-feedback d-block">
+                          {{ dataUsers.errorUser.is_active[0] }}
+                        </div>
+                      </div>
+
+                      <!-- IMAGE -->
+                      <div class="col-md-12 mb-3">
+                        <label class="form-label">Foto</label>
+
+                        <div class="mb-2">
+                          <img
+                            :src="imagePreview"
+                            class="rounded border"
+                            style="width:120px;height:120px;object-fit:cover"
+                          />
+                        </div>
+
+                        <input
+                          type="file"
+                          class="form-control"
+                          :class="{ 'is-invalid': dataUsers.errorUser?.image }"
+                          accept="image/png,image/jpeg"
+                          @change="onChangeImage"
+                        />
+
+                        <small class="text-secondary">
+                          Format: JPG, JPEG, PNG (Max 2MB)
+                        </small>
+
+                        <div v-if="dataUsers.errorUser?.image" class="invalid-feedback d-block">
+                          {{ dataUsers.errorUser.image[0] }}
+                        </div>
+                      </div>
+
+                    </div>
+                  </form>
+                </div>
+
+                <!-- FOOTER -->
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-link" data-bs-dismiss="modal">
+                    Cancel
+                  </button>
+                  <button
+                    type="button"
+                    class="btn btn-primary"
+                    :disabled="dataUsers.savingUser || dataUsers.updatingUser"
+                    @click="saveUser"
+                  >
+                    <i class="fas fa-save me-1"></i>
+                    {{ editUserId ? 'Update' : 'Simpan' }}
+                  </button>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+
+
+           <!-- Modal Access User to SubMenu -->
+<div
+  class="modal fade"
+  id="accessSubMenuModal"
+  tabindex="-1"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
+    <div class="modal-content">
+
+      <!-- Header -->
+      <div class="modal-header">
+        <h5 class="modal-title">
+          {{ PagesTitleAccessUser }}
+        </h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+
+      <!-- Body -->
+      <div class="modal-body">
+
+        <!-- User Info -->
+        <ul class="list-group list-group-flush mb-3">
+          <li class="list-group-item d-flex justify-content-between">
+            <span class="text-primary fw-bold">User</span>
+        
+            <strong>
+               <small class="text-primary fw-bold"> {{ selectedUser?.fullname ?? '-' }}</small>
+            </strong>
+             
+      
+
+
+          </li>
+        </ul>
+
+        <!-- Card: Filter & Sort -->
+          <div class="card mb-4">
+            <div class="card-header d-flex justify-content-between flex-wrap gap-3">
+              <!-- Kiri -->
+             <div class="d-flex flex-column gap-3">
+                <!-- Dropdown Tampilkan -->
+                <div class="d-flex align-items-center gap-2">
+                    <label class="mb-0 fw-semibold">
+                    <i class="fas fa-list-ul me-1"></i> Showing:
+                    </label>
+                    <select class="form-select w-auto"
+                     v-model.number="accessUserToSubmenu.pagination.per_page" 
+                     @change="accessUserToSubmenu.changePageSize"
+                    >
+                    <option>10</option>
+                    <option>25</option>
+                    <option>50</option>
+                    <option>100</option>
+                    </select>
+                </div>
+
+                <!-- Tombol reset -->
+                 <button class="btn btn-warning btn-sm"   
+                 @click="accessUserToSubmenu.resetFilters">
+                    <i class="fas fa-undo"></i> Reset
+                  </button>
+                </div>
+
+
+              <!-- Kanan -->
+             <div class="d-flex flex-column gap-3 align-items-end" style="min-width:300px;">
+                <!-- Pencarian -->
+                <div class="input-group">
+                    <input type="text" class="form-control" placeholder="Searching...."  
+                     v-model="accessUserToSubmenu.searchAccessSubMenu"
+                     @input="onSearch">
+                    <span class="input-group-text bg-white"><i class="fa fa-search"></i></span>
+                </div>
+
+               
+                </div>
+            </div>
+          </div>
+
+          
+        <!-- Table -->
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped align-middle">
+
+              <!-- TABLE HEAD -->
+              <thead class="table-light">
+                <tr>
+                  <th style="width: 5%">No</th>
+                  <th style="width: 25%">Menu</th>
+                  <th style="width: 30%">Submenu</th>
+                  <th class="text-center">View</th>
+                  <th class="text-center">Create</th>
+                  <th class="text-center">Update</th>
+                  <th class="text-center">Delete</th>
+                </tr>
+              </thead>
+
+              <!-- LOADING -->
+              <tbody v-if="accessUserToSubmenu.loadingAccessSubMenu">
+                <tr>
+                  <td colspan="7" class="text-center py-4">
+                    <div class="spinner-border text-primary"></div>
+                  </td>
+                </tr>
+              </tbody>
+
+              
+                  <tbody v-else-if="accessUserToSubmenu.accessSubMenuData.length === 0">
+                    <tr>
+                      <td colspan="7" class="text-center">
+                        <div class="d-flex flex-column align-items-center justify-content-center">
+                          <img
+                            src="https://cdn.dribbble.com/users/285475/screenshots/2083086/dribbble_1.gif"
+                            alt="No data found"
+                            style="max-width: 250px; height: auto;"
+                            class="mb-3"
+                          />
+                          <p class="text-danger fw-bold fst-italic">
+                            <i class="fa fa-exclamation-circle me-1"></i>
+                            data access  not found.
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
+                  </tbody>
+
+              <!-- DATA -->
+              <tbody v-else>
+                <tr
+                    v-for="(acsm, index) in accessUserToSubmenu.accessSubMenuData"
+                    :key="`${acsm.id_user}-${acsm.id_submenu}`"
+                  >
+                  <!-- NO -->
+                  <td>
+                    {{
+                      index + 1 +
+                      accessUserToSubmenu.pagination.per_page *
+                        (accessUserToSubmenu.pagination.current_page - 1)
+                    }}
+                  </td>
+                  <!-- MENU -->
+                  <td>
+                    {{ acsm.menu_name ?? acsm.menu?.name ?? '-' }}
+                  </td>
+                  <!-- SUBMENU -->
+                  <td>
+                    {{ acsm.submenu_name ?? acsm.submenu?.title ?? '-' }}
+                  </td>
+                  <!-- VIEW -->
+                  <td class="text-center">
+                    <input
+                      type="checkbox"
+                      class="form-check-input"
+                      v-model="acsm.can_view"
+                      @change="accessUserToSubmenu.autoSavePermission(acsm)"
+                    />
+                  </td>
+                  <!-- CREATE -->
+                  <td class="text-center">
+                    <input
+                      type="checkbox"
+                      class="form-check-input"
+                      v-model="acsm.can_create"
+                      @change="accessUserToSubmenu.autoSavePermission(acsm)"
+                    />
+                  </td>
+                  <!-- UPDATE -->
+                  <td class="text-center">
+                    <input
+                      type="checkbox"
+                      class="form-check-input"
+                      v-model="acsm.can_update"
+                      @change="accessUserToSubmenu.autoSavePermission(acsm)"
+                    />
+                  </td>
+                  <!-- DELETE -->
+                  <td class="text-center">
+                    <input
+                      type="checkbox"
+                      class="form-check-input"
+                      v-model="acsm.can_delete"
+                      @change="accessUserToSubmenu.autoSavePermission(acsm)"
+                    />
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+
+          <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <button class="btn btn-danger btn-sm" 
+                 :disabled="!accessUserToSubmenu.pagination.prev_page_url || accessUserToSubmenu.loadingAccessSubMenu"
+                  @click="accessUserToSubmenu.fetchAccessSubMenu(accessUserToSubmenu.pagination.prev_page_url)">
+                <i class="fa-solid fa-circle-chevron-left"
+                ></i> Prev
+              </button>
+  
+                <div class="mx-2 d-flex flex-column flex-sm-row align-items-center gap-1">
+                    <span class="badge border text-secondary px-3 py-2"> {{ accessUserToSubmenu.accessSubMenuData.length }} data | on page {{ accessUserToSubmenu.pagination.current_page }}</span>
+                    <span class="badge border text-secondary px-3 py-2">Total: {{ accessUserToSubmenu.pagination.total }}</span>
+                </div>
+  
+                <button class="btn btn-danger btn-sm"
+                :disabled="!accessUserToSubmenu.pagination.next_page_url || accessUserToSubmenu.loadingAccessSubMenu"
+                  @click="accessUserToSubmenu.fetchAccessSubMenu(accessUserToSubmenu.pagination.next_page_url)"
+               >
+                    Next <i class="fa-solid fa-circle-chevron-right"></i>
+                </button>
+            </div>
+          </div>
+
+
+        <!-- Note -->
+        <div class="alert alert-light border mt-3 mb-0">
+          <small class="text-muted fst-italic">
+            Checklist submenu untuk mengatur hak akses user.
+          </small>
+        </div>
+      </div>
+      <!-- Footer -->
+      <div class="modal-footer">
+        <button
+          type="button"
+          class="btn btn-secondary"
+          data-bs-dismiss="modal"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+<!-- ### Modal Export Laporan --> 
+<div v-if="exportModalOpen" class="modal-backdrop fade show"></div>
+<div v-if="exportModalOpen" class="modal d-block" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Ekspor Laporan Invoice (excel)</h5>
+        <button type="button" class="btn-close" @click="exportModalOpen=false"></button>
+      </div>
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Pilih Tipe Ekspor</label>
+          <div class="d-flex gap-3">
+            <div class="form-check">
+              <input class="form-check-input" type="radio" v-model="exportType" value="month" id="exportByMonth">
+              <label class="form-check-label" for="exportByMonth">Bulan</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" v-model="exportType" value="date" id="exportByDate">
+              <label class="form-check-label" for="exportByDate">Tanggal</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" v-model="exportType" value="year" id="exportByYear">
+              <label class="form-check-label" for="exportByYear">Tahun</label>
+            </div>
+          </div>
+        </div>
+
+        <div v-if="exportType === 'month'" class="row g-2 mb-3">
+          <div class="col">
+            <label class="form-label">Bulan</label>
+            <select v-model="selectedMonth" class="form-select">
+              <option value="1">Januari</option>
+              <option value="2">Februari</option>
+              <option value="3">Maret</option>
+              <option value="4">April</option>
+              <option value="5">Mei</option>
+              <option value="6">Juni</option>
+              <option value="7">Juli</option>
+              <option value="8">Agustus</option>
+              <option value="9">September</option>
+              <option value="10">Oktober</option>
+              <option value="11">November</option>
+              <option value="12">Desember</option>
+            </select>
+          </div>
+          <div class="col">
+            <label class="form-label">Tahun</label>
+            <select v-model="selectedYear" class="form-select">
+              <option v-for="y in years" :key="y" :value="y">{{ y }}</option>
+            </select>
+          </div>
+        </div>
+
+        <div v-if="exportType === 'date'" class="row g-2 mb-3">
+          <div class="col">
+            <label class="form-label">Tanggal Mulai</label>
+            <input type="date" v-model="startDate" class="form-control" />
+          </div>
+          <div class="col">
+            <label class="form-label">Tanggal Akhir</label>
+            <input type="date" v-model="endDate" class="form-control" />
+          </div>
+        </div>
+        
+        <div v-if="exportType === 'year'" class="mb-3">
+          <label class="form-label">Pilih Tahun</label>
+          <select v-model="selectedYear" class="form-select">
+            <option v-for="y in years" :key="y" :value="y">{{ y }}</option>
+          </select>
+        </div>
+
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" @click="exportModalOpen=false">Batal</button>
+        <button class="btn btn-primary" @click="handleExport">Ekspor</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+
+
+<!-- ### Modal Export Laporan PDF --> 
+
+<div v-if="exportModalOpenPdf" class="modal-backdrop fade show"></div>
+<div v-if="exportModalOpenPdf" class="modal d-block" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Ekspor Laporan Invoice (PDF)</h5>
+        <button type="button" class="btn-close" @click="exportModalOpenPdf=false"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Pilih Tipe Ekspor</label>
+          <div class="d-flex gap-3">
+            <div class="form-check">
+              <input class="form-check-input" type="radio" v-model="exportTypePdf" value="month" id="exportByMonthPdf">
+              <label class="form-check-label" for="exportByMonthPdf">Bulan</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" v-model="exportTypePdf" value="date" id="exportByDatePdf">
+              <label class="form-check-label" for="exportByDatePdf">Tanggal</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="radio" v-model="exportTypePdf" value="year" id="exportByYearPdf">
+              <label class="form-check-label" for="exportByYearPdf">Tahun</label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Filter Bulan -->
+        <div v-if="exportTypePdf === 'month'" class="row g-2 mb-3">
+          <div class="col">
+            <label class="form-label">Bulan</label>
+            <select v-model="selectedMonthPdf" class="form-select">
+              <option value="1">Januari</option>
+              <option value="2">Februari</option>
+              <option value="3">Maret</option>
+              <option value="4">April</option>
+              <option value="5">Mei</option>
+              <option value="6">Juni</option>
+              <option value="7">Juli</option>
+              <option value="8">Agustus</option>
+              <option value="9">September</option>
+              <option value="10">Oktober</option>
+              <option value="11">November</option>
+              <option value="12">Desember</option>
+            </select>
+          </div>
+          <div class="col">
+            <label class="form-label">Tahun</label>
+            <select v-model="selectedYearPdf" class="form-select">
+              <option v-for="y in yearsPdf" :key="y" :value="y">{{ y }}</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Filter Tanggal -->
+        <div v-if="exportTypePdf === 'date'" class="row g-2 mb-3">
+          <div class="col">
+            <label class="form-label">Tanggal Mulai</label>
+            <input type="date" v-model="startDatePdf" class="form-control" />
+          </div>
+          <div class="col">
+            <label class="form-label">Tanggal Akhir</label>
+            <input type="date" v-model="endDatePdf" class="form-control" />
+          </div>
+        </div>
+
+        <!-- Filter Tahun -->
+        <div v-if="exportTypePdf === 'year'" class="mb-3">
+          <label class="form-label">Pilih Tahun</label>
+          <select v-model="selectedYearPdf" class="form-select">
+            <option v-for="y in yearsPdf" :key="y" :value="y">{{ y }}</option>
+          </select>
+        </div>
+
+        <div class="alert alert-info">
+          Klik tombol "Ekspor" untuk mendownload laporan dalam format PDF.
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" @click="exportModalOpenPdf=false">Batal</button>
+        <button class="btn btn-danger" @click="handleExportPdf">Ekspor PDF</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+<!-- ### Modal Import CSV --> 
+
+<div v-if="importCsvModalOpen" class="modal-backdrop fade show"></div>
+<div v-if="importCsvModalOpen" class="modal d-block" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Import Data CSV</h5>
+        <button type="button" class="btn-close" @click="importCsvModalOpen=false"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Pilih File CSV</label>
+          <input type="file" class="form-control" accept=".csv" @change="handleCsvFile" />
+        </div>
+
+        <div class="alert alert-info">
+          Pastikan format CSV sesuai template.
+          <a href="/template.csv" target="_blank">Download Template CSV</a>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" @click="importCsvModalOpen=false">Batal</button>
+        <button class="btn btn-primary" @click="handleImportCsv">Upload CSV</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+<!-- ### Modal Import Excel --> 
+
+<div v-if="importExcelModalOpen" class="modal-backdrop fade show"></div>
+<div v-if="importExcelModalOpen" class="modal d-block" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Import Data Excel</h5>
+        <button type="button" class="btn-close" @click="importExcelModalOpen=false"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Pilih File Excel</label>
+          <input type="file" class="form-control" accept=".xlsx,.xls" @change="handleExcelFile" />
+        </div>
+
+        <div class="alert alert-info">
+          Pastikan format kolom sesuai template.
+          <a href="/template.xlsx" target="_blank">Download Template Excel</a>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" @click="importExcelModalOpen=false">Batal</button>
+        <button class="btn btn-primary" @click="handleImportExcel">Upload Excel</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+  </backendLayouts>
+</template>
+
+
+<style scoped>
+
+.multiselect-wrapper.is-invalid .multiselect {
+  border-color: #dc3545;
+}
+
+.multiselect-wrapper.is-invalid .multiselect:focus-within {
+  box-shadow: 0 0 0 0.25rem rgba(220, 53, 69, 0.25);
+}
+
+</style>
