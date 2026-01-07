@@ -132,6 +132,27 @@ class Attendance extends Controller
             }
 
 
+            public function showAttendance(string $id)
+                {
+                    $attendance = $this->Attendances
+                        ->with(['user', 'employee'])
+                        ->find($id);
+
+                    if (!$attendance) {
+                        return ApiResponse::error('Attendance not found', [
+                            'id' => ['Data with that ID is not available']
+                        ], 404);
+                    }
+
+                    return ApiResponse::success(
+                        new AttendanceResource($attendance),
+                        'Success, take the detailed Attendance',
+                        200
+                    );
+                }
+
+
+
 
         public function storeAttendanceFreeLocation(AttendanceValidationRequest $request)
         {
