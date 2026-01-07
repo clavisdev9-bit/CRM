@@ -178,14 +178,9 @@ class Attendance extends Controller
                     DB::rollBack();
                     return ApiResponse::error('Anda sudah Check Out hari ini', 422);
                 }
-
-
                 $deviceType = $this->detectDeviceTypeFromUserAgent();
-           
                 // ===== FOTO =====
-               
                 $photoName = null;
-
                 if ($request->hasFile('photo_path')) {
                     $file = $request->file('photo_path');
 
@@ -213,15 +208,22 @@ class Attendance extends Controller
                     );
                 }
 
-                $accuracyStatus = 'ACCURATE';
+                //  code untuk ambil attendance_mode dari tabel employee
+                 $employee = MsEmployee::find($user->id_user);
+                    if (!$employee) {
+                        DB::rollBack();
+                        return ApiResponse::error('Employee tidak ditemukan', 422);
+                    }
 
-                // ===== SAVE =====
+                     $attendanceMode = $employee->attendance_mode ?? 'FREE'; 
+                     
+                        // ===== SAVE =====
                         $attendance = Attendances::create([
                                 'user_id'         => $user->id_user,
                                 'employee_id'     => $user->id_user,
 
                                 //  INI SEKARANG AKAN MASUK DB
-                                'attendance_mode' => 'FREE',
+                                'attendance_mode' => $attendanceMode,
 
                                  'attendance_type' => $request->attendance_type,
 
@@ -266,266 +268,262 @@ class Attendance extends Controller
 
 
 
-// code untuk attendance office
-private function calculateDistance($lat1, $lon1, $lat2, $lon2)
-{
-    $earthRadius = 6371000; // meter
+            // code untuk attendance office
+            private function calculateDistance($lat1, $lon1, $lat2, $lon2)
+            {
+                $earthRadius = 6371000; // meter
 
-    $lat1 = deg2rad($lat1);
-    $lon1 = deg2rad($lon1);
-    $lat2 = deg2rad($lat2);
-    $lon2 = deg2rad($lon2);
+                $lat1 = deg2rad($lat1);
+                $lon1 = deg2rad($lon1);
+                $lat2 = deg2rad($lat2);
+                $lon2 = deg2rad($lon2);
 
-    $dLat = $lat2 - $lat1;
-    $dLon = $lon2 - $lon1;
+                $dLat = $lat2 - $lat1;
+                $dLon = $lon2 - $lon1;
 
-    $a = sin($dLat / 2) ** 2 +
-         cos($lat1) * cos($lat2) *
-         sin($dLon / 2) ** 2;
+                $a = sin($dLat / 2) ** 2 +
+                    cos($lat1) * cos($lat2) *
+                    sin($dLon / 2) ** 2;
 
-    $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+                $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
 
-    return $earthRadius * $c;
-}
-
-
-
-
-
-public function storeAttendanceOffice(AttendanceValidationRequest $request)
-{
-    $user = auth('api')->user();
-    if (!$user) {
-        return ApiResponse::error('Unauthenticated', 401);
-    }
-
-    $now   = now()->timezone('Asia/Jakarta');
-    $today = $now->toDateString();
-
-    // ===== VALIDASI DASAR =====
-    if (!in_array($request->attendance_type, ['IN', 'OUT'])) {
-        return ApiResponse::error('Attendance type tidak valid', 422);
-    }
-
-    try {
-        DB::beginTransaction();
-
-        // ===== LOCK HARI INI =====
-        $todayAttendances = Attendances::where('user_id', $user->id_user)
-            ->whereDate('attendance_date', $today)
-            ->lockForUpdate()
-            ->get();
-
-        $hasCheckIn  = $todayAttendances->where('attendance_type', 'IN')->isNotEmpty();
-        $hasCheckOut = $todayAttendances->where('attendance_type', 'OUT')->isNotEmpty();
-
-        if ($request->attendance_type === 'OUT' && !$hasCheckIn) {
-            DB::rollBack();
-            return ApiResponse::error('Tidak bisa Check Out sebelum Check In', 422);
-        }
-
-        if ($request->attendance_type === 'IN' && $hasCheckIn) {
-            DB::rollBack();
-            return ApiResponse::error('Anda sudah Check In hari ini', 422);
-        }
-
-        if ($request->attendance_type === 'OUT' && $hasCheckOut) {
-            DB::rollBack();
-            return ApiResponse::error('Anda sudah Check Out hari ini', 422);
-        }
-
-        // ===== OFFICE DATA (HARDCODE / DB) =====
-        $officeLat = -6.2000000;
-        $officeLng = 106.8166667;
-        $allowedRadius = 100; // meter
-
-        // ===== HITUNG JARAK =====
-        $distance = $this->calculateDistance(
-            $request->latitude,
-            $request->longitude,
-            $officeLat,
-            $officeLng
-        );
-
-        // ===== POLICY =====
-        if ($distance > $allowedRadius) {
-            DB::rollBack();
-            return ApiResponse::error(
-                'Anda berada di luar radius kantor',
-                422
-            );
-        }
-
-        // ===== STATUS =====
-        $attendanceStatus = 'ONTIME';
-        if ($request->attendance_type === 'IN' && $now->format('H:i') > '08:30') {
-            $attendanceStatus = 'LATE';
-        }
-
-        // ===== FOTO =====
-        $photoPath = null;
-        if ($request->hasFile('photo_path')) {
-            $photoPath = $request->file('photo_path')
-                ->store('attendance/photos', 'public');
-        }
-
-        // ===== SAVE =====
-        $attendance = Attendances::create([
-            'user_id'         => $user->id_user,
-            'employee_id'     => $user->id_user,
-
-            'attendance_mode' => 'OFFICE',
-
-            'attendance_type' => $request->attendance_type,
-            'attendance_date' => $today,
-            'attendance_time' => $now->format('H:i:s'),
-            'attendance_datetime' => $now,
-
-            'photo_path'      => $photoPath,
-
-            'location_name'   => $request->location_name,
-            'latitude'        => $request->latitude,
-            'longitude'       => $request->longitude,
-            'accuracy'        => $request->accuracy,
-
-            'accuracy_status' => 'HIGH',
-
-            'policy_status'   => 'ALLOWED',
-            'policy_reason'   => 'Inside office radius',
-
-            // ===== OFFICE SNAPSHOT =====
-            'office_latitude'       => $officeLat,
-            'office_longitude'      => $officeLng,
-            'distance_from_office'  => round($distance, 2),
-            'allowed_radius'        => $allowedRadius,
-
-            'device_type'     => $request->device_type,
-            'ip_address'      => request()->ip(),
-
-            'attendance_status' => 'READY',
-        ]);
-
-        DB::commit();
-
-        return ApiResponse::success(
-            new AttendanceResource($attendance),
-            'Attendance OFFICE berhasil disimpan'
-        );
-
-    } catch (\Throwable $e) {
-        DB::rollBack();
-        return ApiResponse::error(
-            "Error: {$e->getMessage()}",
-            500
-        );
-    }
-}
-
-
-
-public function deleteAttendance($id_attendance)
-{
-    try {
-        // ===== FIND ATTENDANCE =====
-        $attendance = Attendances::findOrFail($id_attendance);
-
-        // ===== DELETE PHOTO =====
-        if ($attendance->photo_path && Storage::disk('public')->exists($attendance->photo_path)) {
-            Storage::disk('public')->delete($attendance->photo_path);
-        }
-
-        // ===== SOFT / HARD DELETE =====
-        $attendance->delete(); // soft delete if model uses SoftDeletes
-
-        return ApiResponse::success(
-            null,
-            'Attendance successfully deleted'
-        );
-
-    } catch (ModelNotFoundException $e) {
-        return ApiResponse::error(
-            'Attendance not found',
-            404
-        );
-    } catch (\Throwable $e) {
-        return ApiResponse::error(
-            'Failed to delete attendance',
-            config('app.debug') ? ['exception' => $e->getMessage()] : null,
-            500
-        );
-    }
-}
+                return $earthRadius * $c;
+            }
 
 
 
 
-public function updateAttendance(Request $request, $id_attendance)
-    {
-        try {
-            // ===== FIND ATTENDANCE =====
-            $attendance = Attendances::findOrFail($id_attendance);
 
-            // ===== VALIDATION =====
-          $request->validate([
-                'attendance_datetime' => 'nullable|date', // timestamp
-                'attendance_date'     => 'nullable|date', // date
-                'attendance_time'     => 'nullable|date_format:H:i', // time
-                'photo_path'               => 'nullable|image|max:2048',
-                'noted'               => 'nullable|string|max:255',
-            ]);
+            public function storeAttendanceOffice(AttendanceValidationRequest $request)
+            {
+                $user = auth('api')->user();
+                if (!$user) {
+                    return ApiResponse::error('Unauthenticated', 401);
+                }
+
+                $now   = now()->timezone('Asia/Jakarta');
+                $today = $now->toDateString();
+
+                // ===== VALIDASI DASAR =====
+                if (!in_array($request->attendance_type, ['IN', 'OUT'])) {
+                    return ApiResponse::error('Attendance type tidak valid', 422);
+                }
+
+                try {
+                    DB::beginTransaction();
+
+                    // ===== LOCK HARI INI =====
+                    $todayAttendances = Attendances::where('user_id', $user->id_user)
+                        ->whereDate('attendance_date', $today)
+                        ->lockForUpdate()
+                        ->get();
+
+                    $hasCheckIn  = $todayAttendances->where('attendance_type', 'IN')->isNotEmpty();
+                    $hasCheckOut = $todayAttendances->where('attendance_type', 'OUT')->isNotEmpty();
+
+                    if ($request->attendance_type === 'OUT' && !$hasCheckIn) {
+                        DB::rollBack();
+                        return ApiResponse::error('Tidak bisa Check Out sebelum Check In', 422);
+                    }
+
+                    if ($request->attendance_type === 'IN' && $hasCheckIn) {
+                        DB::rollBack();
+                        return ApiResponse::error('Anda sudah Check In hari ini', 422);
+                    }
+
+                    if ($request->attendance_type === 'OUT' && $hasCheckOut) {
+                        DB::rollBack();
+                        return ApiResponse::error('Anda sudah Check Out hari ini', 422);
+                    }
+
+                    // ===== OFFICE DATA (HARDCODE / DB) =====
+                    $officeLat = -6.2000000;
+                    $officeLng = 106.8166667;
+                    $allowedRadius = 100; // meter
+
+                    // ===== HITUNG JARAK =====
+                    $distance = $this->calculateDistance(
+                        $request->latitude,
+                        $request->longitude,
+                        $officeLat,
+                        $officeLng
+                    );
+
+                    // ===== POLICY =====
+                    if ($distance > $allowedRadius) {
+                        DB::rollBack();
+                        return ApiResponse::error(
+                            'Anda berada di luar radius kantor',
+                            422
+                        );
+                    }
+
+                    // ===== STATUS =====
+                    $attendanceStatus = 'ONTIME';
+                    if ($request->attendance_type === 'IN' && $now->format('H:i') > '08:30') {
+                        $attendanceStatus = 'LATE';
+                    }
+
+                    // ===== FOTO =====
+                    $photoPath = null;
+                    if ($request->hasFile('photo_path')) {
+                        $photoPath = $request->file('photo_path')
+                            ->store('attendance/photos', 'public');
+                    }
+
+                    // ===== SAVE =====
+                    $attendance = Attendances::create([
+                        'user_id'         => $user->id_user,
+                        'employee_id'     => $user->id_user,
+
+                        'attendance_mode' => 'OFFICE',
+
+                        'attendance_type' => $request->attendance_type,
+                        'attendance_date' => $today,
+                        'attendance_time' => $now->format('H:i:s'),
+                        'attendance_datetime' => $now,
+
+                        'photo_path'      => $photoPath,
+
+                        'location_name'   => $request->location_name,
+                        'latitude'        => $request->latitude,
+                        'longitude'       => $request->longitude,
+                        'accuracy'        => $request->accuracy,
+
+                        'accuracy_status' => 'HIGH',
+
+                        'policy_status'   => 'ALLOWED',
+                        'policy_reason'   => 'Inside office radius',
+
+                        // ===== OFFICE SNAPSHOT =====
+                        'office_latitude'       => $officeLat,
+                        'office_longitude'      => $officeLng,
+                        'distance_from_office'  => round($distance, 2),
+                        'allowed_radius'        => $allowedRadius,
+
+                        'device_type'     => $request->device_type,
+                        'ip_address'      => request()->ip(),
+
+                        'attendance_status' => 'READY',
+                    ]);
+
+                    DB::commit();
+
+                    return ApiResponse::success(
+                        new AttendanceResource($attendance),
+                        'Attendance OFFICE berhasil disimpan'
+                    );
+
+                } catch (\Throwable $e) {
+                    DB::rollBack();
+                    return ApiResponse::error(
+                        "Error: {$e->getMessage()}",
+                        500
+                    );
+                }
+            }
 
 
-            
-          
 
-// ===== UPDATE PHOTO =====
-if ($request->hasFile('photo_path')) {
-    $file = $request->file('photo_path');
+            public function deleteAttendance($id_attendance)
+            {
+                try {
+                    // ===== FIND ATTENDANCE =====
+                    $attendance = Attendances::findOrFail($id_attendance);
 
-    // Hapus foto lama jika ada
-    if ($attendance->photo_path && Storage::disk('public')->exists('attendance/photos/' . $attendance->photo_path)) {
-        Storage::disk('public')->delete('attendance/photos/' . $attendance->photo_path);
-    }
+                    // ===== DELETE PHOTO =====
+                    if ($attendance->photo_path && Storage::disk('public')->exists($attendance->photo_path)) {
+                        Storage::disk('public')->delete($attendance->photo_path);
+                    }
 
-    // Nama file unik: update-YYYYMMDD-HHMMSS-random
-    $timestamp = date('Ymd-His'); // 20260107-143012
-    $random = Str::random(5);     // abc12
-    $photoName = "update-{$timestamp}-{$random}." . $file->getClientOriginalExtension();
+                    // ===== SOFT / HARD DELETE =====
+                    $attendance->delete(); // soft delete if model uses SoftDeletes
 
-    // Simpan file di folder 'attendance/photos'
-    $file->storeAs('attendance/photos', $photoName, 'public');
+                    return ApiResponse::success(
+                        null,
+                        'Attendance successfully deleted'
+                    );
 
-    // Simpan nama file saja di database
-    $attendance->photo_path = $photoName;
-}
+                } catch (ModelNotFoundException $e) {
+                    return ApiResponse::error(
+                        'Attendance not found',
+                        404
+                    );
+                } catch (\Throwable $e) {
+                    return ApiResponse::error(
+                        'Failed to delete attendance',
+                        config('app.debug') ? ['exception' => $e->getMessage()] : null,
+                        500
+                    );
+                }
+            }
 
 
-            // ===== UPDATE FIELD LAIN YANG BOLEH DIEDIT =====
-           $attendance->attendance_datetime = $request->attendance_datetime ?? $attendance->attendance_datetime;
-            $attendance->attendance_date     = $request->attendance_date ?? $attendance->attendance_date;
-            $attendance->attendance_time     = $request->attendance_time ?? $attendance->attendance_time;
-            $attendance->noted               = $request->noted ?? $attendance->noted;
 
-            // if ($request->has('note')) {
-            //     $attendance->note = $request->note;
-            // }
 
-            $attendance->save();
+            public function updateAttendance(Request $request, $id_attendance)
+                {
+                    try {
+                        // ===== FIND ATTENDANCE =====
+                        $attendance = Attendances::findOrFail($id_attendance);
 
-            // ===== RESPONSE =====
-            return ApiResponse::success(
-                $attendance,
-                'Attendance updated successfully'
-            );
+                        // ===== VALIDATION =====
+                    $request->validate([
+                            'attendance_datetime' => 'nullable|date', // timestamp
+                            'attendance_date'     => 'nullable|date', // date
+                            'attendance_time'     => 'nullable|date_format:H:i', // time
+                            'photo_path'          => 'nullable|image|max:2048',
+                            'noted'               => 'nullable|string|max:255',
+                        ]);
 
-        } catch (ModelNotFoundException $e) {
-            return ApiResponse::error('Attendance not found', 404);
-        } catch (\Throwable $e) {
-            return ApiResponse::error(
-                'Failed to update attendance',
-                config('app.debug') ? ['exception' => $e->getMessage()] : null,
-                500
-            );
-        }
-    }
+
+                        
+                    
+
+                        // ===== UPDATE PHOTO =====
+                        if ($request->hasFile('photo_path')) {
+                            $file = $request->file('photo_path');
+
+                            // Hapus foto lama jika ada
+                            if ($attendance->photo_path && Storage::disk('public')->exists('attendance/photos/' . $attendance->photo_path)) {
+                                Storage::disk('public')->delete('attendance/photos/' . $attendance->photo_path);
+                            }
+
+                            // Nama file unik: update-YYYYMMDD-HHMMSS-random
+                            $timestamp = date('Ymd-His'); // 20260107-143012
+                            $random = Str::random(5);     // abc12
+                            $photoName = "update-{$timestamp}-{$random}." . $file->getClientOriginalExtension();
+
+                            // Simpan file di folder 'attendance/photos'
+                            $file->storeAs('attendance/photos', $photoName, 'public');
+
+                            // Simpan nama file saja di database
+                            $attendance->photo_path = $photoName;
+                        }
+
+
+                        // ===== UPDATE FIELD LAIN YANG BOLEH DIEDIT =====
+                    $attendance->attendance_datetime = $request->attendance_datetime ?? $attendance->attendance_datetime;
+                        $attendance->attendance_date     = $request->attendance_date ?? $attendance->attendance_date;
+                        $attendance->attendance_time     = $request->attendance_time ?? $attendance->attendance_time;
+                        $attendance->noted               = $request->noted ?? $attendance->noted;
+
+                        $attendance->save();
+
+                        // ===== RESPONSE =====
+                        return ApiResponse::success(
+                            $attendance,
+                            'Attendance updated successfully'
+                        );
+
+                    } catch (ModelNotFoundException $e) {
+                        return ApiResponse::error('Attendance not found', 404);
+                    } catch (\Throwable $e) {
+                        return ApiResponse::error(
+                            'Failed to update attendance',
+                            config('app.debug') ? ['exception' => $e->getMessage()] : null,
+                            500
+                        );
+                    }
+                }
 }
