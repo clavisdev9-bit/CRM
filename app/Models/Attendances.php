@@ -19,33 +19,43 @@ class Attendances extends Model
     public $incrementing = true;
 
     // Mengaktifkan created_at dan updated_at secara otomatis
-    public $timestamps = true;
+    // public $timestamps = true;
 
     /**
      * Kolom yang boleh diisi secara mass-assignment.
      * Sesuaikan dengan kolom yang ada di screenshot database kamu.
      */
-    protected $fillable = [
+     protected $fillable = [
         'user_id',
         'employee_id',
+
+        //  WAJIB DITAMBAHKAN
+        'attendance_mode',
+
         'attendance_type',
         'attendance_datetime',
         'attendance_date',
         'attendance_time',
+
         'photo_path',
+
         'latitude',
         'longitude',
         'accuracy',
         'location_name',
+
         'accuracy_status',
         'policy_status',
         'policy_reason',
+
         'office_latitude',
         'office_longitude',
         'distance_from_office',
         'allowed_radius',
+
         'device_type',
         'ip_address',
+
         'attendance_status',
     ];
 
@@ -53,13 +63,13 @@ class Attendances extends Model
      * Jika ingin casting tipe data secara otomatis
      * (Opsional, tapi sangat disarankan untuk tanggal)
      */
-    protected $casts = [
-        'attendance_datetime' => 'datetime',
-        'attendance_date' => 'date',
-        'distance_from_office' => 'double',
-        'latitude' => 'double',
-        'longitude' => 'double',
-    ];
+    // protected $casts = [
+    //     'attendance_datetime' => 'datetime',
+    //     'attendance_date' => 'date',
+    //     'distance_from_office' => 'double',
+    //     'latitude' => 'double',
+    //     'longitude' => 'double',
+    // ];
 
     public function user()
     {

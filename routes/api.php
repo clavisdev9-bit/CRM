@@ -94,6 +94,13 @@ Route::get('/employee-available-users',[Master::class, 'getAvailableUsers'])->na
 // api User Attendance app
 Route::get('/attendance-management', [Attendance::class, 'GetAttendanceById'])->name('api.attendance.management');
 Route::get('/attendance/check-today', [Attendance::class, 'checkToday'])->name('api.attendance.check.today');
+//ini untuk sales 
+Route::post('/attendance/process-free-location', [Attendance::class, 'storeAttendanceFreeLocation'])->name('api.attendance.process.free.location');
+//ini untuk office 
+Route::post('/attendance/process-office-location', [Attendance::class, 'storeAttendanceForOffice'])->name('api.attendance.process.office.location');
+Route::delete('/attendance/delete/{id_attendance}', [Attendance::class, 'deleteAttendance'])->name('api.delete.attendance');
+// Route::put('/attendance/update/{id}', [Attendance::class, 'updateAttendance'])->name('api.update.attendance');
+Route::Post('/attendance/update/{id}', [Attendance::class, 'updateAttendance'])->name('api.update.attendance');
 
 });
 

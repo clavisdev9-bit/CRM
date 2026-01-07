@@ -15,6 +15,9 @@ return new class extends Migration
             $table->unsignedBigInteger('user_id');
             $table->unsignedBigInteger('employee_id');
 
+            // ===== MODE =====
+            $table->enum('attendance_mode', ['OFFICE', 'FREE']);
+
             // ===== ATTENDANCE CORE =====
             $table->enum('attendance_type', ['IN', 'OUT']);
             $table->dateTime('attendance_datetime');
@@ -31,32 +34,38 @@ return new class extends Migration
             $table->text('location_name');
 
             // ===== VALIDATION RESULT =====
-            $table->enum('accuracy_status', ['HIGH', 'MEDIUM', 'LOW', 'IGNORED']);
-            $table->enum('policy_status', ['ALLOWED', 'WARNING', 'REJECTED']);
+            $table->enum(
+                'accuracy_status',
+                ['HIGH', 'MEDIUM', 'LOW', 'IGNORED']
+            )->nullable();
+
+            $table->enum(
+                'policy_status',
+                ['ALLOWED', 'WARNING', 'REJECTED']
+            )->nullable();
+
             $table->string('policy_reason', 100)->nullable();
 
             // ===== OFFICE SNAPSHOT =====
             $table->decimal('office_latitude', 10, 7)->nullable();
             $table->decimal('office_longitude', 10, 7)->nullable();
-            $table->decimal('distance_from_office', 8, 2)
-                  ->nullable()
-                  ->comment('meter');
-            $table->decimal('allowed_radius', 8, 2)
-                  ->nullable()
-                  ->comment('meter');
+            $table->decimal('distance_from_office', 8, 2)->nullable()->comment('meter');
+            $table->decimal('allowed_radius', 8, 2)->nullable()->comment('meter');
 
             // ===== DEVICE =====
-            $table->enum('device_type', ['DESKTOP', 'MOBILE']);
+            $table->enum('device_type', ['DESKTOP', 'MOBILE', 'WEB']);
             $table->string('ip_address', 45)->nullable();
+            $table->text('noted')->nullable();
 
             // ===== STATUS =====
-            $table->enum('attendance_status', ['DRAFT', 'READY', 'SENT', 'REJECTED'])
-                  ->default('READY');
+            $table->enum(
+                'attendance_status',
+                ['DRAFT', 'READY', 'SENT', 'REJECTED']
+            )->default('READY');
 
-            // ===== TIMESTAMP =====
-            $table->timestamp('created_at')->useCurrent();
+            $table->timestamps();
 
-            // ===== FOREIGN KEY =====
+            // ===== FK =====
             $table->foreign('user_id')
                   ->references('id_user')
                   ->on('ms_users')
@@ -78,3 +87,4 @@ return new class extends Migration
         Schema::dropIfExists('attendances');
     }
 };
+

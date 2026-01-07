@@ -15,14 +15,16 @@ class AttendanceSeeder extends Seeder
         DB::table('attendances')->insert([
             /**
              * ======================
-             * ATTENDANCE IN
+             * ATTENDANCE IN (OFFICE)
              * ======================
              */
             [
                 'user_id' => 1,
                 'employee_id' => 1,
 
+                'attendance_mode' => 'OFFICE',
                 'attendance_type' => 'IN',
+
                 'attendance_datetime' => $today->copy()->setTime(8, 5),
                 'attendance_date' => $today,
                 'attendance_time' => '08:05:00',
@@ -36,7 +38,7 @@ class AttendanceSeeder extends Seeder
 
                 'accuracy_status' => 'HIGH',
                 'policy_status' => 'ALLOWED',
-                'policy_reason' => null,
+                'policy_reason' => 'Inside office radius',
 
                 'office_latitude' => -6.2000000,
                 'office_longitude' => 106.8166667,
@@ -45,21 +47,25 @@ class AttendanceSeeder extends Seeder
 
                 'device_type' => 'MOBILE',
                 'ip_address' => '192.168.1.10',
+                'noted' => 'Data default demo',
 
                 'attendance_status' => 'READY',
                 'created_at' => now(),
+                'updated_at' => now(),
             ],
 
             /**
              * ======================
-             * ATTENDANCE OUT
+             * ATTENDANCE OUT (OFFICE)
              * ======================
              */
             [
                 'user_id' => 1,
                 'employee_id' => 1,
 
+                'attendance_mode' => 'OFFICE',
                 'attendance_type' => 'OUT',
+
                 'attendance_datetime' => $today->copy()->setTime(17, 15),
                 'attendance_date' => $today,
                 'attendance_time' => '17:15:00',
@@ -73,7 +79,7 @@ class AttendanceSeeder extends Seeder
 
                 'accuracy_status' => 'HIGH',
                 'policy_status' => 'ALLOWED',
-                'policy_reason' => null,
+                'policy_reason' => 'Inside office radius',
 
                 'office_latitude' => -6.2000000,
                 'office_longitude' => 106.8166667,
@@ -82,9 +88,11 @@ class AttendanceSeeder extends Seeder
 
                 'device_type' => 'MOBILE',
                 'ip_address' => '192.168.1.10',
+                 'noted' => 'Data default demo',
 
                 'attendance_status' => 'READY',
                 'created_at' => now(),
+                'updated_at' => now(),
             ],
         ]);
     }
