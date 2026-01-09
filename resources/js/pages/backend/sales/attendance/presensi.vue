@@ -6,6 +6,7 @@ import { useDataAttendanceStore } from '../../../../stores/AttendanceFreeLocatio
 import { useMenuStore } from "@/stores/menuStore";
 import { toasts } from "@/utils/toasts"
 import { useRoute, useRouter } from "vue-router";
+
 import Swal from 'sweetalert2'
 const PagesTitle = 'Attendance Presensi'
 
@@ -104,8 +105,6 @@ const photoPreview = computed(() => {
 })
 
 
-
-
 const getAddressFromLatLng = async (lat, lng) => {
   try {
     address.value = 'Detecting address...'
@@ -177,8 +176,6 @@ onUnmounted(() => clearInterval(timer))
 // end code frontend camera and location
 
 
-
-
 // start code untuk get(view) data attendance by user
 onMounted(async () => {
   try {
@@ -231,7 +228,7 @@ const groupedAttendance = computed(() => {
       formattedDate: formatDateID(dateKey),
       in: null,
       out: null,
-      attendance_status: item.attendance_status // ⬅️ AMBIL DARI BACKEND
+      attendance_status: item.attendance_status // AMBIL DARI BACKEND
     }
   }
 
@@ -270,9 +267,14 @@ watch(
 
 
 
-
-
 // start code untuk submit data attendance by user
+
+const attendanceTypeLabel = computed(() => {
+  return attendanceType.value === 'IN' ? 'In' : 'Out'
+})
+
+
+
 const isSubmitDisabled = computed(() => {
   return (
     saving.value ||          // sedang submit
@@ -281,9 +283,6 @@ const isSubmitDisabled = computed(() => {
     !longitude.value         // (kalau dipakai)
   )
 })
-
-
-
 
 
 
@@ -315,14 +314,30 @@ const submitAttendance = async () => {
       device_type: 'WEB'
     })
 
+      //  TUTUP MODAL
+    const modalEl = document.getElementById('modal-presensi')
+    if (modalEl && window.bootstrap) {
+      const modal = window.bootstrap.Modal.getInstance(modalEl)
+        || new window.bootstrap.Modal(modalEl)
+      modal.hide()
+    }
+
     Swal.fire({
       icon: 'success',
       title: 'Success',
-      text: `Check ${attendanceType.value} berhasil`
+      text: `attendance ${attendanceType.value} success`,
+      showConfirmButton: false,
+      timer: 1500
     })
+
+    
+
 
     // reset
     photo.value = null
+
+    //  WAJIB: refresh status attendance hari ini
+  await dataAttendances.fetchAttendanceToday()
 
   } catch (err) {
     Swal.fire(
@@ -397,39 +412,37 @@ const submitAttendance = async () => {
 
  
 
-<div class="d-flex flex-column align-items-center gap-2">
+        <div class="d-flex flex-column align-items-center gap-2">
+          <!-- Tombol IN & OUT -->
+          <div class="d-flex justify-content-center gap-3 flex-wrap">
+            <button
+              class="btn btn-outline-primary"
+              data-bs-toggle="modal"
+              data-bs-target="#modal-presensi"
+              @click="attendanceType = 'IN'"
+              :disabled="dataAttendances.hasAttendanceToday && dataAttendances.attendanceStatus !== 'OUT'"
+            >
+              <i class="fa-solid fa-camera-rotate"></i> Presensi IN
+            </button>
 
-  <!-- Tombol IN & OUT -->
-  <div class="d-flex justify-content-center gap-3 flex-wrap">
-    <button
-      class="btn btn-outline-primary"
-      data-bs-toggle="modal"
-      data-bs-target="#modal-presensi"
-      @click="attendanceType = 'IN'"
-      :disabled="dataAttendances.hasAttendanceToday && dataAttendances.attendanceStatus !== 'OUT'"
-    >
-      <i class="fa-solid fa-camera-rotate"></i> Presensi IN
-    </button>
+            <button
+              class="btn btn-outline-success"
+              data-bs-toggle="modal"
+              data-bs-target="#modal-presensi"
+              @click="attendanceType = 'OUT'"
+              :disabled="!dataAttendances.hasAttendanceToday || dataAttendances.attendanceStatus === 'COMPLETE'"
+            >
+            <i class="fa-solid fa-camera-rotate"></i>  Presensi OUT
+            </button>
+          </div>
 
-    <button
-      class="btn btn-outline-success"
-      data-bs-toggle="modal"
-      data-bs-target="#modal-presensi"
-      @click="attendanceType = 'OUT'"
-      :disabled="!dataAttendances.hasAttendanceToday || dataAttendances.attendanceStatus === 'COMPLETE'"
-    >
-    <i class="fa-solid fa-camera-rotate"></i>  Presensi OUT
-    </button>
-  </div>
-
-  <!-- Tombol/Label "Sudah Absen" muncul hanya setelah check-in & check-out selesai -->
-  <div v-if="dataAttendances.attendanceStatus === 'COMPLETE'" class="mt-2 text-center">
-    <button class="btn btn-secondary" disabled>
-      You are absent today
-    </button>
-  </div>
-
-</div>
+          <!-- Tombol/Label "Sudah Absen" muncul hanya setelah check-in & check-out selesai -->
+          <div v-if="dataAttendances.attendanceStatus === 'COMPLETE'" class="mt-2 text-center">
+            <button class="btn btn-secondary" disabled>
+              You are absent today
+            </button>
+          </div>
+        </div>
 </div>
 
            
@@ -873,7 +886,7 @@ const submitAttendance = async () => {
                 <hr>
 
                 <!-- LOCATION -->
-                <strong>Lokasi</strong>
+                <strong>Location</strong>
                 <p class="mb-1">
                   {{ dataAttendances.attendanceDetail.location_name }}
                 </p>
@@ -971,7 +984,6 @@ const submitAttendance = async () => {
 
           <!-- RIGHT -->
           <div class="col-12 col-lg-6">
-
             <!-- Result Photo -->
             <div class="card mb-3">
               <div class="card-body text-center">
@@ -994,10 +1006,14 @@ const submitAttendance = async () => {
             <!-- Attendance Info -->
             <div class="card">
               <div class="card-body">
+              <h6 class="fw-semibold mb-3 text-center">
+                <i
+                  class="fa me-1"
+                  :class="attendanceType === 'IN' ? 'fa-sign-in-alt text-success' : 'fa-sign-out-alt text-danger'"
+                ></i>
+                Presensi {{ attendanceTypeLabel }}
+              </h6>
 
-                <h6 class="fw-semibold mb-3 text-center">
-                  Presensi In
-                </h6>
 
                 <div class="row align-items-center mb-2">
                   <label class="col-5 col-sm-4 col-form-label">Presence Time</label>
@@ -1193,6 +1209,8 @@ const submitAttendance = async () => {
 
       <!-- Footer -->
       <div class="modal-footer">
+         
+  
         <button class="btn btn-secondary btn-link link-secondary" data-bs-dismiss="modal">
          <i class="fa-solid fa-arrow-left"></i> Cancel
         </button>
