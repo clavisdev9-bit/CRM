@@ -11,7 +11,7 @@ class AttendanceValidationIndex extends FormRequest
      /**
      * Determine if the user is authorized to make this request.
      */
-    protected array $allowedSortFields = ['attendance_datetime','created_at'];
+    protected array $allowedSortFields = ['attendance_date','created_at'];
     public function authorize(): bool
     {
         return true;

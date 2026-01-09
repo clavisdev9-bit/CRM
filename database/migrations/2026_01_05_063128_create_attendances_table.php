@@ -53,15 +53,22 @@ return new class extends Migration
             $table->decimal('allowed_radius', 8, 2)->nullable()->comment('meter');
 
             // ===== DEVICE =====
-            $table->enum('device_type', ['DESKTOP', 'MOBILE', 'WEB']);
+            $table->enum('device_type', ['DESKTOP', 'MOBILE', 'WEB','ANDROID','IOS']); 
             $table->string('ip_address', 45)->nullable();
             $table->text('noted')->nullable();
 
-            // ===== STATUS =====
+            
             $table->enum(
                 'attendance_status',
-                ['DRAFT', 'READY', 'SENT', 'REJECTED']
+                [
+                    'DRAFT',      // data sementara / belum final
+                    'READY',      // siap diproses / validasi
+                    'COMPLETED',  // absensi sukses (tepat waktu / normal)
+                    'LATE',       // terlambat (khusus IN)
+                    'REJECTED'    // ditolak (policy / accuracy / dll)
+                ]
             )->default('READY');
+
 
             $table->timestamps();
 

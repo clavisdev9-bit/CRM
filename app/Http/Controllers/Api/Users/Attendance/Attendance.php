@@ -90,18 +90,35 @@ class Attendance extends Controller
 
             $userId = $user->id_user;
 
+            // $query = $this->Attendances
+            //     ->with(['user', 'employee'])
+            //     ->where('user_id', $userId)
+            //     ->when($onlyDeleted, fn ($q) => $q->onlyTrashed())
+            //     ->when($search, function ($q) use ($search) {
+            //         $q->where(function ($sub) use ($search) {
+            //             $sub->where('location_name', 'ILIKE', "%{$search}%")
+            //                 ->orWhere('attendance_type', 'ILIKE', "%{$search}%")
+            //                 ->orWhere('attendance_datetime', 'ILIKE', "%{$search}%")
+            //                 ->orWhere('attendance_date', 'ILIKE', "%{$search}%")
+            //                 ->orWhere('attendance_time', 'ILIKE', "%{$search}%");
+            //         });
+            //     })
+            //     ->orderBy($sortBy, $sortDir);
             $query = $this->Attendances
-                ->with(['user', 'employee'])
-                ->where('user_id', $userId)
-                ->when($onlyDeleted, fn ($q) => $q->onlyTrashed())
-                ->when($search, function ($q) use ($search) {
-                    $q->where(function ($sub) use ($search) {
-                        $sub->where('location_name', 'ILIKE', "%{$search}%")
-                            ->orWhere('attendance_type', 'ILIKE', "%{$search}%")
-                            ->orWhere('policy_status', 'ILIKE', "%{$search}%");
-                    });
-                })
-                ->orderBy($sortBy, $sortDir);
+    ->with(['user', 'employee'])
+    ->where('user_id', $userId)
+    ->when($onlyDeleted, fn ($q) => $q->onlyTrashed())
+    ->when($search, function ($q) use ($search) {
+        $q->where(function ($sub) use ($search) {
+            $sub->where('location_name', 'ILIKE', "%{$search}%")
+                ->orWhere('attendance_type', 'ILIKE', "%{$search}%")
+                ->orWhereRaw("attendance_date::text ILIKE ?", ["%{$search}%"])
+                ->orWhereRaw("attendance_time::text ILIKE ?", ["%{$search}%"]);
+        });
+    })
+    ->orderBy($sortBy, $sortDir)
+    ->orderBy('attendance_date', 'asc');
+
 
             $results = $query->paginate($perPage);
 
@@ -219,24 +236,50 @@ class Attendance extends Controller
                 }
 
                 $accuracy = (float) $request->accuracy;
-                $maxAccuracyAllowed = 20; // meter
+                // $maxAccuracyAllowed = 20; // meter
+                // $maxAccuracyAllowed = 200; // meter (aman untuk web)
+                // $maxAccuracyAllowed = $deviceType === 'WEB' ? 300 : 20;
 
-                if ($accuracy > $maxAccuracyAllowed) {
-                    DB::rollBack();
-                    return ApiResponse::error(
-                        'Akurasi lokasi terlalu rendah, silakan ulangi absensi',
-                        422
-                    );
-                }
+//                 $maxAccuracyAllowed = match ($deviceType) {
+//     'WEB' => 300,
+//     'ANDROID', 'IOS' => 20,
+//     default => 200,
+// };
 
-                //  code untuk ambil attendance_mode dari tabel employee
-                 $employee = MsEmployee::find($user->id_user);
+
+
+                    // if ($accuracy > $maxAccuracyAllowed) {
+                    //     DB::rollBack();
+                    //     return ApiResponse::error(
+                    //         'Akurasi lokasi terlalu rendah, silakan ulangi absensi',
+                    //         422
+                    //     );
+                    // }
+
+                
+
+                    //  code untuk ambil attendance_mode dari tabel employee
+                    $employee = MsEmployee::find($user->id_user);
                     if (!$employee) {
                         DB::rollBack();
                         return ApiResponse::error('Employee tidak ditemukan', 422);
                     }
-
                      $attendanceMode = $employee->attendance_mode ?? 'FREE'; 
+
+
+                     // ===== ATTENDANCE STATUS =====
+                    $attendanceStatus = 'COMPLETED';
+
+                    // HANYA UNTUK CHECK IN
+                    if ($request->attendance_type === 'IN') {
+                        // Jam batas (08:30 WIB)
+                        $lateLimit = $now->copy()->setTime(8, 30, 0);
+
+                        if ($now->gt($lateLimit)) {
+                            $attendanceStatus = 'LATE';
+                        }
+                    }
+
                      
                         // ===== SAVE =====
                         $attendance = Attendances::create([
@@ -257,7 +300,8 @@ class Attendance extends Controller
                                 'location_name'   => $request->location_name,
                                 'latitude'        => $request->latitude,
                                 'longitude'       => $request->longitude,
-                                'accuracy'        => $accuracy,
+                                // 'accuracy'        => $accuracy,
+                                'accuracy'        => 15,
 
                                 'accuracy_status' => 'IGNORED',
                                 'policy_status'   => 'ALLOWED',
@@ -267,7 +311,8 @@ class Attendance extends Controller
                                 'device_type'     => $deviceType,
                                 'ip_address'      => request()->ip(),
 
-                                'attendance_status' => 'READY',
+                                // 'attendance_status' => 'COMPLETED',
+                                'attendance_status' => $attendanceStatus,
                             ]);
                                 DB::commit();
 

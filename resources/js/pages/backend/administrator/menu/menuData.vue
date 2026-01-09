@@ -133,16 +133,7 @@ const saveMenu = async () => {
     )
 
   } 
-  // catch (err) {
-  //   if (err.response?.status !== 422) {
-  //     toasts.fire({
-  //       icon: "error",
-  //       title:
-  //         err.response?.data?.message ||
-  //         "Terjadi kesalahan server",
-  //     })
-  //   }
-  // }
+  
   catch (err) {
   console.error(err)
 
@@ -432,7 +423,7 @@ const handleImportExcel = () => {
                     <option value="menu">By Name</option>
                     <option value="created_at">By Created Date</option>
                     </select>
-                    <select class="form-select w-auto"  v-model="dataMenu.sort.direction" @change="dataMenu.changeSorting">
+                    <select class="form-select w-auto" v-model="dataMenu.sort.direction" @change="dataMenu.changeSorting">
                     <option value="asc">Ascending</option>
                     <option value="desc">Descending</option>
                     </select>

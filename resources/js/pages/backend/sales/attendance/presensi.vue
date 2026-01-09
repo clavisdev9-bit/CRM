@@ -1,258 +1,31 @@
-<!-- <script setup>
-import { ref, reactive, onMounted , watch, onUnmounted} from 'vue'
-import backendLayouts from "../../../../layouts/backendLayouts.vue";
-const PagesTitle = 'Attendance Presensi';
-
-
-// variable for date and time card front
-const currentDate = ref('')
-const currentTime = ref('')
-let timer = null
-
-
-// variable for camera access
-const videoRef = ref(null)
-const photo = ref(null)
-let stream = null
-
-
-// ===== DYNAMIC LOCATION =====
-const latitude = ref(null)
-const longitude = ref(null)
-const accuracy = ref(null)
-const locationStatus = ref('Waiting location...')
-const address = ref('')
-const attendanceType = ref('in') // 'in' | 'out'
-
-
-
-
-// start code for date and time card front
-const updateDateTime = () => {
-  const now = new Date()
-
-  // Date: Monday, 30 January / 2026
-  currentDate.value = now.toLocaleDateString('en-GB', {
-    weekday: 'long',
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric'
-  }).replace(',', ' /')
-
-  // Time: 08:17
-  currentTime.value = now.toLocaleTimeString('en-GB', {
-  hour: '2-digit',
-  minute: '2-digit',
-  second: '2-digit'
-})
-}
-
-
-onUnmounted(() => {
-  clearInterval(timer)
-})
-
-
-
-// start code camera access
-const startCamera = async () => {
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({ 
-      video: { facingMode: "user" }, 
-      audio: false 
-    })
-    if (videoRef.value) {
-      videoRef.value.srcObject = stream
-    }
-  } catch (err) {
-    alert("Gagal mengakses kamera: " + err.message)
-  }
-}
-
-const stopCamera = () => {
-  if (stream) {
-    stream.getTracks().forEach(t => t.stop())
-    stream = null
-  }
-}
-
-
-const takePhoto = async () => {
-  if (!videoRef.value) return
-
-  const canvas = document.createElement('canvas')
-  canvas.width = videoRef.value.videoWidth
-  canvas.height = videoRef.value.videoHeight
-  const ctx = canvas.getContext('2d')
-
-  ctx.drawImage(videoRef.value, 0, 0, canvas.width, canvas.height)
-  photo.value = canvas.toDataURL('image/png')
-
-  // ⬇️ BARU AMBIL LOKASI SETELAH FOTO
-  if (!latitude.value) {
-    getLocation()
-  }
-}
-
-
-
-// const takePhoto = () => {
-//   if (!videoRef.value) return
-  
-//   const canvas = document.createElement('canvas')
-//   canvas.width = videoRef.value.videoWidth
-//   canvas.height = videoRef.value.videoHeight
-//   const ctx = canvas.getContext('2d')
-  
-//   // Membalikkan gambar jika kamera mirror (opsional)
-//   ctx.drawImage(videoRef.value, 0, 0, canvas.width, canvas.height)
-  
-//   photo.value = canvas.toDataURL('image/png')
-// }
-
-// Tambahkan listener untuk modal agar kamera otomatis nyala/mati
-// onMounted(() => {
-//   updateDateTime()
-//   timer = setInterval(updateDateTime, 1000)
-
-//   const modalEl = document.getElementById('modal-presensi')
-//   if (modalEl) {
-//     modalEl.addEventListener('shown.bs.modal', startCamera)
-//     modalEl.addEventListener('hidden.bs.modal', () => {
-//       stopCamera()
-//       photo.value = null // Reset foto saat modal ditutup
-//     })
-//   }
-// })
-
-
-
-// start code geo loca
-const getAddressFromLatLng = async (lat, lng) => {
-  try {
-    address.value = 'Detecting address...'
-
-    const res = await fetch(
-      `/api/reverse-geocode?lat=${lat}&lon=${lng}`
-    )
-
-    const data = await res.json()
-    address.value = data.display_name || 'Address not found'
-  } catch (error) {
-    console.error(error)
-    address.value = 'Failed to get address'
-  }
-}
-
-
-
-// const getLocation = () => {
-//   if (!navigator.geolocation) {
-//     locationStatus.value = 'Geolocation not supported'
-//     return
-//   }
-
-//   locationStatus.value = 'Detecting location...'
-
-//   navigator.geolocation.getCurrentPosition(
-//     (pos) => {
-//       latitude.value = pos.coords.latitude
-//       longitude.value = pos.coords.longitude
-//       accuracy.value = pos.coords.accuracy
-
-//       locationStatus.value = 'Location detected'
-//     },
-//     (err) => {
-//       console.error(err)
-
-//       if (err.code === 3) {
-//         locationStatus.value = 'Location timeout, please retry'
-//       } else if (err.code === 1) {
-//         locationStatus.value = 'Location permission denied'
-//       } else {
-//         locationStatus.value = 'Unable to detect location'
-//       }
-//     },
-//     {
-//       enableHighAccuracy: false,
-//       timeout: 20000,           
-//       maximumAge: 60000         
-//     }
-//   )
-// }
-
-
-const getLocation = () => {
-  if (!navigator.geolocation) {
-    locationStatus.value = 'Geolocation not supported'
-    return
-  }
-
-  locationStatus.value = 'Detecting location...'
-
-  navigator.geolocation.getCurrentPosition(
-    async (pos) => {
-      latitude.value = pos.coords.latitude
-      longitude.value = pos.coords.longitude
-      accuracy.value = pos.coords.accuracy
-
-      locationStatus.value = 'Location detected'
-
-      // ⬇ AMBIL NAMA LOKASI
-      await getAddressFromLatLng(latitude.value, longitude.value)
-    },
-    (err) => {
-      console.error(err)
-      locationStatus.value = 'Failed to detect location'
-    },
-    {
-      enableHighAccuracy: false,
-      timeout: 20000,
-      maximumAge: 60000
-    }
-  )
-}
-
-
-
-
-onMounted(() => {
-  updateDateTime()
-  timer = setInterval(updateDateTime, 1000)
-
-  const modalEl = document.getElementById('modal-presensi')
-  if (modalEl) {
-    modalEl.addEventListener('shown.bs.modal', () => {
-      startCamera()
-      getLocation()
-    })
-
-    modalEl.addEventListener('hidden.bs.modal', () => {
-      stopCamera()
-      photo.value = null
-      latitude.value = null
-      longitude.value = null
-      locationStatus.value = 'Waiting location...'
-    })
-  }
-}) -->
-
-
-
-
-<!-- 
-</script> -->
 
 <script setup>
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, computed, watch  } from 'vue'
 import backendLayouts from "../../../../layouts/backendLayouts.vue";
-
+import { useDataAttendanceStore } from '../../../../stores/AttendanceFreeLocationStore';
+import { useMenuStore } from "@/stores/menuStore";
+import { toasts } from "@/utils/toasts"
+import { useRoute, useRouter } from "vue-router";
+import Swal from 'sweetalert2'
 const PagesTitle = 'Attendance Presensi'
 
+const dataAttendances = useDataAttendanceStore();
+const fetchAttendanceDetail = dataAttendances.fetchAttendanceDetail
+const menuStore = useMenuStore();
+const route = useRoute();
+const router = useRouter();
+
+const permission = ref(null);
+const loadingPermission = ref(true);
+const detailType = ref('IN')
+
+
+// start code frontend camera and location
 // ===== DATE TIME =====
 const currentDate = ref('')
 const currentTime = ref('')
 let timer = null
+const attendanceType = ref(null) 
 
 // ===== CAMERA =====
 const videoRef = ref(null)
@@ -262,9 +35,10 @@ let stream = null
 // ===== LOCATION =====
 const latitude = ref(null)
 const longitude = ref(null)
-const accuracy = ref(null)
+const accuracy = ref(15)
 const locationStatus = ref('Waiting photo...')
 const address = ref('')
+const locationName = ref('')
 
 // ===== DATE TIME =====
 const updateDateTime = () => {
@@ -301,7 +75,8 @@ const stopCamera = () => {
   }
 }
 
-// ===== TAKE PHOTO (TRIGGER LOCATION) =====
+
+
 const takePhoto = async () => {
   if (!videoRef.value) return
 
@@ -309,23 +84,38 @@ const takePhoto = async () => {
   canvas.width = videoRef.value.videoWidth
   canvas.height = videoRef.value.videoHeight
   const ctx = canvas.getContext('2d')
-
   ctx.drawImage(videoRef.value, 0, 0)
-  photo.value = canvas.toDataURL('image/png')
 
-  // ⬇️ BARU AMBIL LOKASI SETELAH FOTO
+  const blob = await new Promise(resolve =>
+    canvas.toBlob(resolve, 'image/jpeg', 0.9)
+  )
+
+  photo.value = new File(
+    [blob],
+    `attendance_${Date.now()}.jpg`,
+    { type: 'image/jpeg' }
+  )
+
   await getLocation()
 }
 
-// ===== REVERSE GEOCODE =====
+const photoPreview = computed(() => {
+  return photo.value ? URL.createObjectURL(photo.value) : null
+})
+
+
+
+
 const getAddressFromLatLng = async (lat, lng) => {
   try {
     address.value = 'Detecting address...'
     const res = await fetch(`/api/reverse-geocode?lat=${lat}&lon=${lng}`)
     const data = await res.json()
     address.value = data.display_name || 'Address not found'
+    locationName.value = address.value // ⬅️ INI PENTING
   } catch {
     address.value = 'Failed to get address'
+    locationName.value = 'Unknown location'
   }
 }
 
@@ -370,7 +160,7 @@ onMounted(() => {
   if (modalEl) {
     modalEl.addEventListener('shown.bs.modal', () => {
       startCamera()
-      // ❌ TIDAK ADA getLocation DI SINI
+      //  TIDAK ADA getLocation DI SINI
     })
 
     modalEl.addEventListener('hidden.bs.modal', () => {
@@ -383,8 +173,170 @@ onMounted(() => {
     })
   }
 })
-
 onUnmounted(() => clearInterval(timer))
+// end code frontend camera and location
+
+
+
+
+// start code untuk get(view) data attendance by user
+onMounted(async () => {
+  try {
+    if (!localStorage.getItem("auth_token")) {
+      alert("Silakan login terlebih dahulu!");
+      router.push('/login');
+      return;
+    }
+    await dataAttendances.fetchAttendanceToday();
+    await dataAttendances.fetchAttendanceData(dataAttendances.buildUrl());
+    await menuStore.fetchMenus();
+ 
+
+    permission.value = menuStore.getPermission(route.path);
+  } catch (error) {
+    console.error(error);
+  } finally {
+    loadingPermission.value = false;
+  }
+});
+
+
+
+
+// Fungsi Format Tanggal Indonesia
+const formatDateID = (dateStr) => {
+  if (!dateStr) return '-';
+  const date = new Date(dateStr);
+  return new Intl.DateTimeFormat('id-ID', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    year: 'numeric'
+  }).format(date);
+};
+
+
+
+const groupedAttendance = computed(() => {
+  const groups = {};
+  const rawData = dataAttendances.attendanceData || [];
+  const photoBaseUrl = 'http://localhost:8000/storage/attendance/photos/';
+
+  rawData.forEach(item => {
+  const dateKey = item.attendance_date
+
+  if (!groups[dateKey]) {
+    groups[dateKey] = {
+      rawDate: dateKey,
+      formattedDate: formatDateID(dateKey),
+      in: null,
+      out: null,
+      attendance_status: item.attendance_status // ⬅️ AMBIL DARI BACKEND
+    }
+  }
+
+  const dataObj = {
+    id: item.id,
+    time: item.attendance_time?.substring(0, 5) ?? '-',
+    location: item.location_name,
+    photo: item.photo_path ? photoBaseUrl + item.photo_path : null,
+    status: item.attendance_status
+  }
+
+  if (item.attendance_type === 'IN') {
+    groups[dateKey].in = dataObj
+    groups[dateKey].attendance_status = item.attendance_status
+  }
+
+  if (item.attendance_type === 'OUT') {
+    groups[dateKey].out = dataObj
+  }
+})
+
+
+  return Object.values(groups).sort(
+    (a, b) => new Date(b.rawDate) - new Date(a.rawDate)
+  );
+});
+
+
+watch(
+  () => dataAttendances.searchAttendance,
+  dataAttendances.searchWithDelay
+);
+// end code untuk get(view) data attendance by user
+
+
+
+
+
+
+
+// start code untuk submit data attendance by user
+const isSubmitDisabled = computed(() => {
+  return (
+    saving.value ||          // sedang submit
+    !photo.value ||          // foto belum ada
+    !latitude.value ||       // lokasi belum ada
+    !longitude.value         // (kalau dipakai)
+  )
+})
+
+
+
+
+
+
+// COMPUTED
+const saving = computed(() => dataAttendances.savingAttendance)
+
+// SUBMIT
+const submitAttendance = async () => {
+  if (saving.value) return
+
+  if (!latitude.value || !longitude.value) {
+    Swal.fire('Warning', 'Lokasi belum tersedia', 'warning')
+    return
+  }
+
+  if (!photo.value) {
+    Swal.fire('Warning', 'Foto wajib diambil', 'warning')
+    return
+  }
+
+  try {
+    await dataAttendances.storeAttendance({
+      attendance_type: attendanceType.value,
+      latitude: latitude.value,
+      longitude: longitude.value,
+      accuracy: accuracy.value,
+      location_name: locationName.value,
+      photo_path: photo.value,
+      device_type: 'WEB'
+    })
+
+    Swal.fire({
+      icon: 'success',
+      title: 'Success',
+      text: `Check ${attendanceType.value} berhasil`
+    })
+
+    // reset
+    photo.value = null
+
+  } catch (err) {
+    Swal.fire(
+      'Failed',
+      err.response?.data?.message || 'Attendance gagal',
+      'error'
+    )
+  }
+}
+// end code untuk submit data attendance by user
+
+
+
+
 </script>
 
 
@@ -441,29 +393,47 @@ onUnmounted(() => clearInterval(timer))
              {{ currentTime }}
             </div>
 
-            <!-- Buttons -->
-            <div class="d-flex justify-content-center gap-3 flex-wrap">
-              
-            
+          <div class="d-flex flex-column align-items-center gap-2">
 
-              <button
-              class="btn btn-outline-primary"
-              data-bs-toggle="modal"
-              data-bs-target="#modal-presensi"
-              @click="attendanceType = 'in'"
-            >
-              Presensi IN
-            </button>
+ 
 
-            <button
-              class="btn btn-outline-success"
-              data-bs-toggle="modal"
-              data-bs-target="#modal-presensi"
-              @click="attendanceType = 'out'"
-            >
-              Presensi OUT
-            </button>
-            </div>
+<div class="d-flex flex-column align-items-center gap-2">
+
+  <!-- Tombol IN & OUT -->
+  <div class="d-flex justify-content-center gap-3 flex-wrap">
+    <button
+      class="btn btn-outline-primary"
+      data-bs-toggle="modal"
+      data-bs-target="#modal-presensi"
+      @click="attendanceType = 'IN'"
+      :disabled="dataAttendances.hasAttendanceToday && dataAttendances.attendanceStatus !== 'OUT'"
+    >
+      <i class="fa-solid fa-camera-rotate"></i> Presensi IN
+    </button>
+
+    <button
+      class="btn btn-outline-success"
+      data-bs-toggle="modal"
+      data-bs-target="#modal-presensi"
+      @click="attendanceType = 'OUT'"
+      :disabled="!dataAttendances.hasAttendanceToday || dataAttendances.attendanceStatus === 'COMPLETE'"
+    >
+    <i class="fa-solid fa-camera-rotate"></i>  Presensi OUT
+    </button>
+  </div>
+
+  <!-- Tombol/Label "Sudah Absen" muncul hanya setelah check-in & check-out selesai -->
+  <div v-if="dataAttendances.attendanceStatus === 'COMPLETE'" class="mt-2 text-center">
+    <button class="btn btn-secondary" disabled>
+      You are absent today
+    </button>
+  </div>
+
+</div>
+</div>
+
+           
+
 
           </div>
         </div>
@@ -483,6 +453,8 @@ onUnmounted(() => clearInterval(timer))
                     <i class="fas fa-list-ul me-1"></i> Showing:
                     </label>
                     <select class="form-select w-auto"
+                     v-model.number="dataAttendances.pagination.per_page" 
+                     @change="dataAttendances.changePageSize"
                     >
                     <option>10</option>
                     <option>25</option>
@@ -491,6 +463,16 @@ onUnmounted(() => clearInterval(timer))
                     </select>
                 </div>
 
+                 <button 
+                    class="btn btn-outline-warning btn-sm d-flex align-items-center justify-content-center gap-2"
+                    @click="dataAttendances.resetFilters"
+                  >
+                    <i class="fas fa-undo"></i>
+                    <span>Reset</span>
+                  </button>
+
+
+
                 </div>
 
 
@@ -498,18 +480,21 @@ onUnmounted(() => clearInterval(timer))
              <div class="d-flex flex-column gap-3 align-items-end" style="min-width:300px;">
                 <!-- Pencarian -->
                 <div class="input-group">
-                    <input type="text" class="form-control" placeholder="Searching....">
+                    <input type="text" class="form-control" placeholder="Searching by date/year/time"
+                     v-model="dataAttendances.searchAttendance">
                     <span class="input-group-text bg-white"><i class="fa fa-search"></i></span>
                 </div>
 
                 <!-- Urutan -->
                 <div class="d-flex gap-2 align-items-center">
                     <label class="mb-0 fw-semibold">Sort:</label>
-                    <select class="form-select w-auto">
-                    <option value="fullname">By Date</option>
+                    <select class="form-select w-auto" v-model="dataAttendances.sort.column" 
+                    @change="dataAttendances.changeSorting">
+                       <option value="attendance_date">By Date time</option>
                     <option value="created_at">By Created Date</option>
                     </select>
-                    <select class="form-select w-auto">
+                    <select class="form-select w-auto" v-model="dataAttendances.sort.direction" 
+                    @change="dataAttendances.changeSorting">
                     <option value="asc">Ascending</option>
                     <option value="desc">Descending</option>
                     </select>
@@ -519,60 +504,246 @@ onUnmounted(() => clearInterval(timer))
           </div>
 
           <!-- Card: Table -->
-          <div class="card mb-4">
-            <div class="card-header">
-              <h4 class="card-title text-secondary fw-bolder">Your Data Attendance</h4>
-            </div>
-            <div class="table-responsive">
-              <table class="table card-table table-vcenter text-nowrap">
-                <thead>
-                  <tr>
-                    <th style="width: 5%;">No.</th>
-                    <th>Date</th>
-                    <th>Presensi In</th>
-                    <th>Presensi Out</th>
-                    <th>Status</th>
-                    <th style="width: 8%;">Details</th>
-                  </tr>
-                </thead>
+          <div class="card mb-4 shadow-sm">
+  <div class="card-header bg-white py-3">
+    <h6 class="card-title text-secondary fw-bolder mb-0">Your Data Attendance</h6>
+  </div>
+  
+  <div class="table-responsive">
+  <table class="table card-table table-vcenter text-nowrap">
+    <thead>
+      <tr>
+        <th style="width: 5%;" class="text-center">No.</th>
+        <th>Date</th>
+        <th>Presensi In</th>
+        <th>Presensi Out</th>
+        <th class="text-center">Status</th>
+        <th style="width: 5%;" class="text-center">Details</th>
+      </tr>
+    </thead>
 
-            
+    <tbody>
 
-                <tbody>
-                    <tr>
-                      <td>1</td>
-                      <td>Thursday  25-Januari-2026</td>
-                      <td>08.10</td>
-                      <td>17.09</td>
-                      <td>Present</td>
-                      <td>
-                         <button class="btn btn-outline-primary btn-sm"  data-bs-toggle="modal"
-                            data-bs-target="#userDetailModal"
-                          >
-                            <i class="fa fa-eye"></i> 
-                        </button>
-                      </td>
-                    </tr>
-                </tbody>
-              </table>
+      <!-- LOADING -->
+      <tr v-if="dataAttendances.loadingAttendance">
+        <td colspan="6" class="text-center py-4">
+          <div class="spinner-border text-primary"></div>
+        </td>
+      </tr>
+
+      <!-- EMPTY -->
+      <tr
+        v-else-if="!dataAttendances.loadingAttendance && groupedAttendance.length === 0"
+      >
+        <td colspan="6" class="text-center py-5">
+          <div class="d-flex flex-column align-items-center">
+            <img
+              src="https://cdn.dribbble.com/users/285475/screenshots/2083086/dribbble_1.gif"
+              style="max-width: 250px"
+              class="mb-3"
+            />
+            <p class="text-danger fw-bold fst-italic">
+              <i class="fa fa-exclamation-circle me-1"></i>
+              Attendance data not found.
+            </p>
+          </div>
+        </td>
+      </tr>
+
+      <!-- DATA -->
+      <tr
+        v-else
+        v-for="(group, index) in groupedAttendance"
+        :key="group.rawDate"
+      >
+        <!-- NO -->
+        <td class="text-center text-muted">{{ index + 1 }}.</td>
+
+        <!-- DATE -->
+        <td>
+          <div class="fw-bold">{{ group.formattedDate }}</div>
+          <small class="text-muted">{{ group.rawDate }}</small>
+        </td>
+
+        <!-- IN -->
+        <td>
+          <div v-if="group.in" class="d-flex align-items-center">
+            <img
+              v-if="group.in.photo"
+              :src="group.in.photo"
+              class="rounded me-3"
+              style="width:45px;height:45px;object-fit:cover"
+            />
+
+          <div>
+              <div class="fw-bolder text-primary fs-4">
+                {{ group.in.time }}
+           <span 
+            v-if="group.attendance_status === 'LATE'"
+            class="badge rounded-pill bg-warning-lt text-warning"
+            style="font-size:11px; padding:2px 6px;"
+            >
+            <i class="fa-regular fa-alarm-clock fa-sm text-warning"></i>
+            Late
+          </span>
+
+
+              </div>
+              <div class="small text-muted text-truncate" style="max-width:150px">
+                <i class="fa fa-map-marker-alt text-danger me-1"></i>
+                {{ group.in.location }}
+              </div>
+
+              <a
+                v-if="group.in.photo"
+                :href="group.in.photo"
+                target="_blank"
+                class="badge bg-blue-lt text-primary mt-1"
+              >
+                <i class="fa fa-eye me-1"></i> see photo
+              </a>
             </div>
           </div>
+
+          <div v-else class="text-muted fst-italic">--:--</div>
+        </td>
+
+        <!-- OUT -->
+        <td>
+          <div v-if="group.out" class="d-flex align-items-center">
+            <img
+              v-if="group.out.photo"
+              :src="group.out.photo"
+              class="rounded me-3"
+              style="width:45px;height:45px;object-fit:cover"
+            />
+
+            <div>
+              <div class="fw-bolder text-success fs-4">
+                {{ group.out.time }}
+              </div>
+              <div class="small text-muted text-truncate" style="max-width:150px">
+                <i class="fa fa-map-marker-alt text-danger me-1"></i>
+                {{ group.out.location }}
+              </div>
+
+              <a
+                v-if="group.out.photo"
+                :href="group.out.photo"
+                target="_blank"
+                class="badge bg-blue-lt text-success mt-1"
+              >
+                <i class="fa fa-eye me-1"></i> see photo
+              </a>
+            </div>
+          </div>
+
+          <div v-else class="text-muted fst-italic">--:--</div>
+        </td>
+
+        <!-- STATUS -->
+          <td class="text-center">
+            <!-- COMPLETED -->
+            <span
+              v-if="group.attendance_status === 'COMPLETED'"
+              class="badge bg-success-lt text-success"
+            >
+              <i class="fa fa-check-circle me-1"></i> COMPLETED
+            </span>
+
+            <!-- LATE -->
+            <span
+              v-else-if="group.attendance_status === 'LATE'"
+              class="badge bg-warning-lt text-warning"
+            >
+              <i class="fa-regular fa-alarm-clock"></i> LATE
+            </span>
+
+            <!-- READY -->
+            <span
+              v-else-if="group.attendance_status === 'READY'"
+              class="badge bg-info-lt text-info"
+            >
+              <i class="fa fa-hourglass-half me-1"></i> READY
+            </span>
+
+            <!-- REJECTED -->
+            <span
+              v-else-if="group.attendance_status === 'REJECTED'"
+              class="badge bg-danger-lt text-danger"
+            >
+              <i class="fa fa-times-circle me-1"></i> REJECTED
+            </span>
+
+            <!-- DRAFT / fallback -->
+            <span v-else class="badge bg-secondary-lt text-dark">
+              {{ group.attendance_status }}
+            </span>
+          </td>
+
+
+        <!-- DETAIL -->
+        <td class="text-center">
+          <!-- IN -->
+          <button
+            class="btn btn-outline-primary btn-sm btn-icon position-relative me-3"
+            data-bs-toggle="modal"
+            data-bs-target="#attendanceDetailModal"
+            @click="detailType='IN'; fetchAttendanceDetail(group.in.id)"
+          >
+            <i class="fa fa-eye"></i>
+            <span class="badge bg-primary position-absolute top-0 start-100 translate-middle">
+              IN
+            </span>
+          </button>
+
+          <!-- OUT (hidden kalau belum ada OUT) -->
+          <button
+            v-if="group.out"
+            class="btn btn-outline-success btn-sm btn-icon position-relative"
+            data-bs-toggle="modal"
+            data-bs-target="#attendanceDetailModal"
+            @click="detailType='OUT'; fetchAttendanceDetail(group.out.id)"
+          >
+            <i class="fa fa-eye"></i>
+            <span class="badge bg-success position-absolute top-0 start-100 translate-middle">
+              OUT
+            </span>
+          </button>
+        </td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+ 
+
+</div>
 
           <!-- Card: Pagination -->
           <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
               <button class="btn btn-danger btn-sm" 
-                 >
+                 :disabled="!dataAttendances.pagination.prev_page_url || dataAttendances.loadingMenus"
+                  @click="dataAttendances.fetchAttendanceData(dataAttendances.pagination.prev_page_url)">
                 <i class="fa-solid fa-circle-chevron-left"
                 ></i> Prev
               </button>
   
                 <div class="mx-2 d-flex flex-column flex-sm-row align-items-center gap-1">
-                    <span class="badge border text-secondary px-3 py-2"> 10 data | on page 19</span>
-                    <span class="badge border text-secondary px-3 py-2">Total: 19  data</span>
+                   <span class="badge border text-secondary px-3 py-2">
+                      {{ groupedAttendance.length }} data | on page {{ dataAttendances.pagination.current_page }}
+                   </span>
+
+                   <span class="badge border text-secondary px-3 py-2">
+                    Total: {{ groupedAttendance.length }} Data
+                   </span>
+
                 </div>
   
                 <button class="btn btn-danger btn-sm"
+                 :disabled="!dataAttendances.pagination.next_page_url || dataAttendances.loadingAttendance"
+                  @click="dataAttendances.fetchAttendanceData(dataAttendances.pagination.next_page_url)"
                >
                     Next <i class="fa-solid fa-circle-chevron-right"></i>
                 </button>
@@ -587,39 +758,162 @@ onUnmounted(() => clearInterval(timer))
 
 
 
-
-  <!-- Code Modal: Detail Data -->
-<div class="modal modal-blur fade" id="userDetailModal" tabindex="-1" role="dialog" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+<!-- MODAL DETAIL ATTENDANCE -->
+<div class="modal modal-blur fade" id="attendanceDetailModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
     <div class="modal-content">
-      
-      <!-- Header -->
+
+      <!-- HEADER -->
       <div class="modal-header">
-        <h5 class="modal-title">Detail Role</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <h5 class="modal-title text-decoration-underline">
+          Detail Attendance
+        </h5>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
       </div>
 
-      <!-- Body -->
+      <!-- BODY -->
       <div class="modal-body">
-         <div class="modal-body">                   
-          <div class="d-flex justify-content-center align-items-center" style="min-height:150px;">
-  <div class="spinner-border text-secondary" role="status">
-    <span class="visually-hidden">Loading...</span>
-  </div>
-</div>
 
-          <div >
-            <p><strong>Role:</strong> </p>
-            <p><strong>Description:</strong></p>
+        <!-- LOADING -->
+        <div
+          v-if="dataAttendances.loadingDetail"
+          class="d-flex justify-content-center align-items-center"
+          style="min-height: 200px"
+        >
+          <div class="spinner-border text-primary"></div>
+        </div>
+
+        <!-- DATA AVAILABLE -->
+        <div
+          v-else-if="dataAttendances.attendanceDetail"
+          class="row g-4"
+        >
+
+          <!-- USER INFO -->
+          <div class="col-12">
+            <div class="card bg-light">
+              <div class="card-body">
+                <h5 class="text-decoration-underline mb-3">
+                  <i class="fa fa-user me-1"></i> Informasi Karyawan
+                </h5>
+
+                <div class="row">
+                  <div class="col-md-4">
+                    <strong>Nama</strong>
+                    <p class="text-muted mb-0">
+                      {{ dataAttendances.attendanceDetail.user?.fullname }}
+                    </p>
+                  </div>
+
+                  <div class="col-md-4">
+                    <strong>Username</strong>
+                    <p class="text-muted mb-0">
+                      {{ dataAttendances.attendanceDetail.user?.username }}
+                    </p>
+                  </div>
+
+                  <div class="col-md-4">
+                    <strong>NIK</strong>
+                    <p class="text-muted mb-0">
+                      {{ dataAttendances.attendanceDetail.employee?.nik }}
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
           </div>
+
+          <!-- ATTENDANCE DETAIL -->
+          <div class="col-md-12">
+            <div
+              class="card h-100"
+              :class="detailType === 'IN' ? 'border-primary' : 'border-success'"
+            >
+              <div class="card-body">
+
+                <!-- DYNAMIC TITLE -->
+                <h5
+                  class="text-decoration-underline mb-3"
+                  :class="detailType === 'IN' ? 'text-primary' : 'text-success'"
+                >
+                  Attendance {{ detailType }}
+                </h5>
+
+                <!-- BASIC INFO -->
+                <p class="mb-1">
+                  <strong>Tanggal:</strong>
+                  {{ dataAttendances.attendanceDetail.attendance_date }}
+                </p>
+
+                <p class="mb-2">
+                  <strong>Jam:</strong>
+                  {{ dataAttendances.attendanceDetail.attendance_time }}
+                </p>
+
+                <span
+                  class="badge mb-3"
+                  :class="detailType === 'IN' ? 'bg-primary' : 'bg-success'"
+                >
+                  {{ dataAttendances.attendanceDetail.attendance_status }}
+                </span>
+
+                <hr>
+
+                <!-- DEVICE INFO -->
+                <p class="mb-1">
+                  <strong>Mode:</strong>
+                  {{ dataAttendances.attendanceDetail.attendance_mode }}
+                </p>
+
+                <p class="mb-2">
+                  <strong>Device:</strong>
+                  {{ dataAttendances.attendanceDetail.device_type }}
+                </p>
+
+                <hr>
+
+                <!-- LOCATION -->
+                <strong>Lokasi</strong>
+                <p class="mb-1">
+                  {{ dataAttendances.attendanceDetail.location_name }}
+                </p>
+
+                <p class="small text-muted mb-2">
+                  Lat: {{ dataAttendances.attendanceDetail.latitude }} <br>
+                  Long: {{ dataAttendances.attendanceDetail.longitude }}
+                </p>
+
+                <p class="mb-0">
+                  Akurasi:
+                  {{ dataAttendances.attendanceDetail.accuracy }} m
+                  <span class="badge bg-success-lt ms-1">
+                    {{ dataAttendances.attendanceDetail.accuracy_status }}
+                  </span>
+                </p>
+
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- EMPTY STATE -->
+        <div v-else class="text-center text-muted py-5">
+          Data tidak tersedia
+        </div>
+
       </div>
-      </div>
-      <!-- Footer -->
+
+      <!-- FOOTER -->
       <div class="modal-footer">
-        <button type="button" class="btn btn-link link-secondary" data-bs-dismiss="modal">
+        <button
+          class="btn btn-secondary btn-link link-secondary"
+          data-bs-dismiss="modal"
+        >
           Close
         </button>
       </div>
+
     </div>
   </div>
 </div>
@@ -627,6 +921,7 @@ onUnmounted(() => clearInterval(timer))
 
 
 
+<!-- modal presensi -->
 <div class="modal modal-blur fade" id="modal-presensi" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-dialog-centered modal-fullscreen-sm-down modal-xl mt-4">
     <div class="modal-content">
@@ -682,17 +977,17 @@ onUnmounted(() => clearInterval(timer))
               <div class="card-body text-center">
                 <h6 class="fw-semibold mb-2">Result Photo In Here</h6>
               <div class="photo-result border-0">
-        <img 
-          v-if="photo" 
-          :src="photo" 
-          class="img-fluid w-100 h-100 rounded img-thumbnail shadow-sm object-fit-cover"
-          alt="Hasil Presensi"
-        />
-        <div v-else class="text-center text-muted opacity-50">
-          <i class="fa-solid fa-image-portrait fs-1 mb-2"></i>
-          <p class="small mb-0">No photo yet</p>
-        </div>
-      </div>
+                <img
+                    v-if="photoPreview"
+                    :src="photoPreview"
+                    class="img-fluid w-100 h-100 rounded img-thumbnail shadow-sm object-fit-cover"
+                    alt="Hasil Presensi"
+                  />
+                  <div v-else class="text-center text-muted opacity-50">
+                    <i class="fa-solid fa-image-portrait fs-1 mb-2"></i>
+                    <p class="small mb-0">No photo yet</p>
+                  </div>
+                </div>
               </div>
             </div>
 
@@ -740,9 +1035,6 @@ onUnmounted(() => clearInterval(timer))
                 </div>
 
 
-
-
-               
 
                <div class="row align-items-center mb-2">
                 <label class="col-5 col-sm-4 col-form-label">Location Status</label>
@@ -809,9 +1101,6 @@ onUnmounted(() => clearInterval(timer))
               </div>
 
 
-
-
-
               <div class="row align-items-center mb-2">
                 <label class="col-5 col-sm-4 col-form-label">Location Policy</label>
                 <div class="col-7 col-sm-8">
@@ -857,8 +1146,6 @@ onUnmounted(() => clearInterval(timer))
 
 
 
-
-
                     <div class="row align-items-center mb-3">
                           <label class="col-5 col-sm-4 col-form-label">Type Attendance</label>
                           <div class="col-7 col-sm-8">
@@ -867,12 +1154,12 @@ onUnmounted(() => clearInterval(timer))
                             <span
                               v-if="attendanceType"
                               class="badge"
-                              :class="attendanceType === 'in'
+                              :class="attendanceType === 'IN'
                                 ? 'bg-success-lt text-primary'
                                 : 'bg-danger-lt text-success'"
                             >
                               <i class="fa-solid fa-person-chalkboard me-1"></i>
-                              Attendance {{ attendanceType === 'in' ? 'Check In' : 'Check Out' }}
+                              Attendance {{ attendanceType === 'IN' ? 'Check In' : 'Check Out' }}
                             </span>
 
                             <!-- BELUM DIPILIH -->
@@ -887,43 +1174,37 @@ onUnmounted(() => clearInterval(timer))
                           </div>
                   </div>
 
+                  <div class="mt-3">
+                    <span v-if="!photo || !latitude" class="badge bg-secondary-lt w-100 text-warning">
+                      <i class="fa-solid fa-circle-exclamation me-1"></i>
+                      Take selfie & allow location
+                    </span>
 
-
-
-            <div class="mt-3">
-              <span v-if="!photo || !latitude" class="badge bg-secondary-lt w-100 text-warning">
-                <i class="fa-solid fa-circle-exclamation me-1"></i>
-                Take selfie & allow location
-              </span>
-
-              <span v-else class="badge bg-success-lt w-100 text-success animate__animated animate__pulse">
-                <i class="fa-solid fa-check-circle me-1"></i>
-                Attendance ready to send
-              </span>
-            </div>
-
-
+                    <span v-else class="badge bg-success-lt w-100 text-success animate__animated animate__pulse">
+                      <i class="fa-solid fa-check-circle me-1"></i>
+                      Attendance ready to send
+                    </span>
+                  </div>
               </div>
             </div>
-
           </div>
         </div>
       </div>
 
       <!-- Footer -->
-      <!-- Footer -->
       <div class="modal-footer">
-        <button class="btn btn-link link-secondary" data-bs-dismiss="modal">
-          Batal
+        <button class="btn btn-secondary btn-link link-secondary" data-bs-dismiss="modal">
+         <i class="fa-solid fa-arrow-left"></i> Cancel
         </button>
-       <button
-  class="btn btn-primary ms-auto"
-  :disabled="!photo || !latitude"
->
-  <i class="bx bx-check me-1"></i> Submit Presensi
-</button>
-      </div>
-
+      <button
+          class="btn btn-primary ms-auto"
+          :disabled="isSubmitDisabled"
+          @click="submitAttendance"
+        >
+          <i class="fa fa-check me-1"></i>
+          {{ saving ? 'Processing...' : 'Submit Attendance' }}
+      </button>
+      </div>  
     </div>
   </div>
 </div>

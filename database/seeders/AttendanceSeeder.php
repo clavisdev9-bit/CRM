@@ -25,11 +25,13 @@ class AttendanceSeeder extends Seeder
                 'attendance_mode' => 'OFFICE',
                 'attendance_type' => 'IN',
 
-                'attendance_datetime' => $today->copy()->setTime(8, 5),
-                'attendance_date' => $today,
+                // 'attendance_datetime' => $today->copy()->setTime(8, 5),
+                // 'attendance_date' => $today,
+                'attendance_datetime' => $today->copy()->subDay()->setTime(8, 5),
+                'attendance_date'     => $today->copy()->subDay(),
                 'attendance_time' => '08:05:00',
 
-                'photo_path' => 'attendance/photos/in_1.jpg',
+                'photo_path' => 'default.png',
 
                 'latitude' => -6.2001000,
                 'longitude' => 106.8167000,
@@ -38,7 +40,7 @@ class AttendanceSeeder extends Seeder
 
                 'accuracy_status' => 'HIGH',
                 'policy_status' => 'ALLOWED',
-                'policy_reason' => 'Inside office radius',
+                'policy_reason' => 'Free location (Sales)',
 
                 'office_latitude' => -6.2000000,
                 'office_longitude' => 106.8166667,
@@ -49,7 +51,7 @@ class AttendanceSeeder extends Seeder
                 'ip_address' => '192.168.1.10',
                 'noted' => 'Data default demo',
 
-                'attendance_status' => 'READY',
+                'attendance_status' => 'COMPLETED',
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
@@ -66,11 +68,13 @@ class AttendanceSeeder extends Seeder
                 'attendance_mode' => 'OFFICE',
                 'attendance_type' => 'OUT',
 
-                'attendance_datetime' => $today->copy()->setTime(17, 15),
-                'attendance_date' => $today,
+                // 'attendance_datetime' => $today->copy()->setTime(17, 15),
+                // 'attendance_date' => $today,
+                 'attendance_datetime' => $today->copy()->subDay()->setTime(8, 5),
+                'attendance_date'     => $today->copy()->subDay(),
                 'attendance_time' => '17:15:00',
 
-                'photo_path' => 'attendance/photos/out_1.jpg',
+                'photo_path' => 'default.png',
 
                 'latitude' => -6.2001500,
                 'longitude' => 106.8167200,
@@ -79,18 +83,18 @@ class AttendanceSeeder extends Seeder
 
                 'accuracy_status' => 'HIGH',
                 'policy_status' => 'ALLOWED',
-                'policy_reason' => 'Inside office radius',
+                'policy_reason' => 'Free location (Sales)',
 
                 'office_latitude' => -6.2000000,
                 'office_longitude' => 106.8166667,
                 'distance_from_office' => 30.2,
                 'allowed_radius' => 100,
 
-                'device_type' => 'MOBILE',
+                'device_type' => 'WEB',
                 'ip_address' => '192.168.1.10',
                  'noted' => 'Data default demo',
 
-                'attendance_status' => 'READY',
+                'attendance_status' => 'COMPLETED',
                 'created_at' => now(),
                 'updated_at' => now(),
             ],
