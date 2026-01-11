@@ -16,7 +16,7 @@ class AttendanceResource extends JsonResource
             'user' => [
                 'id_user'  => $this->user?->id_user,
                 'fullname' => $this->user?->fullname,
-                'username' => $this->user?->username,
+                'email' => $this->user?->email,
             ],
 
             // Relasi Employee

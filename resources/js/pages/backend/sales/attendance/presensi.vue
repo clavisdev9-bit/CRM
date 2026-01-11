@@ -350,8 +350,6 @@ const submitAttendance = async () => {
 // end code untuk submit data attendance by user
 
 
-
-
 </script>
 
 
@@ -779,7 +777,7 @@ const submitAttendance = async () => {
       <!-- HEADER -->
       <div class="modal-header">
         <h5 class="modal-title text-decoration-underline">
-          Detail Attendance
+          Details Attendance
         </h5>
         <button class="btn-close" data-bs-dismiss="modal"></button>
       </div>
@@ -807,26 +805,26 @@ const submitAttendance = async () => {
             <div class="card bg-light">
               <div class="card-body">
                 <h5 class="text-decoration-underline mb-3">
-                  <i class="fa fa-user me-1"></i> Informasi Karyawan
+                  <i class="fa fa-user me-1"></i> Employee Information
                 </h5>
 
                 <div class="row">
                   <div class="col-md-4">
-                    <strong>Nama</strong>
+                    <strong>Name Employe</strong>
                     <p class="text-muted mb-0">
                       {{ dataAttendances.attendanceDetail.user?.fullname }}
                     </p>
                   </div>
 
                   <div class="col-md-4">
-                    <strong>Username</strong>
+                    <strong>Email</strong>
                     <p class="text-muted mb-0">
-                      {{ dataAttendances.attendanceDetail.user?.username }}
+                      {{ dataAttendances.attendanceDetail.user?.email }}
                     </p>
                   </div>
 
                   <div class="col-md-4">
-                    <strong>NIK</strong>
+                    <strong>Employee Identity number</strong>
                     <p class="text-muted mb-0">
                       {{ dataAttendances.attendanceDetail.employee?.nik }}
                     </p>
@@ -854,12 +852,12 @@ const submitAttendance = async () => {
 
                 <!-- BASIC INFO -->
                 <p class="mb-1">
-                  <strong>Tanggal:</strong>
+                  <strong>date of absence:</strong>
                   {{ dataAttendances.attendanceDetail.attendance_date }}
                 </p>
 
                 <p class="mb-2">
-                  <strong>Jam:</strong>
+                  <strong>Time of absence:</strong>
                   {{ dataAttendances.attendanceDetail.attendance_time }}
                 </p>
 
@@ -874,12 +872,12 @@ const submitAttendance = async () => {
 
                 <!-- DEVICE INFO -->
                 <p class="mb-1">
-                  <strong>Mode:</strong>
+                  <strong>Mode Location of absence:</strong>
                   {{ dataAttendances.attendanceDetail.attendance_mode }}
                 </p>
 
                 <p class="mb-2">
-                  <strong>Device:</strong>
+                  <strong>Device Detect:</strong>
                   {{ dataAttendances.attendanceDetail.device_type }}
                 </p>
 
@@ -897,10 +895,10 @@ const submitAttendance = async () => {
                 </p>
 
                 <p class="mb-0">
-                  Akurasi:
+                  Accuracy:
                   {{ dataAttendances.attendanceDetail.accuracy }} m
-                  <span class="badge bg-success-lt ms-1">
-                    {{ dataAttendances.attendanceDetail.accuracy_status }}
+                  <span class="badge bg-success-lt ms-1 text-secondary">
+                  |  {{ dataAttendances.attendanceDetail.accuracy_status }}
                   </span>
                 </p>
 
@@ -912,7 +910,7 @@ const submitAttendance = async () => {
 
         <!-- EMPTY STATE -->
         <div v-else class="text-center text-muted py-5">
-          Data tidak tersedia
+         Data not available
         </div>
 
       </div>
