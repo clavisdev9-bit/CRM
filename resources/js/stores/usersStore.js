@@ -47,58 +47,6 @@ export const useUsersStore = defineStore('Data-Users', () => {
         };
 
 
-//         let abortController = null
-// const lastFetchUrl = ref(null)
-
-// const fetchUsers = async (url = "/api/users-management") => {
-//   // ⛔ jangan fetch ulang kalau URL sama
-//   if (lastFetchUrl.value === url) return
-
-//   lastFetchUrl.value = url
-
-//   // ⛔ batalkan request sebelumnya
-//   if (abortController) {
-//     abortController.abort()
-//   }
-
-//   abortController = new AbortController()
-//   loadingUsers.value = true
-
-//   try {
-//     const response = await axios.get(url, {
-//       headers: getAuthHeader(),
-//       signal: abortController.signal,
-//     })
-
-//     const result = response.data
-
-//     const dataArray = Array.isArray(result.data)
-//       ? result.data
-//       : result.data?.data ?? []
-
-//     // update array TANPA ganti reference
-//     usersData.value.splice(0, usersData.value.length, ...dataArray)
-
-//     const pag = result.pagination ?? result.data?.pagination
-//     if (pag) {
-//       pagination.current_page = pag.current_page
-//       pagination.per_page = pag.per_page
-//       pagination.prev_page_url = pag.prev_page_url
-//       pagination.next_page_url = pag.next_page_url
-//       pagination.last_page = pag.last_page
-//       pagination.total = pag.total
-//     }
-
-//   } catch (error) {
-//     if (error.name !== "CanceledError") {
-//       console.error("Gagal fetch users:", error)
-//     }
-//   } finally {
-//     loadingUsers.value = false
-//   }
-// }
-
-
              //kode lama kurang cepat
             const fetchUsers = async (url = "/api/users-management") => {
                 loadingUsers.value = true;
@@ -240,56 +188,49 @@ export const useUsersStore = defineStore('Data-Users', () => {
                                 }
 
                                 
+                                // const storeUser = async (payload) => {
+                                //     savingUsers.value = true
+                                //     try {
+                                //       const formData = new FormData()
+
+                                //       Object.keys(payload).forEach((key) => {
+                                //         if (payload[key] !== null && payload[key] !== undefined) {
+                                //           formData.append(key, payload[key])
+                                //         }
+                                //       })
+                                //       const res = await axios.post(
+                                //         '/api/store-users-management',
+                                //         formData,
+                                //         {
+                                //           headers: {
+                                //             ...getAuthHeader(),
+                                //             'Content-Type': 'multipart/form-data',
+                                //           },
+                                //         }
+                                //       )
+                                //         await fetchUsers(buildUrl())
+                                //         return res.data
+                                //       } catch (err) {
+                                //         throw err 
+                                //       } finally {
+                                //         savingUsers.value = false
+                                //       }
+                                //     }
+
                                 const storeUser = async (payload) => {
-                                    savingUsers.value = true
-                                    try {
-                                      const formData = new FormData()
-
-                                      Object.keys(payload).forEach((key) => {
-                                        if (payload[key] !== null && payload[key] !== undefined) {
-                                          formData.append(key, payload[key])
-                                        }
-                                      })
-                                      const res = await axios.post(
-                                        '/api/store-users-management',
-                                        formData,
-                                        {
-                                          headers: {
-                                            ...getAuthHeader(),
-                                            'Content-Type': 'multipart/form-data',
-                                          },
-                                        }
-                                      )
-                                        await fetchUsers(buildUrl())
-                                        return res.data
-                                      } catch (err) {
-                                        throw err 
-                                      } finally {
-                                        savingUsers.value = false
-                                      }
-                                    }
-
-                                 
-
-                              
-
-                           const updateUser = async (id, payload) => {
-                                  updatingUsers.value = true
+                                  savingUsers.value = true
+                                  errorUsers.value = {} // reset dulu
 
                                   try {
                                     const formData = new FormData()
-
                                     Object.keys(payload).forEach((key) => {
                                       if (payload[key] !== null && payload[key] !== undefined) {
                                         formData.append(key, payload[key])
                                       }
                                     })
 
-                                    // WAJIB → trick Laravel agar PUT terbaca
-                                    formData.append('_method', 'PUT')
-
                                     const res = await axios.post(
-                                      `/api/update-users-management/${id}`,
+                                      '/api/store-users-management',
                                       formData,
                                       {
                                         headers: {
@@ -303,11 +244,96 @@ export const useUsersStore = defineStore('Data-Users', () => {
                                     return res.data
 
                                   } catch (err) {
+                                    // 👉 TANGKAP VALIDATION ERROR
+                                    if (err.response?.status === 422) {
+                                      errorUsers.value = err.response.data.errors
+                                    }
                                     throw err
                                   } finally {
-                                    updatingUsers.value = false
+                                    savingUsers.value = false
                                   }
                                 }
+
+
+                                 
+
+                              
+
+                          //  const updateUser = async (id, payload) => {
+                          //         updatingUsers.value = true
+
+                          //         try {
+                          //           const formData = new FormData()
+
+                          //           Object.keys(payload).forEach((key) => {
+                          //             if (payload[key] !== null && payload[key] !== undefined) {
+                          //               formData.append(key, payload[key])
+                          //             }
+                          //           })
+
+                          //           // WAJIB → trick Laravel agar PUT terbaca
+                          //           formData.append('_method', 'PUT')
+
+                          //           const res = await axios.post(
+                          //             `/api/update-users-management/${id}`,
+                          //             formData,
+                          //             {
+                          //               headers: {
+                          //                 ...getAuthHeader(),
+                          //                 'Content-Type': 'multipart/form-data',
+                          //               },
+                          //             }
+                          //           )
+
+                          //           await fetchUsers(buildUrl())
+                          //           return res.data
+
+                          //         } catch (err) {
+                          //           throw err
+                          //         } finally {
+                          //           updatingUsers.value = false
+                          //         }
+                          //       }
+
+
+                          const updateUser = async (id, payload) => {
+                                updatingUsers.value = true
+                                errorUsers.value = {}
+
+                                try {
+                                  const formData = new FormData()
+                                  Object.keys(payload).forEach((key) => {
+                                    if (payload[key] !== null && payload[key] !== undefined) {
+                                      formData.append(key, payload[key])
+                                    }
+                                  })
+
+                                  formData.append('_method', 'PUT')
+
+                                  const res = await axios.post(
+                                    `/api/update-users-management/${id}`,
+                                    formData,
+                                    {
+                                      headers: {
+                                        ...getAuthHeader(),
+                                        'Content-Type': 'multipart/form-data',
+                                      },
+                                    }
+                                  )
+
+                                  await fetchUsers(buildUrl())
+                                  return res.data
+
+                                } catch (err) {
+                                  if (err.response?.status === 422) {
+                                    errorUsers.value = err.response.data.errors
+                                  }
+                                  throw err
+                                } finally {
+                                  updatingUsers.value = false
+                                }
+                              }
+
 
                                 const deleteUser = async (id) => {
                                   deletingUsers.value = true
@@ -456,7 +482,6 @@ export const useUsersStore = defineStore('Data-Users', () => {
                 statusStatis
                 
             
-
             }
 
 

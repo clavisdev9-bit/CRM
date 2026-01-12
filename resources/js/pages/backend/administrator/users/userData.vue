@@ -39,7 +39,7 @@ const formUser = ref({
   email: '',
   password: '',
   role_id: null,
-  id: null,
+  divisi_id: null,
   group_id: null,
   is_active: 1,
 })
@@ -133,45 +133,75 @@ const openAddModal = () => {
 }
 
 
+// const openEditUser = async (user) => {
+//   editUserId.value = user.id_user;
+//   // 2. Pastikan data options tersedia
+//   await Promise.all([
+//     dataUsers.fetchDivisionSelect(),
+//     dataUsers.fetchGroupSelect(),
+//     dataUsers.fetchRoleSelect()
+//   ]);
+//   // 3. Reset form
+//   formUser.value = {
+//     fullname: '',
+//     role_id: null,
+//     divisi_id: null,
+//     group_id: null,
+//     is_active: 1
+//   };
+//   await nextTick();
+//   // 4. Pengisian dengan Fallback Key (Menangani perbedaan nama field)
+//   formUser.value = {
+//     fullname: user.fullname,
+//     username: user.username,
+//     email: user.email,
+//     password: '', 
+    
+//     // Konversi ke Number() sangat krusial
+//     role_id: user.role_id ? Number(user.role_id) : null,
+    
+//     // Periksa apakah fieldnya 'division_id' atau 'divisi_id'
+//     divisi_id: (user.divisi_id || user.divisi_id) ? Number(user.divisi_id || user.divisi_id) : null,
+//      formUser.divisi_id  = user.divisi_id 
+    
+//     // Periksa apakah fieldnya 'group_id' atau 'id_group'
+//     group_id: (user.group_id || user.id_group) ? Number(user.group_id || user.id_group) : null,
+    
+//     is_active: Number(user.is_active),
+//   };
+
+
+//   imagePreview.value = user.image_url || '/storage/users/default.png';
+// };
+
+
 const openEditUser = async (user) => {
-  editUserId.value = user.id_user;
-  // 2. Pastikan data options tersedia
-  await Promise.all([
-    dataUsers.fetchDivisionSelect(),
-    dataUsers.fetchGroupSelect(),
-    dataUsers.fetchRoleSelect()
-  ]);
-  // 3. Reset form
-  formUser.value = {
-    fullname: '',
-    role_id: null,
-    divisi_id: null,
-    group_id: null,
-    is_active: 1
-  };
-  await nextTick();
-  // 4. Pengisian dengan Fallback Key (Menangani perbedaan nama field)
+  editUserId.value = user.id_user
+
+  await dataUsers.fetchDivisionSelect()
+
   formUser.value = {
     fullname: user.fullname,
     username: user.username,
     email: user.email,
-    password: '', 
-    
-    // Konversi ke Number() sangat krusial
-    role_id: user.role_id ? Number(user.role_id) : null,
-    
-    // Periksa apakah fieldnya 'division_id' atau 'divisi_id'
-    divisi_id: (user.divisi_id || user.divisi_id) ? Number(user.divisi_id || user.divisi_id) : null,
-    
-    // Periksa apakah fieldnya 'group_id' atau 'id_group'
-    group_id: (user.group_id || user.id_group) ? Number(user.group_id || user.id_group) : null,
-    
+    password: '',
+
+    // 🔑 KUNCI UTAMA
+    divisi_id: user.divisi_id !== null
+      ? Number(user.divisi_id)
+      : null,
+
+    role_id: Number(user.role_id),
+    group_id: Number(user.group_id),
     is_active: Number(user.is_active),
-  };
+  }
+
+  imagePreview.value = user.image
+    ? `/storage/users/${user.image}`
+    : '/storage/users/default.png'
+}
 
 
-  imagePreview.value = user.image_url || '/storage/users/default.png';
-};
 
 /* ===== RESET ===== */
 const resetForm = () => {
@@ -220,8 +250,8 @@ const saveUser = async () => {
         toasts.fire({
           icon: 'success',
           title: isEdit
-            ? 'User berhasil diupdate'
-            : 'User berhasil ditambahkan',
+            ? 'User updated successfully'
+            : 'User added successfully',
         })
       },
       { once: true }
@@ -231,7 +261,7 @@ const saveUser = async () => {
     console.error(e)
     Swal.fire(
       'Error',
-      e.response?.data?.message || 'Terjadi kesalahan server',
+      e.response?.data?.message || 'A server error occurred',
       'error'
     )
   }
@@ -301,7 +331,7 @@ const openDetailUser = async (user) => {
 const openAccessSubMenuModal = async (user) => {
   selectedUser.value = user
 
-  // 🔥 INI YANG PALING PENTING
+  // INI YANG PALING PENTING
   await accessUserToSubmenu.setUserId(user.id_user)
 
   await nextTick()
@@ -318,7 +348,6 @@ const openAccessSubMenuModal = async (user) => {
 const updatePermission = async (submenu) => {
   await accessUserToSubmenu.autoSavePermission(submenu)
 }
-
 
 
 
@@ -491,41 +520,41 @@ const handleImportExcel = () => {
                 </li>
                
              </ul>
-    </div>
+              </div>
 
-            <div class="dropdown d-inline-block">
-                <button
-                    class="btn btn-primary btn-sm dropdown-toggle"
-                    type="button"
-                    data-bs-toggle="dropdown"
-                    aria-expanded="false"
-                >
-                    <i class="fa fa-download"></i> Import
-                </button>
+                      <div class="dropdown d-inline-block">
+                          <button
+                              class="btn btn-primary btn-sm dropdown-toggle"
+                              type="button"
+                              data-bs-toggle="dropdown"
+                              aria-expanded="false"
+                          >
+                              <i class="fa fa-download"></i> Import
+                          </button>
 
-                <ul class="dropdown-menu dropdown-menu-end">
-                    <li>
-                    <button class="dropdown-item" @click="openImportCsvModal">
-                        <i class="fas fa-file-import"></i> Import CSV
-                    </button>
-                    </li>
-                     <li>
-                    <button class="dropdown-item" @click="openImportExcelModal">
-                        <i class="fas fa-file-import"></i> Import Excel
-                    </button>
-                    </li>
-                </ul>
+                          <ul class="dropdown-menu dropdown-menu-end">
+                              <li>
+                              <button class="dropdown-item" @click="openImportCsvModal">
+                                  <i class="fas fa-file-import"></i> Import CSV
+                              </button>
+                              </li>
+                              <li>
+                              <button class="dropdown-item" @click="openImportExcelModal">
+                                  <i class="fas fa-file-import"></i> Import Excel
+                              </button>
+                              </li>
+                          </ul>
+                      </div>
+
+              </div>
+
+              <!-- Tombol Reset paling kanan -->
+              <button class="btn btn-warning btn-sm d-flex align-items-center ms-auto" @click="dataUsers.resetFilters">
+                <i class="fas fa-undo"></i> Reset
+              </button>
+
             </div>
-
-    </div>
-
-    <!-- Tombol Reset paling kanan -->
-    <button class="btn btn-warning btn-sm d-flex align-items-center ms-auto" @click="dataUsers.resetFilters">
-      <i class="fas fa-undo"></i> Reset
-    </button>
-
-  </div>
-</div>
+          </div>
 
 
 
@@ -597,7 +626,6 @@ const handleImportExcel = () => {
                     <th>Division</th>
                     <th>Group</th>
                     <th>image</th>
-                  
                     <th style="width: 8%;">Actions</th>
                   </tr>
                 </thead>
@@ -645,72 +673,72 @@ const handleImportExcel = () => {
                           1
                         }}
                       </td>
-                  <td>{{ user.fullname }}</td>
-                  <td>{{ user.email }}</td>
-                  <td>
-                    <span class="badge bg-primary">
-                      {{ user.role?.role ?? "-" }}
-                    </span>
-                  </td>
-                  <td>
-                    <span class="badge bg-primary">
-                      {{ user.division?.name_division ?? "-" }}
-                    </span>
-                  </td>
-                  <td>
-                    <span class="badge bg-primary">
-                      {{ user.groups?.name_group ?? "-" }}
-                    </span>
-                  </td>
-                  <td>
-                    <img
-                      :src="getUserImage(user.image)"
-                      alt="avatar"
-                      width="40"
-                      height="40"
-                      class="rounded-circle object-fit-cover"
-                    />
-                  </td>
-                   <td>
-                      <!-- UPDATE -->
-                      <button
-                        v-if="!loadingPermission && permission?.can_update"
-                        class="btn btn-outline-warning btn-sm me-1"
-                        data-bs-toggle="modal"
-                        data-bs-target="#modal-add-data"
-                        @click="openEditUser(user)"
-                      >
-                        <i class="fa fa-edit"></i>
-                      </button>
-                      <!-- DELETE -->
-                      <button
-                        v-if="!loadingPermission && permission?.can_delete"
-                        class="btn btn-outline-danger btn-sm me-1"
-                        @click="handleDeleteUsers(user)"
-                      >
-                        <i class="fa fa-trash"></i>
-                      </button>
-                      <!-- DETAIL -->
-                      <button
-                        v-if="!loadingPermission && permission?.can_view"
-                        class="btn btn-outline-primary btn-sm me-1"
-                        data-bs-toggle="modal"
-                        data-bs-target="#userDetailModal"
-                          @click="openDetailUser(user)"
-                        >
-                        <i class="fa fa-circle-info"></i>
-                      </button>
-                       
-                         
-                      <button
-                       v-if="!loadingPermission && permission?.can_update"
-                        class="btn btn-outline-primary btn-sm me-1"
-                        @click="openAccessSubMenuModal(user)"
-                      >
-                        <i class="fa-solid fa-eye-low-vision"></i>
-                      </button>
+                      <td>{{ user.fullname }}</td>
+                      <td>{{ user.email }}</td>
+                      <td>
+                        <span class="badge bg-primary">
+                          {{ user.role?.role ?? "-" }}
+                        </span>
+                      </td>
+                      <td>
+                        <span class="badge bg-primary">
+                          {{ user.division?.name_division ?? "-" }}
+                        </span>
+                      </td>
+                      <td>
+                        <span class="badge bg-primary">
+                          {{ user.groups?.name_group ?? "-" }}
+                        </span>
+                      </td>
+                      <td>
+                        <img
+                          :src="getUserImage(user.image)"
+                          alt="avatar"
+                          width="40"
+                          height="40"
+                          class="rounded-circle object-fit-cover"
+                        />
+                      </td>
+                      <td>
+                          <!-- UPDATE -->
+                          <button
+                            v-if="!loadingPermission && permission?.can_update"
+                            class="btn btn-outline-warning btn-sm me-1"
+                            data-bs-toggle="modal"
+                            data-bs-target="#modal-add-data"
+                            @click="openEditUser(user)"
+                          >
+                            <i class="fa fa-edit"></i>
+                          </button>
+                          <!-- DELETE -->
+                          <button
+                            v-if="!loadingPermission && permission?.can_delete"
+                            class="btn btn-outline-danger btn-sm me-1"
+                            @click="handleDeleteUsers(user)"
+                          >
+                            <i class="fa fa-trash"></i>
+                          </button>
+                          <!-- DETAIL -->
+                          <button
+                            v-if="!loadingPermission && permission?.can_view"
+                            class="btn btn-outline-primary btn-sm me-1"
+                            data-bs-toggle="modal"
+                            data-bs-target="#userDetailModal"
+                              @click="openDetailUser(user)"
+                            >
+                            <i class="fa fa-circle-info"></i>
+                          </button>
+                          
+                            
+                          <button
+                          v-if="!loadingPermission && permission?.can_update"
+                            class="btn btn-outline-primary btn-sm me-1"
+                            @click="openAccessSubMenuModal(user)"
+                          >
+                            <i class="fa-solid fa-eye-low-vision"></i>
+                          </button>
 
-                    </td>
+                        </td>
                   </tr>
                 </tbody>
               </table>
@@ -744,7 +772,6 @@ const handleImportExcel = () => {
         </div>
       </div>
     </div>
-
 
 
 
@@ -856,11 +883,11 @@ const handleImportExcel = () => {
                           type="text"
                           v-model="formUser.fullname"
                           class="form-control"
-                          :class="{ 'is-invalid': dataUsers.errorUser?.fullname }"
+                          :class="{ 'is-invalid': dataUsers.errorUsers?.fullname }"
                           placeholder="Enter fullname"
                         />
-                        <div v-if="dataUsers.errorUser?.fullname" class="invalid-feedback">
-                          {{ dataUsers.errorUser.fullname[0] }}
+                        <div v-if="dataUsers.errorUsers?.fullname" class="invalid-feedback">
+                          {{ dataUsers.errorUsers.fullname[0] }}
                         </div>
                       </div>
 
@@ -871,11 +898,11 @@ const handleImportExcel = () => {
                           type="text"
                           v-model="formUser.username"
                           class="form-control"
-                          :class="{ 'is-invalid': dataUsers.errorUser?.username }"
+                           :class="{ 'is-invalid': dataUsers.errorUsers?.username }"
                           placeholder="Enter username"
                         />
-                        <div v-if="dataUsers.errorUser?.username" class="invalid-feedback">
-                          {{ dataUsers.errorUser.username[0] }}
+                        <div v-if="dataUsers.errorUsers?.username" class="invalid-feedback">
+                          {{ dataUsers.errorUsers.username[0] }}
                         </div>
                       </div>
 
@@ -886,11 +913,11 @@ const handleImportExcel = () => {
                           type="email"
                           v-model="formUser.email"
                           class="form-control"
-                          :class="{ 'is-invalid': dataUsers.errorUser?.email }"
+                           :class="{ 'is-invalid': dataUsers.errorUsers?.email }"
                           placeholder="Enter email"
                         />
-                        <div v-if="dataUsers.errorUser?.email" class="invalid-feedback">
-                          {{ dataUsers.errorUser.email[0] }}
+                        <div v-if="dataUsers.errorUsers?.email" class="invalid-feedback">
+                          {{ dataUsers.errorUsers.email[0] }}
                         </div>
                       </div>
 
@@ -898,16 +925,16 @@ const handleImportExcel = () => {
                       <div class="col-md-6 mb-3">
                         <label class="form-label">
                           Password
-                          <small v-if="editUserId" class="text-muted">(kosongkan jika tidak diganti)</small>
+                          <small v-if="editUserId" class="text-warning">(leave password blank if not changed)</small>
                         </label>
                         <input
                           type="password"
                           v-model="formUser.password"
                           class="form-control"
-                          :class="{ 'is-invalid': dataUsers.errorUser?.password }"
+                           :class="{ 'is-invalid': dataUsers.errorUsers?.password }"
                         />
-                        <div v-if="dataUsers.errorUser?.password" class="invalid-feedback">
-                          {{ dataUsers.errorUser.password[0] }}
+                        <div v-if="dataUsers.errorUsers?.password" class="invalid-feedback">
+                          {{ dataUsers.errorUsers.password[0] }}
                         </div>
                       </div>
 
@@ -923,36 +950,48 @@ const handleImportExcel = () => {
                           :searchable="true"
                           :loading="dataUsers.loadingSelect"
                         />
-                        <div v-if="dataUsers.errorUser?.role_id" class="invalid-feedback d-block">
-                          {{ dataUsers.errorUser.role_id[0] }}
+                       <div v-if="dataUsers.errorUsers?.role_id" class="invalid-feedback d-block">
+                          {{ dataUsers.errorUsers.role_id[0] }}
                         </div>
                       </div>
 
                     <div class="col-md-6 mb-3">
                       <label class="form-label">Select Division</label>
-                    <Multiselect
-                    :key="formUser.divisi_id"
-                    v-model="formUser.divisi_id"
-                    :options="dataUsers.divisionSelect"
-                    label="name_division"
-                    valueProp="id"
-                    placeholder="Pilih Divisi"
-                  />
-                      <div v-if="dataUsers.errorUsers?.divisi_id" class="invalid-feedback d-block">
-                          {{ dataUsers.errorUsers.divisi_id[0] }}
+                        <!-- <Multiselect
+                        :key="formUser.divisi_id"
+                        v-model="formUser.divisi_id"
+                        :options="dataUsers.divisionSelect"
+                        label="name_division"
+                        valueProp="id"
+                        placeholder="Pilih Divisi" -->
+                      <Multiselect
+                      :key="formUser.divisi_id"
+                      v-model="formUser.divisi_id"
+                      :options="dataUsers.divisionSelect"
+                      label="name_division"
+                      valueProp="id"
+                      :reduce="option => option.id"
+                      placeholder="Select Division"
+                    />
+
+
+                     
+                          <div v-if="dataUsers.errorUsers?.divisi_id" class="invalid-feedback d-block">
+                              {{ dataUsers.errorUsers.divisi_id[0] }}
+                          </div>
                       </div>
-                  </div>
 
                   <div class="col-md-6 mb-3">
                       <label class="form-label">Select Group</label>
                       <Multiselect
-                          v-model="formUser.group_id"
-                          :options="dataUsers.groupSelect"
-                          label="name_group"
-                          valueProp="id_group" 
-                          placeholder="Pilih Group"
-                          :searchable="true"
+                        v-model="formUser.group_id"
+                        :options="dataUsers.groupSelect"
+                        label="name_group"
+                        valueProp="id_group"
+                        :reduce="option => option.id_group"
+                        placeholder="Select Group"
                       />
+
                       <div v-if="dataUsers.errorUsers?.group_id" class="invalid-feedback d-block">
                           {{ dataUsers.errorUsers.group_id[0] }}
                       </div>
@@ -1007,20 +1046,38 @@ const handleImportExcel = () => {
                 </div>
 
                 <!-- FOOTER -->
-                <div class="modal-footer">
-                  <button type="button" class="btn btn-link" data-bs-dismiss="modal">
-                    Cancel
-                  </button>
+               <div class="modal-footer">
                   <button
                     type="button"
-                    class="btn btn-primary"
-                    :disabled="dataUsers.savingUser || dataUsers.updatingUser"
+                    class="btn btn-link"
+                    data-bs-dismiss="modal"
+                    :disabled="dataUsers.savingUsers || dataUsers.updatingUsers"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    type="button"
+                    class="btn btn-primary d-flex align-items-center gap-2"
+                    :disabled="dataUsers.savingUsers || dataUsers.updatingUsers"
                     @click="saveUser"
                   >
-                    <i class="fas fa-save me-1"></i>
-                    {{ editUserId ? 'Update' : 'Simpan' }}
+                    <span
+                      v-if="dataUsers.savingUsers || dataUsers.updatingUsers"
+                      class="spinner-border spinner-border-sm"
+                      role="status"
+                      aria-hidden="true"
+                    ></span>
+
+                    <span>
+                      {{ editUserId
+                        ? (dataUsers.updatingUsers ? 'process updates...' : 'Update')
+                        : (dataUsers.savingUsers ? 'Save process...' : 'Save')
+                      }}
+                    </span>
                   </button>
                 </div>
+
 
               </div>
             </div>

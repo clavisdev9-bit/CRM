@@ -18,13 +18,13 @@ class UsersValidationUpdateRequest extends FormRequest
 
         return [
             'fullname' => [
-                'sometimes',
+                'required',
                 'string',
                 'max:100',
             ],
 
             'username' => [
-                'sometimes',
+                'required',
                 'string',
                 'max:50',
                 Rule::unique('ms_users', 'username')
@@ -33,7 +33,7 @@ class UsersValidationUpdateRequest extends FormRequest
             ],
 
             'email' => [
-                'sometimes',
+                'required',
                 'email',
                 'max:100',
                 Rule::unique('ms_users', 'email')
@@ -82,17 +82,17 @@ class UsersValidationUpdateRequest extends FormRequest
         ];
     }
 
-    public function messages(): array
-    {
-        return [
-            'username.unique' => 'Username sudah digunakan.',
-            'email.unique'    => 'Email sudah digunakan.',
-            'role_id.exists'  => 'Role tidak ditemukan.',
-            'divisi_id.exists'    => 'Divisi tidak ditemukan.',
-            'group_id.exists'    => 'Group tidak ditemukan.',
-            'image.image'     => 'File harus berupa gambar.',
-            'image.mimes'     => 'Format gambar harus jpg, jpeg, atau png.',
-        ];
+                public function messages(): array
+                {
+                    return [
+                'username.unique'   => 'Username is already taken.',
+                'email.unique'      => 'Email address is already in use.',
+                'role_id.exists'    => 'Selected role does not exist.',
+                'divisi_id.exists'  => 'Selected division does not exist.',
+                'group_id.exists'   => 'Selected group does not exist.',
+                'image.image'       => 'The file must be an image.',
+                'image.mimes'       => 'The image must be a file of type: jpg, jpeg, or png.',
+            ];
     }
 
     protected function prepareForValidation(): void
