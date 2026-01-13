@@ -23,6 +23,12 @@ import salesHome from '../pages/backend/sales/home/home.vue'
 import masterEmployee from '../pages/backend/sales/master/employee.vue'
 import presensi from '../pages/backend/sales/attendance/presensi.vue'
 
+import leads from '../pages/backend/sales/leads/leads.vue'
+import followUp from '../pages/backend/sales/follow_up/followUp.vue'
+import costumers from '../pages/backend/sales/customers/customers.vue'
+import visitsSales from '../pages/backend/sales/visits/visits.vue'
+import reportsForSales from '../pages/backend/sales/reports/reports.vue'
+
 //backend Manager
 import managerHome from '../pages/backend/manager/home/home.vue'
 
@@ -112,6 +118,37 @@ const routes = [
   },
   
 
+  {
+  path: '/sales-leads',
+  component: leads,
+  // meta: { requiresAuth: true }   
+  },
+ 
+
+  {
+  path: '/sales-follow-up',
+  component: followUp,
+  // meta: { requiresAuth: true }   
+  },
+
+
+  {
+  path: '/sales-customers',
+  component: costumers,
+  // meta: { requiresAuth: true }   
+  },
+  
+  {
+  path: '/sales-visit',
+  component: visitsSales,
+  // meta: { requiresAuth: true }   
+  },
+
+  {
+  path: '/sales-reports-visits-and-follow-up',
+  component: reportsForSales,
+  // meta: { requiresAuth: true }   
+  },
 
 
  // Backend Manager
