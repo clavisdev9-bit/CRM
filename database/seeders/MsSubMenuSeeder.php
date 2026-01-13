@@ -137,10 +137,10 @@ class MsSubMenuSeeder extends Seeder
             ],
              [
                 'id_menu' => 2,
-                'url' => '/data-master-sales',
+                'url' => '/data-master-employee',
                 'icon' => null,
-                'title' => 'Master Sales',
-                'noted' => 'Master Sales Page',
+                'title' => 'Master Employe',
+                'noted' => 'Master Employe Page',
                 'is_active' => true,
                 'parent_id' => 10,
             ],
@@ -311,14 +311,14 @@ class MsSubMenuSeeder extends Seeder
             ],
 
               
-              [
+            [
                 'id_menu' => 2,
-                'url' => '/sales-customers',
-                'icon' => 'nav-icon fas fa-users-rays',
-                'title' => 'Customers',
-                'noted' => 'Customers Management Page',
+                'url' => '/sales-leads',
+                'icon' => 'nav-icon fas fa-arrows-down-to-people',
+                'title' => 'Leads',
+                'noted' => 'Leads Management Page',
                 'is_active' => true,
-                'parent_id' => null,
+                'parent_id' => 22,
             ],
 
               [
@@ -380,14 +380,15 @@ class MsSubMenuSeeder extends Seeder
                 'is_active' => true,
                 'parent_id' => null,
             ],
+
             [
                 'id_menu' => 2,
-                'url' => '/sales-leads',
-                'icon' => 'nav-icon fas fa-arrows-down-to-people',
-                'title' => 'Leads',
-                'noted' => 'Leads Management Page',
+                'url' => '/sales-customers',
+                'icon' => 'nav-icon fas fa-users-rays',
+                'title' => 'Customers',
+                'noted' => 'Customers Management Page',
                 'is_active' => true,
-                'parent_id' => null,
+                'parent_id' => 22,
             ],
 
             [
@@ -400,9 +401,35 @@ class MsSubMenuSeeder extends Seeder
                 'parent_id' => null,
             ],
 
+            [
+                'id_menu' => 2,
+                'url' => '/sales-visit',
+                'icon' => 'nav-icon fas fa-arrows-turn-to-dots',
+                'title' => 'Sales Visits',
+                'noted' => 'Sales Visits',
+                'is_active' => true,
+                'parent_id' => 22,
+            ],
 
+            [
+                'id_menu' => 2,
+                'url' => '/sales-follow-up',
+                'icon' => 'nav-icon fas fa-tty',
+                'title' => 'Follow Up',
+                'noted' => 'Follow Up',
+                'is_active' => true,
+                'parent_id' => 22,
+            ],
 
-
+            [
+                'id_menu' => 2,
+                'url' => '/sales-reports-visits-and-follow-up',
+                'icon' => 'nav-icon fas fa-tty',
+                'title' => 'Sales Reports',
+                'noted' => 'sales reports visits and followup',
+                'is_active' => true,
+                'parent_id' => 22,
+            ],
 
 
 

@@ -17,6 +17,7 @@ class MsEmployee extends Model
     public    $timestamps = true;
      protected $fillable = [
     'user_id',
+    'office_id',
     'nik',
     'tempat_lahir',
     'tanggal_lahir',
@@ -25,11 +26,17 @@ class MsEmployee extends Model
     'no_hp',
     'tanggal_masuk',
     'status_karyawan',
+    'attendance_mode',
 ];
 
     public function user()
     {
         return $this->belongsTo(MsUsers::class, 'user_id', 'id_user');
+    }
+
+    public function office()
+    {
+        return $this->belongsTo(MsOffice::class, 'office_id', 'id');
     }
 
 

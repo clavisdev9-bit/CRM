@@ -20,7 +20,7 @@ import settingApp from '../pages/backend/administrator/setting/settingApp.vue'
 
 //backend Sales
 import salesHome from '../pages/backend/sales/home/home.vue'
-import masterSales from '../pages/backend/sales/master/sales.vue'
+import masterEmployee from '../pages/backend/sales/master/employee.vue'
 import presensi from '../pages/backend/sales/attendance/presensi.vue'
 
 //backend Manager
@@ -100,8 +100,8 @@ const routes = [
   },
 
   {
-  path: '/data-master-sales',
-  component: masterSales,
+  path: '/data-master-employee',
+  component: masterEmployee,
   // meta: { requiresAuth: true }   
   },
 
@@ -120,9 +120,6 @@ const routes = [
   component: managerHome,
   // meta: { requiresAuth: true }   
   },
-
-
-
 
 
   // { path: '/form-example-template', component: Form },

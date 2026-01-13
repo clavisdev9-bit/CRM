@@ -88,7 +88,7 @@ Route::put('/employee-update-management/{id}', [Master::class, 'updateEmployee']
 Route::delete('/employee-delete-management/{id}', [Master::class, 'deleteEmployee'])->name('api.delete.employee.management');
 Route::put('/employee-restore-management/{id}',[Master::class, 'restoreEmployee'])->name('api.restore.employee.management');
 Route::get('/employee-available-users',[Master::class, 'getAvailableUsers'])->name('api.employee.available.users');
-
+Route::get('/select-office-for-employee', [Master::class, 'selectOffice'])->name('api.select.api');
 
 
 // api User Attendance app

@@ -14,15 +14,17 @@ use App\Http\Resources\EmployeeResourcesCollection;
 use App\Http\Requests\EmployeeValidationindex;
 use App\Http\Requests\EmployeeValidationRequest;
 use App\Http\Requests\EmployeeValidationUpdateRequest;
-
 use App\Models\MsUsers;
+use App\Models\MsOffice;
 
 
 class Master extends Controller
 {
     protected $MsEmployee;
-    public function __construct(MsEmployee $MsEmployee) {
+    protected $MsOffice;
+    public function __construct(MsEmployee $MsEmployee, MsOffice $MsOffice) {
         $this->MsEmployee = $MsEmployee;
+        $this->MsOffice = $MsOffice;
     }
 
 
@@ -34,12 +36,6 @@ class Master extends Controller
             $sortBy = $validated['sort_by'] ?? 'created_at';
             $sortDir = $validated['sort_dir'] ?? 'desc';
             $onlyDeleted = $validated['only_deleted'] ?? false;
-
-        //    $query = $this->MsEmployee
-        //     ->with(['user:id_user,fullname,username,email,image,is_active,'])
-        //     ->onlyDeleted($onlyDeleted)
-        //     ->search($search)
-        //     ->sort($sortBy, $sortDir);
 
         $query = $this->MsEmployee
         ->with([
@@ -61,11 +57,12 @@ class Master extends Controller
             {
                 try {
                     $employee = MsEmployee::with([
-                            'user:id_user,fullname,username,email,image,is_active,divisi_id,group_id',
-                            'user.division:id,name_division',
-                            'user.groups:id_group,name_group',
-                        ])
-                        ->findOrFail($id);
+                    'user:id_user,fullname,username,email,image,is_active,divisi_id,group_id',
+                    'user.division:id,name_division',
+                    'user.groups:id_group,name_group',
+                    'office:id,office_name,latitude,longitude,radius',
+                ])->findOrFail($id);
+
 
                     return ApiResponse::success(
                         new EmployeeResources($employee),
@@ -91,6 +88,7 @@ class Master extends Controller
                 try {
                     $employee = MsEmployee::create([
                         'user_id'         => $data['user_id'],
+                        'office_id'         => $data['office_id'],
                         'nik'             => $data['nik'],
                         'tempat_lahir'    => $data['tempat_lahir'],
                         'tanggal_lahir'   => $data['tanggal_lahir'],
@@ -99,6 +97,7 @@ class Master extends Controller
                         'no_hp'           => $data['no_hp'],
                         'tanggal_masuk'   => $data['tanggal_masuk'],
                         'status_karyawan' => $data['status_karyawan'],
+                        'attendance_mode' => $data['attendance_mode'],
                     ]);
 
                     DB::commit();
@@ -257,45 +256,53 @@ class Master extends Controller
 
 
 
-            // public function getAvailableUsers()
-            //     {
-            //         $users = MsUsers::whereDoesntHave('employee')
-            //             ->where('is_active', true)
-            //             ->select('id_user', 'fullname', 'username', 'email')
-            //             ->orderBy('fullname')
-            //             ->get();
 
-            //         return ApiResponse::success(
-            //             $users,
-            //             'Success get available users'
+
+        public function getAvailableUsers(Request $request)
+            {
+                $employeeId = $request->employee_id;
+
+                $users = MsUsers::where('is_active', true)
+                    ->where(function ($query) use ($employeeId) {
+                        $query->whereDoesntHave('employee');
+
+                        if ($employeeId) {
+                            $query->orWhereHas('employee', function ($q) use ($employeeId) {
+                                $q->where('id_employee', $employeeId);
+                            });
+                        }
+                    })
+                    ->select('id_user', 'fullname', 'username', 'email')
+                    ->orderBy('fullname')
+                    ->get();
+
+                return ApiResponse::success(
+                    $users,
+                    'Success get available users'
+                );
+            }
+
+
+
+            // public function selectOffice()
+            //     {
+            //         return response()->json(
+            //             DB::table('offices')
+            //                 ->select('id', 'office_name')
+            //                 ->orderBy('office_name', 'asc')
+            //                 ->get()
             //         );
             //     }
 
-
-            public function getAvailableUsers(Request $request)
-{
-    $employeeId = $request->employee_id;
-
-    $users = MsUsers::where('is_active', true)
-        ->where(function ($query) use ($employeeId) {
-            $query->whereDoesntHave('employee');
-
-            if ($employeeId) {
-                $query->orWhereHas('employee', function ($q) use ($employeeId) {
-                    $q->where('id_employee', $employeeId);
-                });
+                public function selectOffice()
+            {
+                return response()->json(
+                    MsOffice::query()
+                        ->select('id', 'office_name')
+                        // ->where('i', true)
+                        ->orderBy('id', 'asc')
+                        ->get()
+                );
             }
-        })
-        ->select('id_user', 'fullname', 'username', 'email')
-        ->orderBy('fullname')
-        ->get();
-
-    return ApiResponse::success(
-        $users,
-        'Success get available users'
-    );
-}
-
-
 
 }

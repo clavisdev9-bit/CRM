@@ -19,6 +19,9 @@ class EmployeeValidationRequest extends FormRequest
         return [
             'user_id' => ['required', 'integer', 'exists:ms_users,id_user'],
 
+            'office_id' => ['required'],
+            'attendance_mode' => ['required'],
+
             'nik' => ['required', 'string', 'max:50'],
 
             'tempat_lahir' => ['required', 'string', 'max:100'],
@@ -31,7 +34,8 @@ class EmployeeValidationRequest extends FormRequest
 
             'tanggal_masuk' => ['required', 'date'],
 
-            'status_karyawan' => ['required', 'in:Tetap,Kontrak'],
+           'status_karyawan' => ['required', 'in:PERMANENT,CONTRACT,INTERNSHIP'],
+
         ];
     }
 
@@ -45,6 +49,9 @@ class EmployeeValidationRequest extends FormRequest
             'nik.string'   => 'NIK must be a string.',
             'nik.max'      => 'NIK may not be greater than 50 characters.',
 
+            'office_id.required' => 'Office is required.',
+            'attendance_mode.required' => 'attendance mode is required.',
+
             'tempat_lahir.required' => 'Place of birth is required.',
             'tanggal_lahir.required' => 'Date of birth is required.',
 
@@ -57,7 +64,7 @@ class EmployeeValidationRequest extends FormRequest
             'tanggal_masuk.required' => 'Join date is required.',
 
             'status_karyawan.required' => 'Employee status is required.',
-            'status_karyawan.in'       => 'Employee status must be aktif or nonaktif.',
+            'status_karyawan.in'       => 'Employee status must be PERMANENT, CONTRACT, or INTERNSHIP.',
         ];
     }
 

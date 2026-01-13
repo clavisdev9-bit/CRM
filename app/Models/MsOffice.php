@@ -23,4 +23,9 @@ class MsOffice extends Model
         'radius',
         'is_active',
     ];
+
+     public function employees()
+    {
+        return $this->hasMany(MsEmployee::class, 'office_id', 'id');
+    }
 }

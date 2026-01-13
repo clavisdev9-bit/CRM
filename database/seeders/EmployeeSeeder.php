@@ -57,7 +57,7 @@ class EmployeeSeeder extends Seeder
                 'no_hp' => '081234567890',
 
                 'tanggal_masuk' => Carbon::now()->toDateString(),
-                'status_karyawan' => 'AKTIF',
+                'status_karyawan' => 'CONTRACT',
 
                 // ===== ATTENDANCE =====
                 'attendance_mode' => 'OFFICE', // OFFICE | FREE | WFH | HYBRID

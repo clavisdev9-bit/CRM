@@ -72,7 +72,7 @@ return new class extends Migration
 
             // ===== EMPLOYMENT =====
             $table->date('tanggal_masuk')->nullable();
-            $table->enum('status_karyawan', ['AKTIF', 'NONAKTIF', 'RESIGN'])
+            $table->enum('status_karyawan', ['PERMANENT', 'CONTRACT', 'INTERNSHIP'])
                   ->default('AKTIF');
 
             // ===== ATTENDANCE CONFIG =====

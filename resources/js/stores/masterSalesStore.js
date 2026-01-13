@@ -20,6 +20,7 @@ export const useMasterSalesStore = defineStore('Data-Master-Sales', () => {
         const loading = ref(false) 
 
         const userSelect = ref([])
+        const officeSelect = ref([])
         const loadingSelect = ref(false)
 
         const pagination = reactive({
@@ -188,27 +189,51 @@ export const useMasterSalesStore = defineStore('Data-Master-Sales', () => {
                                 ])
 
                                 const statusJobs = ref([
-                                { value: 'Tetap', label: 'permanent' },
-                                { value: 'Kontrak', label: 'Contract' }
+                                { value: 'PERMANENT', label: 'PERMANENT' },
+                                { value: 'CONTRACT', label: 'CONTRACT' },
+                                { value: 'INTERNSHIP', label: 'INTERNSHIP' },
+                                ])
+
+                                const AttendanceMode = ref([
+                                { value: 'OFFICE', label: 'OFFICE' },
+                                { value: 'FREE', label: 'FREE' },
+                                { value: 'WFH', label: 'WFH' },
+                                { value: 'HYBRID', label: 'HYBRID' },
                                 ])
 
                                
 
+                                 const fetchUserSelect = async () => {
+                                  loadingSelect.value = true
+                                  try {
+                                    const { data } = await axios.get('/api/employee-available-users', {
+                                      headers: {
+                                        ...getAuthHeader(),
+                                      },
+                                    })
+                                    userSelect.value = data.data
+                                  } finally {
+                                    loadingSelect.value = false
+                                  }
+                                }
 
-                                const fetchUserSelect = async (employeeId = null) => {
+
+                                    const fetchOfficeSelect = async (officeId = null) => {
                                     loadingSelect.value = true
-                                    try {
-                                        const { data } = await axios.get('/api/employee-available-users', {
-                                        params: {
-                                            employee_id: employeeId
-                                        },
-                                        headers: getAuthHeader(),
-                                        })
-                                        userSelect.value = data.data
-                                    } finally {
-                                        loadingSelect.value = false
+                                        try {
+                                            const { data } = await axios.get('/api/select-office-for-employee', {
+                                            params: {
+                                                id: officeId
+                                            },
+                                            headers: getAuthHeader(),
+                                            })
+                                            officeSelect.value = data
+                                        } finally {
+                                            loadingSelect.value = false
+                                        }
                                     }
-                                    }
+
+                                   
 
 
                                     const storeMasterSales = async (payload) => {
@@ -219,11 +244,14 @@ export const useMasterSalesStore = defineStore('Data-Master-Sales', () => {
                                         const res = await axios.post(
                                         '/api/employee-store-management',
                                         payload,
+                                       
                                         { headers: getAuthHeader() }
                                         )
 
                                         await fetchMasterSalesData(buildUrl())
                                         return res.data
+                                      
+                                        
                                     } catch (err) {
                                         if (err.response?.status === 422) {
                                         errorMasterSalesData.value = err.response.data.errors
@@ -327,7 +355,11 @@ export const useMasterSalesStore = defineStore('Data-Master-Sales', () => {
                                 storeMasterSales,
                                 updateMasterSales,
                                 deletingMasterSalesData,
-                                deleteMasterSales
+                                deleteMasterSales,
+
+                                AttendanceMode,
+                                fetchOfficeSelect,
+                                officeSelect
 
 
                             }

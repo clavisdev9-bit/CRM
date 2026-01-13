@@ -32,6 +32,7 @@ onMounted(async () => {
     await dataMastersales.fetchMasterSalesData(dataMastersales.buildUrl());
     await menuStore.fetchMenus();
     await dataMastersales.fetchUserSelect();
+    await dataMastersales.fetchOfficeSelect();
 
     permission.value = menuStore.getPermission(route.path);
   } catch (error) {
@@ -64,6 +65,7 @@ const showDetail = async (idMasterSales) => {
 // code store and edit
 const form = ref({
   user_id: '',
+  office_id: '',
   nik: '',
   tempat_lahir: '',
   tanggal_lahir: '',
@@ -72,6 +74,7 @@ const form = ref({
   no_hp: '',
   tanggal_masuk: '',
   status_karyawan: '',
+  attendance_mode: '',
 })
 
 
@@ -83,8 +86,11 @@ const MasterSalesInput = ref(null)  // optional (ref ke modal / form)
 const openAddModal = () => {
   editMasterSalesId.value = null
  dataMastersales.fetchUserSelect() // tanpa employee_id
+ 
+ 
   form.value = {
     user_id: '',
+    office_id: '',
     nik: '',
     tempat_lahir: '',
     tanggal_lahir: '',
@@ -93,31 +99,59 @@ const openAddModal = () => {
     no_hp: '',
     tanggal_masuk: '',
     status_karyawan: '',
+    attendance_mode: '',
   }
+
 
   dataMastersales.errorMasterSalesData = null
 }
 
 
+
+
+
+
 const statusBadgeLabel = computed(() => {
-  return dataMastersales.MasterSalesDataDetail?.status_karyawan === 'Tetap'
-    ? 'Permanent'
-    : 'Contract'
+  const status = dataMastersales.MasterSalesDataDetail?.status_karyawan
+
+  switch (status) {
+    case 'PERMANENT':
+      return 'Permanent'
+    case 'CONTRACT':
+      return 'Contract'
+    case 'INTERNSHIP':
+      return 'Internship'
+    default:
+      return '-'
+  }
 })
 
+
 const statusBadgeClass = computed(() => {
-  return dataMastersales.MasterSalesDataDetail?.status_karyawan === 'Tetap'
-    ? 'bg-success'
-    : 'bg-warning text-dark'
+  const status = dataMastersales.MasterSalesDataDetail?.status_karyawan
+
+  switch (status) {
+    case 'PERMANENT':
+      return 'bg-success'
+    case 'CONTRACT':
+      return 'bg-warning text-dark'
+    case 'INTERNSHIP':
+      return 'bg-info'
+    default:
+      return 'bg-secondary'
+  }
 })
+
 
 const openEditModal = async (employee) => {
   editMasterSalesId.value = employee.id_employee
 
   await dataMastersales.fetchUserSelect(employee.id_employee)
+   await dataMastersales.fetchOfficeSelect(employee.office_id)
 
   form.value = {
     user_id: employee.user_id,
+    office_id: employee.office_id,
     nik: employee.nik,
     tempat_lahir: employee.tempat_lahir,
     tanggal_lahir: employee.tanggal_lahir,
@@ -126,9 +160,38 @@ const openEditModal = async (employee) => {
     no_hp: employee.no_hp,
     tanggal_masuk: employee.tanggal_masuk,
     status_karyawan: employee.status_karyawan,
+    attendance_mode: employee.attendance_mode,
   }
 }
+// const openEditModal = async (employee) => {
+//   editMasterSalesId.value = employee.id_employee
 
+//   // Pastikan data select sudah ter-load
+//   await dataMastersales.fetchUserSelect(employee.id_employee)
+//   await dataMastersales.fetchOfficeSelect() // Load semua list kantor agar bisa dipilih
+
+//   form.value = {
+//     user_id: employee.user_id,
+    
+//     // PERBAIKAN DI SINI:
+//     // 1. Pastikan key-nya 'office_id' (sesuai v-model di template)
+//     // 2. Gunakan Number() jika ID di database adalah integer agar cocok dengan valueProp="id"
+//     office_id: employee.office_id ? Number(employee.office_id) : '', 
+    
+//     nik: employee.nik,
+//     tempat_lahir: employee.tempat_lahir,
+//     tanggal_lahir: employee.tanggal_lahir,
+//     jenis_kelamin: employee.jenis_kelamin,
+//     alamat: employee.alamat,
+//     no_hp: employee.no_hp,
+//     tanggal_masuk: employee.tanggal_masuk,
+//     status_karyawan: employee.status_karyawan,
+//     attendance_mode: employee.attendance_mode,
+//   }
+  
+//   // Debug untuk memastikan data masuk ke form
+//   console.log("Data Form Office ID:", form.value.office_id);
+// }
 
 
 watch(
@@ -170,6 +233,7 @@ const saveMasterSales = async () => {
     editMasterSalesId.value = null
     form.value = {
       user_id: '',
+      office_id: '',
       nik: '',
       tempat_lahir: '',
       tanggal_lahir: '',
@@ -178,6 +242,7 @@ const saveMasterSales = async () => {
       no_hp: '',
       tanggal_masuk: '',
       status_karyawan: '',
+      attendance_mode: '',
     }
 
     // tutup modal
@@ -194,8 +259,8 @@ const saveMasterSales = async () => {
         toasts.fire({
           icon: "success",
           title: isEdit
-            ? "Employee berhasil diperbarui"
-            : "Employee berhasil ditambahkan",
+            ? "Employee updated successfully"
+            : "Employee successfully added",
         })
       },
       { once: true }
@@ -211,7 +276,7 @@ const saveMasterSales = async () => {
 
     toasts.fire({
       icon: "error",
-      title: err.response?.data?.message || "Gagal menyimpan data",
+      title: err.response?.data?.message || "Failed to save data",
     })
   }
 }
@@ -240,7 +305,7 @@ const handleDeleteMasterSales = async (sales) => {
       didOpen: () => Swal.showLoading(),
     })
 
-    // ✅ ID yang benar
+    //  ID yang benar
     await dataMastersales.deleteMasterSales(sales.id_employee)
 
     Swal.fire({
@@ -251,7 +316,7 @@ const handleDeleteMasterSales = async (sales) => {
       showConfirmButton: false,
     })
 
-    // ✅ Refresh table
+    //  Refresh table
     dataMastersales.fetchMasterSalesData(
       dataMastersales.buildUrl()
     )
@@ -536,7 +601,6 @@ const handleImportExcel = () => {
 
           <!-- Card: Table -->
           <div class="card mb-4">
-            
             <div class="table-responsive">
               <table class="table card-table table-vcenter text-nowrap">
                <thead>
@@ -831,6 +895,23 @@ const handleImportExcel = () => {
             </div>
 
             <div class="col-md-6">
+              <strong>Office</strong>
+              <div>
+                {{ dataMastersales.MasterSalesDataDetail.user?.office?.office_name ?? '-' }}
+
+
+              </div>
+            </div>
+
+            <div class="col-md-6">
+              <strong>attendance mode</strong>
+              <div>
+                {{ dataMastersales.MasterSalesDataDetail.attendance_mode }}
+              </div>
+            </div>
+
+
+            <div class="col-md-6">
               <strong>Group</strong>
               <div>
                 {{ dataMastersales.MasterSalesDataDetail.user?.group?.name_group ?? '-' }}
@@ -960,7 +1041,7 @@ const handleImportExcel = () => {
             </div>
 
             <!-- JENIS KELAMIN -->
-            <div class="col-md-6">
+          <div class="col-md-6">
               <label class="form-label">Gender</label>
             <div
                 class="multiselect-wrapper"
@@ -972,8 +1053,8 @@ const handleImportExcel = () => {
                 label="label"
                 valueProp="value"
                 placeholder="Select Gender"
-          />
-          </div>
+             />
+           </div>
           <div
               v-if="dataMastersales.errorMasterSalesData?.jenis_kelamin"
               class="invalid-feedback d-block"
@@ -1029,6 +1110,57 @@ const handleImportExcel = () => {
             >
               {{ dataMastersales.errorMasterSalesData.status_karyawan[0] }}
             </div>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Office Employee</label>
+            <div
+                class="multiselect-wrapper"
+                :class="{ 'is-invalid': dataMastersales.errorMasterSalesData?.office_id }"
+              >
+               <Multiselect
+                  v-model="form.office_id"
+                  :options="dataMastersales.officeSelect"
+                  label="office_name"
+                  valueProp="id"
+                  placeholder="Select Office..."
+                  :searchable="true"
+                  :loading="dataMastersales.loadingSelect"
+                />
+
+
+
+
+           </div>
+          <div
+              v-if="dataMastersales.errorMasterSalesData?.office_id"
+              class="invalid-feedback d-block"
+            >
+              {{ dataMastersales.errorMasterSalesData.office_id[0] }}
+            </div>
+            </div>
+
+
+            <div class="col-md-6">
+              <label class="form-label">Attendance Mode</label>
+            <div
+                class="multiselect-wrapper"
+                :class="{ 'is-invalid': dataMastersales.errorMasterSalesData?.attendance_mode }"
+              >
+               <Multiselect
+                v-model="form.attendance_mode"
+                :options="dataMastersales.AttendanceMode"
+                label="label"
+                valueProp="value"
+                placeholder="Select Attendance Mode"
+             />
+           </div>
+              <div
+                  v-if="dataMastersales.errorMasterSalesData?.attendance_mode"
+                  class="invalid-feedback d-block"
+                >
+                  {{ dataMastersales.errorMasterSalesData.attendance_mode[0] }}
+              </div>
             </div>
 
             <!-- ALAMAT -->

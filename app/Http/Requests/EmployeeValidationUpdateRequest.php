@@ -18,6 +18,8 @@ class EmployeeValidationUpdateRequest extends FormRequest
     {
         return [
             'user_id' => ['sometimes', 'integer', 'exists:ms_users,id_user'],
+             'office_id' => ['sometimes'],
+            'attendance_mode' => ['required'],
 
             'nik' => [
                 'sometimes',
