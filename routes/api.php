@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Hash;
 use App\Http\Controllers\Api\Master\Master;
 use App\Http\Controllers\Api\GeoLocation\Location;
 use App\Http\Controllers\Api\Users\Attendance\Attendance;
+use App\Http\Controllers\Api\Users\Sales\Leads\Leads;
 
 Route::post('/signIn', [SignAuth::class, 'signIn'])->name('api.sign.in');
 Route::post('/forgot-password-request', [SignAuth::class, 'requestResetPassword'])->name('api.forgot.password');
@@ -104,11 +105,26 @@ Route::delete('/attendance/delete/{id_attendance}', [Attendance::class, 'deleteA
 // Route::put('/attendance/update/{id}', [Attendance::class, 'updateAttendance'])->name('api.update.attendance');
 Route::Post('/attendance/update/{id}', [Attendance::class, 'updateAttendance'])->name('api.update.attendance');
 
+
+
+// api Sales Leads
+Route::get('/leads/show/{id}', [Leads::class, 'showLead'])->name('api.leads.show');
+Route::get('/leads-master', [Leads::class, 'Leads'])->name('api.leads.master');
+Route::get('/all-leads-master', [Leads::class, 'allDataLeads'])->name('api.all.leads.master');
+Route::get('/leads-assigned-to-me', [Leads::class, 'leadsAssignByAdminOrManager'])->name('api.leads.assigned.to.me');
+Route::post('/leads-store', [Leads::class, 'storeLead'])->name('api.leads.store');
+Route::post('/leads-store-bulk', [Leads::class, 'storeBulkLead'])->name('api.leads.store.bulk');
+Route::put('/employee-restore-management/{id}',[Master::class, 'restoreEmployee'])->name('api.restore.employee.management');
+Route::put('/leads-update/{id}', [Leads::class, 'updateLead'])->name('api.leads.update');
+Route::delete('/leads-delete/{id}', [Leads::class, 'deleteLead'])->name('api.leads.delete');
+
+
+
+Route::post('/leads/import-excel', [Leads::class, 'importExcel'])->name('api.leads.import.excel');//belum selesai
 });
 
 
 Route::get('/reverse-geocode', [Location::class, 'reverse']);
-
 
 
 

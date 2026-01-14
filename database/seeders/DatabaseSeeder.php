@@ -24,7 +24,10 @@ class DatabaseSeeder extends Seeder
             AppSettingsSeeder::class,
             OfficeSeeder::class,
             AttendanceSeeder::class,
-            AttendancePolicySeeder::class
+            AttendancePolicySeeder::class,
+             LeadCategorySeeder::class,
+            IndustrySeeder::class,
+            LeadSeeder::class,
         ]);
     }
 }

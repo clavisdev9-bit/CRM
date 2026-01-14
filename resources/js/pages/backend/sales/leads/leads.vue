@@ -127,15 +127,13 @@ const handleImportExcel = () => {
       <!-- Page Body -->
       <div class="page-body flex-grow-1">
         <div class="container-xl">
-
           <!-- Card: Export/Import -->
          <div class="card mb-4">
-  <div class="card-header d-flex gap-2 flex-wrap align-items-center">
-    
-    <!-- Tombol kiri -->
-    <div class="d-flex gap-2 flex-wrap">
- 
-     <div class="dropdown d-inline-block me-2">
+         <div class="card-header d-flex gap-2 flex-wrap align-items-center">
+            <!-- Tombol kiri -->
+            <div class="d-flex gap-2 flex-wrap">
+        
+            <div class="dropdown d-inline-block me-2">
             <button
                 class="btn btn-primary btn-sm dropdown-toggle"
                 type="button"
@@ -158,7 +156,7 @@ const handleImportExcel = () => {
                 </li>
                
              </ul>
-    </div>
+       </div>
 
             <div class="dropdown d-inline-block">
                 <button
@@ -196,8 +194,10 @@ const handleImportExcel = () => {
 
 
 
-          <!-- Card: Filter & Sort -->
-          <div class="card mb-4">
+
+<!-- Card: Filter & Sort -->
+      <div class="card mb-4">
+         
             <div class="card-header d-flex justify-content-between flex-wrap gap-3">
               <!-- Kiri -->
              <div class="d-flex flex-column gap-3">
@@ -220,6 +220,8 @@ const handleImportExcel = () => {
                     <i class="fa fa-plus"></i> Add Data
                     </button>
                 </div>
+
+                  
 
 
               <!-- Kanan -->
@@ -244,58 +246,133 @@ const handleImportExcel = () => {
                 </div>
                 </div>
             </div>
-          </div>
 
-          <!-- Card: Table -->
-          <div class="card mb-4">
-            <div class="card-header">
-              <h3 class="card-title">{{ PagesTitle }}</h3>
-            </div>
             <div class="table-responsive">
               <table class="table card-table table-vcenter text-nowrap">
+               
                 <thead>
-                  <tr>
-                    <th style="width: 5%;">No.</th>
-                    <th>Role Name</th>
-                    <th>Description</th>
-                    <th>Created</th>
-                    <th style="width: 8%;">Actions</th>
+                <tr>
+                    <th colspan="10" class="bg-light fw-bold  text-warning">
+                      <i class="fa fa-table me-2 text-warning"></i> Your Data Master Leads
+                    </th>
                   </tr>
+                <tr>
+                  <th style="width:5%">No.</th>
+                  <th>Company</th>
+                  <th>Contact</th>
+                  <th>Email</th>
+                  <th>Phone</th>
+                  <th>Source</th>
+                  <th>Status</th>
+                  <th>Last Contact</th>
+                  <th style="width:10%">Actions</th>
+                </tr>
                 </thead>
 
-            
-
-                <tbody>
+                  <tbody>
                     <tr>
                       <td>1</td>
-                      <td>sdsdsdsd</td>
-                      <td>dsdsdsdsd</td>
-                    
-                      <td>12313</td>
                       <td>
-                        <button class="btn btn-outline-primary btn-sm me-2">
-                         <i class="fa fa-edit"></i> 
-                       </button>
-
-                        <button class="btn btn-outline-primary btn-sm me-2">
-                            <i class="fa fa-trash"></i> 
+                        <strong>PT Maju Jaya</strong><br>
+                        <small class="text-muted">Manufacture</small>
+                      </td>
+                      <td>
+                        Andi Saputra<br>
+                        <small class="text-muted">Purchasing</small>
+                      </td>
+                      <td>andi@majujaya.co.id</td>
+                      <td>0812-3456-7890</td>
+                      <td>
+                        <span class="badge bg-info">Website</span>
+                      </td>
+                      <td>
+                        <span class="badge bg-warning">Contacted</span>
+                      </td>
+                     
+                      
+                      <td>12 Jan 2026</td>
+                      <td>
+                        <button class="btn btn-outline-primary btn-sm me-1">
+                          <i class="fa fa-eye"></i>
                         </button>
-
-                         <button class="btn btn-outline-primary btn-sm"  data-bs-toggle="modal"
-                            data-bs-target="#userDetailModal"
-                          >
-                            <i class="fa fa-eye"></i> 
+                        <button class="btn btn-outline-warning btn-sm me-1">
+                          <i class="fa fa-edit"></i>
+                        </button>
+                        <button class="btn btn-outline-success btn-sm">
+                          <i class="fa fa-exchange-alt"></i>
                         </button>
                       </td>
                     </tr>
-                </tbody>
+
+                    <tr>
+                      <td>2</td>
+                      <td>
+                        <strong>CV Sinar Abadi</strong><br>
+                        <small class="text-muted">Retail</small>
+                      </td>
+                      <td>
+                        Rina Wulandari<br>
+                        <small class="text-muted">Owner</small>
+                      </td>
+                      <td>rina@sinarabadi.id</td>
+                      <td>0821-9988-7766</td>
+                      <td>
+                        <span class="badge bg-success">Event</span>
+                      </td>
+                      <td>
+                        <span class="badge bg-primary">Qualified</span>
+                      </td>
+                     
+                      
+                      <td>10 Jan 2026</td>
+                      <td>
+                        <button class="btn btn-outline-primary btn-sm me-1">
+                          <i class="fa fa-eye"></i>
+                        </button>
+                        <button class="btn btn-outline-warning btn-sm me-1">
+                          <i class="fa fa-edit"></i>
+                        </button>
+                        <button class="btn btn-outline-success btn-sm">
+                          <i class="fa fa-exchange-alt"></i>
+                        </button>
+                      </td>
+                    </tr>
+
+                    <tr>
+                      <td>3</td>
+                      <td>
+                        <strong>PT Global Teknologi</strong><br>
+                        <small class="text-muted">IT Services</small>
+                      </td>
+                      <td>
+                        Dedi Pratama<br>
+                        <small class="text-muted">IT Manager</small>
+                      </td>
+                      <td>dedi@globaltech.com</td>
+                      <td>0857-1111-2222</td>
+                      <td>
+                        <span class="badge bg-dark">Cold Call</span>
+                      </td>
+                      <td>
+                        <span class="badge bg-danger">Unqualified</span>
+                      </td>
+                     
+                     
+                      <td>-</td>
+                      <td>
+                        <button class="btn btn-outline-primary btn-sm me-1">
+                          <i class="fa fa-eye"></i>
+                        </button>
+                        <button class="btn btn-outline-danger btn-sm">
+                          <i class="fa fa-trash"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
               </table>
             </div>
-          </div>
 
-          <!-- Card: Pagination -->
-          <div class="card">
-            <div class="card-header d-flex justify-content-between align-items-center">
+             <div class="card-header d-flex justify-content-between align-items-center">
               <button class="btn btn-danger btn-sm" 
                  >
                 <i class="fa-solid fa-circle-chevron-left"
@@ -313,12 +390,160 @@ const handleImportExcel = () => {
                 </button>
             </div>
           </div>
+      
 
+
+   <hr>
+
+
+       <!-- Card: Filter & Sort -->
+      <div class="card mb-4">
+         
+            <div class="card-header d-flex justify-content-between flex-wrap gap-3">
+              <!-- Kiri -->
+             <div class="d-flex flex-column gap-3">
+                <!-- Dropdown Tampilkan -->
+                <div class="d-flex align-items-center gap-2">
+                    <label class="mb-0 fw-semibold">
+                    <i class="fas fa-list-ul me-1"></i> Showing:
+                    </label>
+                    <select class="form-select w-auto"
+                    >
+                    <option>10</option>
+                    <option>25</option>
+                    <option>50</option>
+                    <option>100</option>
+                    </select>
+                </div>
+
+                <!-- Tombol add -->
+                
+                </div>
+
+                  
+
+
+              <!-- Kanan -->
+             <div class="d-flex flex-column gap-3 align-items-end" style="min-width:300px;">
+                <!-- Pencarian -->
+                <div class="input-group">
+                    <input type="text" class="form-control" placeholder="Searching....">
+                    <span class="input-group-text bg-white"><i class="fa fa-search"></i></span>
+                </div>
+
+                <!-- Urutan -->
+                <div class="d-flex gap-2 align-items-center">
+                    <label class="mb-0 fw-semibold">Sort:</label>
+                    <select class="form-select w-auto">
+                    <option value="fullname">By Name</option>
+                    <option value="created_at">By Created Date</option>
+                    </select>
+                    <select class="form-select w-auto">
+                    <option value="asc">Ascending</option>
+                    <option value="desc">Descending</option>
+                    </select>
+                </div>
+                </div>
+            </div>
+
+            <div class="table-responsive">
+              <table class="table card-table table-vcenter text-nowrap">
+               
+                <thead>
+                <tr>
+                    <th colspan="12" class="bg-light fw-bold  text-warning">
+                      <i class="fa fa-table me-2 text-warning"></i> Your Data Request Leads From Admin/Manager
+                    </th>
+                  </tr>
+                <tr>
+                  <th style="width:5%">No.</th>
+                  <th>Company</th>
+                  <th>Contact</th>
+                  <th>Email</th>
+                  <th>Phone</th>
+                  <th>Source</th>
+                  <th>Status</th>
+                  <th>Assigned To</th>
+                  <th>Visibility</th>
+                  <th>Last Contact</th>
+                  <th style="width:10%">Actions</th>
+                </tr>
+                </thead>
+
+                  <tbody>
+                    <tr>
+                      <td>1</td>
+                      <td>
+                        <strong>PT Maju Jaya</strong><br>
+                        <small class="text-muted">Manufacture</small>
+                      </td>
+                      <td>
+                        Andi Saputra<br>
+                        <small class="text-muted">Purchasing</small>
+                      </td>
+                      <td>andi@majujaya.co.id</td>
+                      <td>0812-3456-7890</td>
+                      <td>
+                        <span class="badge bg-info">Website</span>
+                      </td>
+                      <td>
+                        <span class="badge bg-warning">Contacted</span>
+                      </td>
+                      <td>
+                        <i class="fa fa-user text-primary me-1"></i> Apregi
+                      </td>
+                      <td>
+                        <span class="badge bg-primary">
+                          <i class="fa fa-lock me-1"></i> PUBLIC
+                        </span>
+                      </td>
+                      <td>12 Jan 2026</td>
+                      <td>
+                        <button class="btn btn-outline-primary btn-sm me-1">
+                          <i class="fa fa-eye"></i>
+                        </button>
+                        <button class="btn btn-outline-warning btn-sm me-1">
+                          <i class="fa fa-edit"></i>
+                        </button>
+                        <button class="btn btn-outline-success btn-sm">
+                          <i class="fa fa-exchange-alt"></i>
+                        </button>
+                      </td>
+                    </tr>
+
+                   
+
+                    
+                  </tbody>
+              </table>
+            </div>
+
+             <div class="card-header d-flex justify-content-between align-items-center">
+              <button class="btn btn-danger btn-sm" 
+                 >
+                <i class="fa-solid fa-circle-chevron-left"
+                ></i> Prev
+              </button>
+  
+                <div class="mx-2 d-flex flex-column flex-sm-row align-items-center gap-1">
+                    <span class="badge border text-secondary px-3 py-2"> 10 data | on page 19</span>
+                    <span class="badge border text-secondary px-3 py-2">Total: 19  data</span>
+                </div>
+  
+                <button class="btn btn-danger btn-sm"
+               >
+                    Next <i class="fa-solid fa-circle-chevron-right"></i>
+                </button>
+            </div>
+          </div>
         </div>
+          </div>
       </div>
+      
 
-     
-    </div>
+
+
+
 
 
 

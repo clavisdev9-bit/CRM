@@ -144,7 +144,6 @@ class Attendance extends Controller
                 ) {
                     return 'IOS';
                 }
-
                 return 'WEB';
             }
 

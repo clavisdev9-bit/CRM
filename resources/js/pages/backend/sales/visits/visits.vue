@@ -134,12 +134,12 @@ const handleImportExcel = () => {
                         <div class="col-12 mb-3">
                             <div class="card">
                             <div class="card-body d-flex justify-content-center gap-3">
-                                <button class="btn btn-sm btn btn-primary">
-                                Lead visit
+                                <button class="btn btn btn-primary">
+                                <i class="fa-solid fa-person-walking-dashed-line-arrow-right"></i> Lead visit
                                 </button>
                                 
-                                <button class="btn btn-sm btn-success">
-                                Lead Costumer
+                                <button class="btn btn-success">
+                                <i class="fa-solid fa-person-walking-dashed-line-arrow-right"></i> Costumer visit
                                 </button>
                             </div>
                             </div>
@@ -159,7 +159,6 @@ const handleImportExcel = () => {
 
           <!-- Card: Export/Import -->
          <div class="card mb-4">
-  
 </div>
 
 
@@ -182,11 +181,7 @@ const handleImportExcel = () => {
                     <option>100</option>
                     </select>
                 </div>
-
                 <!-- Tombol add -->
-                 <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modal-add-data">
-                    <i class="fa fa-plus"></i> Add Data
-                    </button>
                 </div>
 
 
@@ -217,14 +212,14 @@ const handleImportExcel = () => {
           <!-- Card: Table -->
           <div class="card mb-4">
             <div class="card-header">
-              <h3 class="card-title">{{ PagesTitle }}</h3>
+              <h7 class="card-title">Your Data Visit</h7>
             </div>
             <div class="table-responsive">
               <table class="table card-table table-vcenter text-nowrap">
                 <thead>
                   <tr>
                     <th style="width: 5%;">No.</th>
-                    <th>Role Name</th>
+                    <th>Name</th>
                     <th>Description</th>
                     <th>Created</th>
                     <th style="width: 8%;">Actions</th>
