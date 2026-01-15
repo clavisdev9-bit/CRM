@@ -468,7 +468,7 @@ const handleImportExcel = () => {
                           />
                           <p class="text-danger fw-bold fst-italic">
                             <i class="fa fa-exclamation-circle me-1"></i>
-                            Role data not found.
+                            Menu data not found.
                           </p>
                         </div>
                       </td>

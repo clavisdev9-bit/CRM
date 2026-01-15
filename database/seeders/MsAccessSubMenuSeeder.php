@@ -45,7 +45,7 @@ class MsAccessSubMenuSeeder extends Seeder
         $userId = 1;
 
         // Semua submenu (misal 1–47)
-        $submenuIds = range(1, 50);
+        $submenuIds = range(1, 52);
 
         // Ambil submenu yang SUDAH ADA untuk user ini
         $existingSubmenuIds = DB::table('ms_access_submenu')

@@ -1,102 +1,107 @@
 <script setup>
-import { ref, reactive, onMounted , watch} from 'vue'
-import backendLayouts from "../../../../layouts/backendLayouts.vue";
-const PagesTitle = 'Data Leads';
+import { ref, onMounted, computed  } from 'vue'
+import backendLayouts from "../../../../layouts/backendLayouts.vue"
+import { useLeadsStore } from '../../../../stores/leadsStore'
+import { useMenuStore } from "@/stores/menuStore"
+import { useRoute, useRouter } from "vue-router"
+import Swal from 'sweetalert2'
+const PagesTitle = 'Data Leads'
+
+const dataLeads = useLeadsStore()
+const menuStore = useMenuStore()
+const route = useRoute()
+const router = useRouter()
+
+const permission = ref(null)
+const loadingPermission = ref(true)
+
+onMounted(async () => {
+  try {
+  if (!localStorage.getItem("auth_token")) {
+  // router.push('/login')
+  const result = await Swal.fire({
+    icon: 'warning',
+    title: 'Not logged in yet',
+    text: 'You must be logged in to access this page.',
+    showCancelButton: true,
+    confirmButtonText: 'Login',
+    cancelButtonText: 'Cancel'
+  })
+  if (result.isConfirmed) {
+    router.push('/login')
+  } else {
+    router.push('/')
+  }
+  return
+}
+    //  DEFAULT LOAD MASTER LEADS
+    await dataLeads.fetchLeads("all")
+
+    await menuStore.fetchMenus()
+    permission.value = menuStore.getPermission(route.path)
+
+  } catch (error) {
+    console.error(error)
+  } finally {
+    loadingPermission.value = false
+  }
+})
 
 
+const notFoundType = computed(() => {
+  if (dataLeads.mode === 'assigned') {
+    return 'assigned'
+  }
 
+  if (dataLeads.searchLeads?.length > 0) {
+    return 'search'
+  }
 
+  return 'empty'
+})
 
-// code export excel
-const exportModalOpen = ref(false)
-const exportType = ref('month') // 'month', 'date', 'year'
-const selectedMonth = ref(new Date().getMonth() + 1)
-const selectedYear = ref(new Date().getFullYear())
-const startDate = ref('')
-const endDate = ref('')
-
-const years = ref([])
-const generateYears = () => {
-  const currentYear = new Date().getFullYear();
-  for (let i = currentYear; i >= 2000; i--) {
-    years.value.push(i);
+const notFoundConfig = {
+  assigned: {
+    image: 'https://cdn.dribbble.com/users/285475/screenshots/2083086/dribbble_1.gif',
+    title: 'No Leads Assigned Yet (Belum Ada Assigned Leads)',
+    message: 'There are currently no leads assigned to you (Saat ini belum ada leads yang di-assign ke Anda)'
+  },
+  search: {
+    image: 'https://cdn.dribbble.com/users/285475/screenshots/2083086/dribbble_1.gif',
+    title: 'Data Not Found (Data Tidak Ditemukan)',
+    message: 'Try changing your search keywords. (Coba ubah kata kunci pencarian Anda.)'
+  },
+  empty: {
+    image: 'https://cdn.dribbble.com/users/285475/screenshots/2083086/dribbble_1.gif',
+    title: 'No Leads Data Yet (Belum Ada Data Leads)',
+    message: 'Please add new leads data. (Silakan tambahkan data leads baru.)'
   }
 }
 
-const openExportModal = () => {
-     generateYears();
-    exportModalOpen.value = true
-}
+const formatDate = (value) => {
+  if (!value) return '-'
 
-// // code export pdf
-const exportModalOpenPdf = ref(false)
-const exportTypePdf = ref('month') // 'month', 'date', 'year'
-const selectedMonthPdf = ref(new Date().getMonth() + 1)
-const selectedYearPdf = ref(new Date().getFullYear())
-const startDatePdf = ref('')
-const endDatePdf = ref('')
+  const date = new Date(value)
 
-const yearsPdf = ref([])
-const generateYearsPdf = () => {
-  yearsPdf.value = []
-  const currentYear = new Date().getFullYear()
-  for (let i = currentYear; i >= 2000; i--) {
-    yearsPdf.value.push(i)
-  }
-}
-
-const openExportModalPdf = () => {
-  generateYearsPdf()
-  exportModalOpenPdf.value = true
-}
-
-// import csv
-const importCsvModalOpen = ref(false)
-const selectedCsvFile = ref(null)
-
-const openImportCsvModal = () => {
-  importCsvModalOpen.value = true
-}
-
-// Event ketika file dipilih
-const handleCsvFile = (event) => {
-  selectedCsvFile.value = event.target.files[0]
-}
-
-// Tombol upload (sementara hanya alert)
-const handleImportCsv = () => {
-  if (!selectedCsvFile.value) {
-    alert("Silakan pilih file CSV terlebih dahulu")
-    return
-  }
-  alert(`Mengupload file: ${selectedCsvFile.value.name}`)
-  importCsvModalOpen.value = false
+  return date.toLocaleDateString('id-ID', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric'
+  })
 }
 
 
-// import excel
-const importExcelModalOpen = ref(false)
-const selectedExcelFile = ref(null)
+const openDetail = async (id) => {
+  await dataLeads.fetchLeadDetail(id)
 
-const openImportExcelModal = () => {
-  importExcelModalOpen.value = true
+  const modal = new bootstrap.Modal(
+    document.getElementById("userDetailModal")
+  )
+  modal.show()
 }
 
-// Event ketika file dipilih
-const handleExcelFile = (event) => {
-  selectedExcelFile.value = event.target.files[0]
-}
-
-// Tombol upload (sementara hanya alert)
-const handleImportExcel = () => {
-  if (!selectedExcelFile.value) {
-    alert("Silakan pilih file Excel terlebih dahulu")
-    return
-  }
-  alert(`Mengupload file: ${selectedExcelFile.value.name}`)
-  importExcelModalOpen.value = false
-}
 </script>
+
 
 <template>
   <backendLayouts>
@@ -123,79 +128,10 @@ const handleImportExcel = () => {
           </div>
         </div>
       </div>
+      </div>
+     
 
-      <!-- Page Body -->
-      <div class="page-body flex-grow-1">
-        <div class="container-xl">
-          <!-- Card: Export/Import -->
-         <div class="card mb-4">
-         <div class="card-header d-flex gap-2 flex-wrap align-items-center">
-            <!-- Tombol kiri -->
-            <div class="d-flex gap-2 flex-wrap">
-        
-            <div class="dropdown d-inline-block me-2">
-            <button
-                class="btn btn-primary btn-sm dropdown-toggle"
-                type="button"
-                data-bs-toggle="dropdown"
-                aria-expanded="false"
-            >
-                <i class="fa-solid fa-upload"></i> Export
-            </button>
-
-            <ul class="dropdown-menu dropdown-menu-end">
-                <li>
-                <button class="dropdown-item" @click="openExportModalPdf">
-                    <i class="fas fa-file-pdf"></i> Export PDF
-                </button>
-                </li>
-                <li>
-                <button class="dropdown-item" @click="openExportModal">
-                    <i class="fas fa-file-excel"></i> Export Excel
-                </button>
-                </li>
-               
-             </ul>
-       </div>
-
-            <div class="dropdown d-inline-block">
-                <button
-                    class="btn btn-primary btn-sm dropdown-toggle"
-                    type="button"
-                    data-bs-toggle="dropdown"
-                    aria-expanded="false"
-                >
-                    <i class="fa fa-download"></i> Import
-                </button>
-
-                <ul class="dropdown-menu dropdown-menu-end">
-                    <li>
-                    <button class="dropdown-item" @click="openImportCsvModal">
-                        <i class="fas fa-file-import"></i> Import CSV
-                    </button>
-                    </li>
-                     <li>
-                    <button class="dropdown-item" @click="openImportExcelModal">
-                        <i class="fas fa-file-import"></i> Import Excel
-                    </button>
-                    </li>
-                </ul>
-            </div>
-
-    </div>
-
-    <!-- Tombol Reset paling kanan -->
-    <button class="btn btn-warning btn-sm d-flex align-items-center ms-auto">
-      <i class="fas fa-undo"></i> Reset
-    </button>
-
-  </div>
-</div>
-
-
-
-
-<!-- Card: Filter & Sort -->
+      <!-- Card: Filter & Sort -->
       <div class="card mb-4">
          
             <div class="card-header d-flex justify-content-between flex-wrap gap-3">
@@ -207,6 +143,8 @@ const handleImportExcel = () => {
                     <i class="fas fa-list-ul me-1"></i> Showing:
                     </label>
                     <select class="form-select w-auto"
+                     v-model="dataLeads.pagination.per_page"
+                      @change="dataLeads.changePageSize()"
                     >
                     <option>10</option>
                     <option>25</option>
@@ -216,370 +154,304 @@ const handleImportExcel = () => {
                 </div>
 
                 <!-- Tombol add -->
-                 <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modal-add-data">
-                    <i class="fa fa-plus"></i> Add Data
+               <div class="d-flex gap-2">
+                    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modal-add-data">
+                        <i class="fa fa-plus"></i> Add Data 
                     </button>
-                </div>
 
-                  
-
-
-              <!-- Kanan -->
-             <div class="d-flex flex-column gap-3 align-items-end" style="min-width:300px;">
-                <!-- Pencarian -->
-                <div class="input-group">
-                    <input type="text" class="form-control" placeholder="Searching....">
-                    <span class="input-group-text bg-white"><i class="fa fa-search"></i></span>
-                </div>
-
-                <!-- Urutan -->
-                <div class="d-flex gap-2 align-items-center">
-                    <label class="mb-0 fw-semibold">Sort:</label>
-                    <select class="form-select w-auto">
-                    <option value="fullname">By Name</option>
-                    <option value="created_at">By Created Date</option>
-                    </select>
-                    <select class="form-select w-auto">
-                    <option value="asc">Ascending</option>
-                    <option value="desc">Descending</option>
-                    </select>
-                </div>
-                </div>
-            </div>
-
-            <div class="table-responsive">
-              <table class="table card-table table-vcenter text-nowrap">
-               
-                <thead>
-                <tr>
-                    <th colspan="10" class="bg-light fw-bold  text-warning">
-                      <i class="fa fa-table me-2 text-warning"></i> Your Data Master Leads
-                    </th>
-                  </tr>
-                <tr>
-                  <th style="width:5%">No.</th>
-                  <th>Company</th>
-                  <th>Contact</th>
-                  <th>Email</th>
-                  <th>Phone</th>
-                  <th>Source</th>
-                  <th>Status</th>
-                  <th>Last Contact</th>
-                  <th style="width:10%">Actions</th>
-                </tr>
-                </thead>
-
-                  <tbody>
-                    <tr>
-                      <td>1</td>
-                      <td>
-                        <strong>PT Maju Jaya</strong><br>
-                        <small class="text-muted">Manufacture</small>
-                      </td>
-                      <td>
-                        Andi Saputra<br>
-                        <small class="text-muted">Purchasing</small>
-                      </td>
-                      <td>andi@majujaya.co.id</td>
-                      <td>0812-3456-7890</td>
-                      <td>
-                        <span class="badge bg-info">Website</span>
-                      </td>
-                      <td>
-                        <span class="badge bg-warning">Contacted</span>
-                      </td>
-                     
-                      
-                      <td>12 Jan 2026</td>
-                      <td>
-                        <button class="btn btn-outline-primary btn-sm me-1">
-                          <i class="fa fa-eye"></i>
-                        </button>
-                        <button class="btn btn-outline-warning btn-sm me-1">
-                          <i class="fa fa-edit"></i>
-                        </button>
-                        <button class="btn btn-outline-success btn-sm">
-                          <i class="fa fa-exchange-alt"></i>
-                        </button>
-                      </td>
-                    </tr>
-
-                    <tr>
-                      <td>2</td>
-                      <td>
-                        <strong>CV Sinar Abadi</strong><br>
-                        <small class="text-muted">Retail</small>
-                      </td>
-                      <td>
-                        Rina Wulandari<br>
-                        <small class="text-muted">Owner</small>
-                      </td>
-                      <td>rina@sinarabadi.id</td>
-                      <td>0821-9988-7766</td>
-                      <td>
-                        <span class="badge bg-success">Event</span>
-                      </td>
-                      <td>
-                        <span class="badge bg-primary">Qualified</span>
-                      </td>
-                     
-                      
-                      <td>10 Jan 2026</td>
-                      <td>
-                        <button class="btn btn-outline-primary btn-sm me-1">
-                          <i class="fa fa-eye"></i>
-                        </button>
-                        <button class="btn btn-outline-warning btn-sm me-1">
-                          <i class="fa fa-edit"></i>
-                        </button>
-                        <button class="btn btn-outline-success btn-sm">
-                          <i class="fa fa-exchange-alt"></i>
-                        </button>
-                      </td>
-                    </tr>
-
-                    <tr>
-                      <td>3</td>
-                      <td>
-                        <strong>PT Global Teknologi</strong><br>
-                        <small class="text-muted">IT Services</small>
-                      </td>
-                      <td>
-                        Dedi Pratama<br>
-                        <small class="text-muted">IT Manager</small>
-                      </td>
-                      <td>dedi@globaltech.com</td>
-                      <td>0857-1111-2222</td>
-                      <td>
-                        <span class="badge bg-dark">Cold Call</span>
-                      </td>
-                      <td>
-                        <span class="badge bg-danger">Unqualified</span>
-                      </td>
-                     
-                     
-                      <td>-</td>
-                      <td>
-                        <button class="btn btn-outline-primary btn-sm me-1">
-                          <i class="fa fa-eye"></i>
-                        </button>
-                        <button class="btn btn-outline-danger btn-sm">
-                          <i class="fa fa-trash"></i>
-                        </button>
-                      </td>
-                    </tr>
-                  </tbody>
-              </table>
-            </div>
-
-             <div class="card-header d-flex justify-content-between align-items-center">
-              <button class="btn btn-danger btn-sm" 
-                 >
-                <i class="fa-solid fa-circle-chevron-left"
-                ></i> Prev
-              </button>
-  
-                <div class="mx-2 d-flex flex-column flex-sm-row align-items-center gap-1">
-                    <span class="badge border text-secondary px-3 py-2"> 10 data | on page 19</span>
-                    <span class="badge border text-secondary px-3 py-2">Total: 19  data</span>
-                </div>
-  
-                <button class="btn btn-danger btn-sm"
-               >
-                    Next <i class="fa-solid fa-circle-chevron-right"></i>
-                </button>
-            </div>
-          </div>
-      
-
-
-   <hr>
-
-
-       <!-- Card: Filter & Sort -->
-      <div class="card mb-4">
-         
-            <div class="card-header d-flex justify-content-between flex-wrap gap-3">
-              <!-- Kiri -->
-             <div class="d-flex flex-column gap-3">
-                <!-- Dropdown Tampilkan -->
-                <div class="d-flex align-items-center gap-2">
-                    <label class="mb-0 fw-semibold">
-                    <i class="fas fa-list-ul me-1"></i> Showing:
-                    </label>
-                    <select class="form-select w-auto"
-                    >
-                    <option>10</option>
-                    <option>25</option>
-                    <option>50</option>
-                    <option>100</option>
-                    </select>
-                </div>
-
-                <!-- Tombol add -->
-                
-                </div>
-
-                  
-
-
-              <!-- Kanan -->
-             <div class="d-flex flex-column gap-3 align-items-end" style="min-width:300px;">
-                <!-- Pencarian -->
-                <div class="input-group">
-                    <input type="text" class="form-control" placeholder="Searching....">
-                    <span class="input-group-text bg-white"><i class="fa fa-search"></i></span>
-                </div>
-
-                <!-- Urutan -->
-                <div class="d-flex gap-2 align-items-center">
-                    <label class="mb-0 fw-semibold">Sort:</label>
-                    <select class="form-select w-auto">
-                    <option value="fullname">By Name</option>
-                    <option value="created_at">By Created Date</option>
-                    </select>
-                    <select class="form-select w-auto">
-                    <option value="asc">Ascending</option>
-                    <option value="desc">Descending</option>
-                    </select>
-                </div>
-                </div>
-            </div>
-
-            <div class="table-responsive">
-              <table class="table card-table table-vcenter text-nowrap">
-               
-                <thead>
-                <tr>
-                    <th colspan="12" class="bg-light fw-bold  text-warning">
-                      <i class="fa fa-table me-2 text-warning"></i> Your Data Request Leads From Admin/Manager
-                    </th>
-                  </tr>
-                <tr>
-                  <th style="width:5%">No.</th>
-                  <th>Company</th>
-                  <th>Contact</th>
-                  <th>Email</th>
-                  <th>Phone</th>
-                  <th>Source</th>
-                  <th>Status</th>
-                  <th>Assigned To</th>
-                  <th>Visibility</th>
-                  <th>Last Contact</th>
-                  <th style="width:10%">Actions</th>
-                </tr>
-                </thead>
-
-                  <tbody>
-                    <tr>
-                      <td>1</td>
-                      <td>
-                        <strong>PT Maju Jaya</strong><br>
-                        <small class="text-muted">Manufacture</small>
-                      </td>
-                      <td>
-                        Andi Saputra<br>
-                        <small class="text-muted">Purchasing</small>
-                      </td>
-                      <td>andi@majujaya.co.id</td>
-                      <td>0812-3456-7890</td>
-                      <td>
-                        <span class="badge bg-info">Website</span>
-                      </td>
-                      <td>
-                        <span class="badge bg-warning">Contacted</span>
-                      </td>
-                      <td>
-                        <i class="fa fa-user text-primary me-1"></i> Apregi
-                      </td>
-                      <td>
-                        <span class="badge bg-primary">
-                          <i class="fa fa-lock me-1"></i> PUBLIC
-                        </span>
-                      </td>
-                      <td>12 Jan 2026</td>
-                      <td>
-                        <button class="btn btn-outline-primary btn-sm me-1">
-                          <i class="fa fa-eye"></i>
-                        </button>
-                        <button class="btn btn-outline-warning btn-sm me-1">
-                          <i class="fa fa-edit"></i>
-                        </button>
-                        <button class="btn btn-outline-success btn-sm">
-                          <i class="fa fa-exchange-alt"></i>
-                        </button>
-                      </td>
-                    </tr>
-
-                   
+                    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modal-add-data">
+                       <i class="fa-regular fa-calendar-plus"></i> Add Data Bulk
+                    </button>
 
                     
-                  </tbody>
-              </table>
+                </div>
+                <div class="dropdown">
+                    <button 
+                      class="btn btn-success btn-sm dropdown-toggle" 
+                      type="button" 
+                      data-bs-toggle="dropdown" 
+                      aria-expanded="false"
+                    >
+                    <i class="fa-solid fa-filter"></i> Filter Data Leads By
+                  </button>
+                  <ul class="dropdown-menu">
+                    <li>
+                      <button 
+                        class="dropdown-item" 
+                        type="button" 
+                        @click="dataLeads.fetchLeads('all')"
+                      >
+                        Master Leads you Created
+                      </button>
+                    </li>
+                    <li>
+                      <button 
+                        class="dropdown-item" 
+                        type="button" 
+                        @click="dataLeads.fetchLeads('assigned')"
+                      >
+                        My Assigned Leads from Admin/Manager
+                      </button>
+                    </li>
+                  </ul>
+                  </div>
+                </div>
+
+                  
+
+
+              <!-- Kanan -->
+             <div class="d-flex flex-column gap-3 align-items-end" style="min-width:300px;">
+                <!-- Pencarian -->
+                <div class="input-group">
+                    <input type="text" class="form-control" placeholder="Searching...." 
+                     @input="e => dataLeads.searchWithDelay(e.target.value)">
+                    <span class="input-group-text bg-white"><i class="fa fa-search"></i></span>
+                </div>
+
+                <!-- Urutan -->
+                <div class="d-flex gap-2 align-items-center">
+                    <label class="mb-0 fw-semibold">Sort:</label>
+                    <!-- SORT COLUMN -->
+                    <select
+                      class="form-select w-auto"
+                      v-model="dataLeads.sort.column"
+                      @change="dataLeads.changeSorting()"
+                    >
+                      <option value="company_name">By Company</option>
+                      <option value="created_at">By Created Date</option>
+                    </select>
+
+                    <!-- SORT DIRECTION -->
+                    <select
+                      class="form-select w-auto"
+                      v-model="dataLeads.sort.direction"
+                      @change="dataLeads.changeSorting()"
+                    >
+                      <option value="asc">Ascending</option>
+                      <option value="desc">Descending</option>
+                    </select>
+                  </div>
+                </div>
+            </div>
+
+            
+
+            <div class="table-responsive">
+              <table class="table card-table table-vcenter text-nowrap">
+               
+                <thead>
+                <tr>
+                   <th :colspan="dataLeads.mode === 'assigned' ? 11 : 9"
+                        class="bg-light fw-bold text-warning">
+                      <i class="fa fa-table me-2"></i>
+                      {{ dataLeads.mode === 'assigned'
+                          ? 'My Assigned Leads from Admin/Manager'
+                          : 'Master Leads your Created'
+                      }}
+                    </th>
+                  </tr>
+                <tr>
+                <th>No</th>
+                <th @click="dataLeads.toggleSort('company_name')">Company</th>
+                <th>Contact</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Source</th>
+                <th>Status</th>
+               <th v-if="dataLeads.mode === 'assigned'">Assigned To</th>
+               <th v-if="dataLeads.mode === 'assigned'">Visibility</th>
+                <th>Last Contact</th>
+                <th>Actions</th>
+                </tr>
+                </thead>
+
+              <tbody v-if="dataLeads.loading">
+                <tr>
+                  <td 
+                      class="text-center" colspan="11">
+                    <div class="spinner-border text-primary"></div>
+                  </td>
+                </tr>
+              </tbody>
+
+
+              <tbody v-else-if="dataLeads.leads.length === 0">
+                <tr>
+                  <td
+                  
+                    class="text-center text-muted" colspan="11"
+                   >
+                    <div class="d-flex flex-column align-items-center justify-content-center">
+                      <img
+                        :src="notFoundConfig[notFoundType].image"
+                        alt="No data"
+                         style="max-width: 250px; height: auto;"
+                        class="mb-3"
+                      />
+
+                      <h6 class="fw-bold text-dark">
+                        {{ notFoundConfig[notFoundType].title }}
+                      </h6>
+                      
+
+                      <p class="fst-italic text-secondary mb-0">
+                        {{ notFoundConfig[notFoundType].message }}
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+
+
+                <tbody v-else>
+                  <tr v-for="(lead, index) in dataLeads.leads" :key="lead.id">
+                    <td>{{ index + 1 }}</td>
+
+                    <td>
+                      <strong>{{ lead.company_name }}</strong><br>
+                      <small class="text-muted">{{ lead.industry_name }}</small>
+                    </td>
+
+                    <td>{{ lead.contact_name }}</td>
+                    <td>{{ lead.email }}</td>
+                    <td>{{ lead.phone }}</td>
+
+                    <td>
+                      <span class="badge bg-info">{{ lead.lead_source }}</span>
+                    </td>
+
+                    <td>
+                      <span class="badge bg-warning">{{ lead.lead_status }}</span>
+                    </td>
+
+                    <!-- ASSIGNED ONLY -->
+                    <td v-if="dataLeads.mode === 'assigned'">
+                      <i class="fa fa-user me-1 text-primary"></i>
+                      {{ lead.assigned_name ?? '-' }}
+                    </td>
+
+                    <td v-if="dataLeads.mode === 'assigned'">
+                      <span class="badge bg-primary">
+                        {{ lead.visibility_type }}
+                      </span>
+                    </td>
+
+                  <td>
+                  <div class="fw-semibold">
+                    {{ formatDate(lead.last_contacted_at) }}
+                  </div>
+                  
+                </td>
+
+
+                    <td>
+                      <!-- <button class="btn btn-outline-primary btn-sm me-1"  @click="openDetail(lead.id)">
+                        <i class="fa fa-eye"></i>
+                      </button> -->
+                      <button
+  class="btn btn-outline-primary btn-sm me-1"
+  @click="openDetail(lead.id)"
+>
+  <i class="fa fa-eye"></i>
+</button>
+
+                      <button class="btn btn-outline-warning btn-sm me-1">
+                        <i class="fa fa-edit"></i>
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+
+                  </table>
             </div>
 
              <div class="card-header d-flex justify-content-between align-items-center">
-              <button class="btn btn-danger btn-sm" 
-                 >
-                <i class="fa-solid fa-circle-chevron-left"
-                ></i> Prev
-              </button>
-  
+                 <button
+                  class="btn btn-danger btn-sm"
+                  :disabled="dataLeads.pagination.current_page === 1 || dataLeads.loading"
+                  @click="dataLeads.prevPage()"
+                >
+                  <i class="fa-solid fa-circle-chevron-left"></i> Prev
+                </button>
+
                 <div class="mx-2 d-flex flex-column flex-sm-row align-items-center gap-1">
-                    <span class="badge border text-secondary px-3 py-2"> 10 data | on page 19</span>
-                    <span class="badge border text-secondary px-3 py-2">Total: 19  data</span>
+                  <span class="badge border text-secondary px-3 py-2">
+                    {{ dataLeads.leads.length }} data |
+                    page {{ dataLeads.pagination.current_page }}
+                  </span>
+                  <span class="badge border text-secondary px-3 py-2">
+                    Total: {{ dataLeads.pagination.total }}
+                  </span>
                 </div>
-  
-                <button class="btn btn-danger btn-sm"
-               >
-                    Next <i class="fa-solid fa-circle-chevron-right"></i>
+
+                <button
+                  class="btn btn-danger btn-sm"
+                  :disabled="dataLeads.pagination.current_page === dataLeads.pagination.last_page || dataLeads.loading"
+                  @click="dataLeads.nextPage()"
+                >
+                  Next <i class="fa-solid fa-circle-chevron-right"></i>
                 </button>
             </div>
           </div>
-        </div>
-          </div>
-      </div>
+      
       
 
 
 
+        
+        
 
 
 
 
-
-  <!-- Code Modal: Detail Data -->
-<div class="modal modal-blur fade" id="userDetailModal" tabindex="-1" role="dialog" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+ <div class="modal fade" id="userDetailModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content">
-      
-      <!-- Header -->
+
       <div class="modal-header">
-        <h5 class="modal-title">Detail Role</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <h5 class="modal-title">Detail Lead</h5>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
       </div>
 
-      <!-- Body -->
       <div class="modal-body">
-         <div class="modal-body">                   
-          <div class="d-flex justify-content-center align-items-center" style="min-height:150px;">
-  <div class="spinner-border text-secondary" role="status">
-    <span class="visually-hidden">Loading...</span>
-  </div>
-</div>
 
-          <div >
-            <p><strong>Role:</strong> </p>
-            <p><strong>Description:</strong></p>
-          </div>
+        <!-- LOADING -->
+        <div
+          v-if="dataLeads.loadingDetail"
+          class="d-flex justify-content-center align-items-center"
+          style="min-height:150px"
+        >
+          <div class="spinner-border text-secondary"></div>
+        </div>
+
+        <!-- DATA -->
+        <div v-else-if="dataLeads.leadDetail">
+          <p><strong>Company:</strong> {{ dataLeads.leadDetail.company_name }}</p>
+          <p><strong>Contact:</strong> {{ dataLeads.leadDetail.contact_name }}</p>
+          <p><strong>Email:</strong> {{ dataLeads.leadDetail.email || '-' }}</p>
+          <p><strong>Phone:</strong> {{ dataLeads.leadDetail.phone || '-' }}</p>
+          <p><strong>Status:</strong>
+            <span class="badge bg-warning">
+              {{ dataLeads.leadDetail.lead_status }}
+            </span>
+          </p>
+          <p><strong>Source:</strong> {{ dataLeads.leadDetail.lead_source }}</p>
+        </div>
+
+        <!-- EMPTY -->
+        <div v-else class="text-center text-muted">
+          Data tidak tersedia
+        </div>
+
       </div>
-      </div>
-      <!-- Footer -->
+
       <div class="modal-footer">
-        <button type="button" class="btn btn-link link-secondary" data-bs-dismiss="modal">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">
           Close
         </button>
       </div>
+
     </div>
   </div>
 </div>
@@ -694,250 +566,6 @@ const handleImportExcel = () => {
         </button>
       </div>
 
-    </div>
-  </div>
-</div>
-
-
-
-
-<!-- ### Modal Export Laporan --> 
-
-<div v-if="exportModalOpen" class="modal-backdrop fade show"></div>
-<div v-if="exportModalOpen" class="modal d-block" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Ekspor Laporan Invoice (excel)</h5>
-        <button type="button" class="btn-close" @click="exportModalOpen=false"></button>
-      </div>
-      <div class="modal-body">
-        <div class="mb-3">
-          <label class="form-label">Pilih Tipe Ekspor</label>
-          <div class="d-flex gap-3">
-            <div class="form-check">
-              <input class="form-check-input" type="radio" v-model="exportType" value="month" id="exportByMonth">
-              <label class="form-check-label" for="exportByMonth">Bulan</label>
-            </div>
-            <div class="form-check">
-              <input class="form-check-input" type="radio" v-model="exportType" value="date" id="exportByDate">
-              <label class="form-check-label" for="exportByDate">Tanggal</label>
-            </div>
-            <div class="form-check">
-              <input class="form-check-input" type="radio" v-model="exportType" value="year" id="exportByYear">
-              <label class="form-check-label" for="exportByYear">Tahun</label>
-            </div>
-          </div>
-        </div>
-
-        <div v-if="exportType === 'month'" class="row g-2 mb-3">
-          <div class="col">
-            <label class="form-label">Bulan</label>
-            <select v-model="selectedMonth" class="form-select">
-              <option value="1">Januari</option>
-              <option value="2">Februari</option>
-              <option value="3">Maret</option>
-              <option value="4">April</option>
-              <option value="5">Mei</option>
-              <option value="6">Juni</option>
-              <option value="7">Juli</option>
-              <option value="8">Agustus</option>
-              <option value="9">September</option>
-              <option value="10">Oktober</option>
-              <option value="11">November</option>
-              <option value="12">Desember</option>
-            </select>
-          </div>
-          <div class="col">
-            <label class="form-label">Tahun</label>
-            <select v-model="selectedYear" class="form-select">
-              <option v-for="y in years" :key="y" :value="y">{{ y }}</option>
-            </select>
-          </div>
-        </div>
-
-        <div v-if="exportType === 'date'" class="row g-2 mb-3">
-          <div class="col">
-            <label class="form-label">Tanggal Mulai</label>
-            <input type="date" v-model="startDate" class="form-control" />
-          </div>
-          <div class="col">
-            <label class="form-label">Tanggal Akhir</label>
-            <input type="date" v-model="endDate" class="form-control" />
-          </div>
-        </div>
-        
-        <div v-if="exportType === 'year'" class="mb-3">
-          <label class="form-label">Pilih Tahun</label>
-          <select v-model="selectedYear" class="form-select">
-            <option v-for="y in years" :key="y" :value="y">{{ y }}</option>
-          </select>
-        </div>
-
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" @click="exportModalOpen=false">Batal</button>
-        <button class="btn btn-primary" @click="handleExport">Ekspor</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-
-
-
-
-<!-- ### Modal Export Laporan PDF --> 
-
-<div v-if="exportModalOpenPdf" class="modal-backdrop fade show"></div>
-<div v-if="exportModalOpenPdf" class="modal d-block" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Ekspor Laporan Invoice (PDF)</h5>
-        <button type="button" class="btn-close" @click="exportModalOpenPdf=false"></button>
-      </div>
-
-      <div class="modal-body">
-        <div class="mb-3">
-          <label class="form-label">Pilih Tipe Ekspor</label>
-          <div class="d-flex gap-3">
-            <div class="form-check">
-              <input class="form-check-input" type="radio" v-model="exportTypePdf" value="month" id="exportByMonthPdf">
-              <label class="form-check-label" for="exportByMonthPdf">Bulan</label>
-            </div>
-            <div class="form-check">
-              <input class="form-check-input" type="radio" v-model="exportTypePdf" value="date" id="exportByDatePdf">
-              <label class="form-check-label" for="exportByDatePdf">Tanggal</label>
-            </div>
-            <div class="form-check">
-              <input class="form-check-input" type="radio" v-model="exportTypePdf" value="year" id="exportByYearPdf">
-              <label class="form-check-label" for="exportByYearPdf">Tahun</label>
-            </div>
-          </div>
-        </div>
-
-        <!-- Filter Bulan -->
-        <div v-if="exportTypePdf === 'month'" class="row g-2 mb-3">
-          <div class="col">
-            <label class="form-label">Bulan</label>
-            <select v-model="selectedMonthPdf" class="form-select">
-              <option value="1">Januari</option>
-              <option value="2">Februari</option>
-              <option value="3">Maret</option>
-              <option value="4">April</option>
-              <option value="5">Mei</option>
-              <option value="6">Juni</option>
-              <option value="7">Juli</option>
-              <option value="8">Agustus</option>
-              <option value="9">September</option>
-              <option value="10">Oktober</option>
-              <option value="11">November</option>
-              <option value="12">Desember</option>
-            </select>
-          </div>
-          <div class="col">
-            <label class="form-label">Tahun</label>
-            <select v-model="selectedYearPdf" class="form-select">
-              <option v-for="y in yearsPdf" :key="y" :value="y">{{ y }}</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Filter Tanggal -->
-        <div v-if="exportTypePdf === 'date'" class="row g-2 mb-3">
-          <div class="col">
-            <label class="form-label">Tanggal Mulai</label>
-            <input type="date" v-model="startDatePdf" class="form-control" />
-          </div>
-          <div class="col">
-            <label class="form-label">Tanggal Akhir</label>
-            <input type="date" v-model="endDatePdf" class="form-control" />
-          </div>
-        </div>
-
-        <!-- Filter Tahun -->
-        <div v-if="exportTypePdf === 'year'" class="mb-3">
-          <label class="form-label">Pilih Tahun</label>
-          <select v-model="selectedYearPdf" class="form-select">
-            <option v-for="y in yearsPdf" :key="y" :value="y">{{ y }}</option>
-          </select>
-        </div>
-
-        <div class="alert alert-info">
-          Klik tombol "Ekspor" untuk mendownload laporan dalam format PDF.
-        </div>
-      </div>
-
-      <div class="modal-footer">
-        <button class="btn btn-secondary" @click="exportModalOpenPdf=false">Batal</button>
-        <button class="btn btn-danger" @click="handleExportPdf">Ekspor PDF</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-
-<!-- ### Modal Import CSV --> 
-
-<div v-if="importCsvModalOpen" class="modal-backdrop fade show"></div>
-<div v-if="importCsvModalOpen" class="modal d-block" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Import Data CSV</h5>
-        <button type="button" class="btn-close" @click="importCsvModalOpen=false"></button>
-      </div>
-
-      <div class="modal-body">
-        <div class="mb-3">
-          <label class="form-label">Pilih File CSV</label>
-          <input type="file" class="form-control" accept=".csv" @change="handleCsvFile" />
-        </div>
-
-        <div class="alert alert-info">
-          Pastikan format CSV sesuai template.
-          <a href="/template.csv" target="_blank">Download Template CSV</a>
-        </div>
-      </div>
-
-      <div class="modal-footer">
-        <button class="btn btn-secondary" @click="importCsvModalOpen=false">Batal</button>
-        <button class="btn btn-primary" @click="handleImportCsv">Upload CSV</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-
-
-<!-- ### Modal Import Excel --> 
-
-<div v-if="importExcelModalOpen" class="modal-backdrop fade show"></div>
-<div v-if="importExcelModalOpen" class="modal d-block" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Import Data Excel</h5>
-        <button type="button" class="btn-close" @click="importExcelModalOpen=false"></button>
-      </div>
-
-      <div class="modal-body">
-        <div class="mb-3">
-          <label class="form-label">Pilih File Excel</label>
-          <input type="file" class="form-control" accept=".xlsx,.xls" @change="handleExcelFile" />
-        </div>
-
-        <div class="alert alert-info">
-          Pastikan format kolom sesuai template.
-          <a href="/template.xlsx" target="_blank">Download Template Excel</a>
-        </div>
-      </div>
-
-      <div class="modal-footer">
-        <button class="btn btn-secondary" @click="importExcelModalOpen=false">Batal</button>
-        <button class="btn btn-primary" @click="handleImportExcel">Upload Excel</button>
-      </div>
     </div>
   </div>
 </div>

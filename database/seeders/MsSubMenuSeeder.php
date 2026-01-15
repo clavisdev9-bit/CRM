@@ -488,6 +488,17 @@ class MsSubMenuSeeder extends Seeder
             ],
 
 
+            [
+                'id_menu' => 2,
+                'url' => '/data-master-leads-bulk',
+                'icon' => null,
+                'title' => 'Master Leads Admin',
+                'noted' => 'Master Leads Admin Page',
+                'is_active' => true,
+                'parent_id' => 10,
+            ],
+
+
             
 
 

@@ -167,7 +167,104 @@ public function showLead($id)
 
 
          //  ambil data leads berdasarkan yang sales buat atau yang di assign ke sales
+         //  ambil data leads yang hanya di assign ke sales yang login
      public function leadsAssignByAdminOrManager(LeadsValidationIndex $request)
+        {
+            $validated = $request->validated();
+
+            $search   = $validated['search'] ?? null;
+            $perPage  = $validated['per_page'] ?? 10;
+            $sortBy   = $validated['sort_by'] ?? 'l.created_at';
+            $sortDir  = $validated['sort_dir'] ?? 'desc';
+
+            $user = auth()->user();
+            $userId = $user->id_user;
+
+            $query = DB::table('leads as l')
+                ->select([
+                    'l.id',
+                    'l.company_name',
+                    'l.contact_name',
+                    'l.email',
+                    'l.phone',
+
+                    'l.lead_category_id',
+                    'l.industry_id',
+                    'l.id_user',
+                    'l.assigned_to',
+                    'l.created_by',
+
+                    'l.lead_source',
+                    'l.lead_status',
+                    'l.visibility_type',
+                    'l.notes',
+                    'l.last_contacted_at',
+                    'l.converted_at',
+                    'l.created_at',
+                    'l.updated_at',
+                    'l.deleted_at',
+
+                    'cat.name as category_name',
+                    'ind.name as industry_name',
+                    'owner.fullname as owner_name',
+                    'sales.fullname as assigned_name',
+                ])
+                ->leftJoin('lead_categories as cat', 'cat.id', '=', 'l.lead_category_id')
+                ->leftJoin('lead_industries as ind', 'ind.id', '=', 'l.industry_id')
+                ->leftJoin('ms_users as owner', 'owner.id_user', '=', 'l.id_user')
+                ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'l.assigned_to')
+
+                /**
+                 * ==========================
+                 * FILTER DATA UNIVERSAL
+                 * ==========================
+                 * Tampilkan lead:
+                 * - yang dibuat oleh user login (manager)
+                 * - atau di-assign ke user login (sales)
+                 */
+                // ->where(function($q) use ($userId) {
+                //     $q->where('l.created_by', $userId)
+                //     ->orWhere('l.assigned_to', $userId);
+                // });
+
+                ->where('l.assigned_to', $userId);
+
+
+            /**
+             * ==========================
+             * SEARCH
+             * ==========================
+             */
+            if ($search) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('l.company_name', 'ILIKE', "%{$search}%")
+                    ->orWhere('l.contact_name', 'ILIKE', "%{$search}%")
+                    ->orWhere('l.email', 'ILIKE', "%{$search}%");
+                });
+            }
+
+            /**
+             * ==========================
+             * SORTING
+             * ==========================
+             */
+            $query->orderBy($sortBy, $sortDir);
+
+            $results = $query->paginate($perPage);
+
+            return ApiResponse::paginate(
+                LeadsResourcesCollection::make($results),
+                $results->isEmpty()
+                    ? 'Data yang Anda cari tidak ditemukan'
+                    : 'Success'
+            );
+        }
+
+
+
+          //  ambil data leads berdasarkan yang sales buat atau yang di assign ke sales(ini untuk data yang tampil
+        //    di page admin nantinya)
+     public function leadsAssignByAdminCreated(LeadsValidationIndex $request)
         {
             $validated = $request->validated();
 
@@ -226,6 +323,9 @@ public function showLead($id)
                     ->orWhere('l.assigned_to', $userId);
                 });
 
+               
+
+
             /**
              * ==========================
              * SEARCH
@@ -255,6 +355,7 @@ public function showLead($id)
                     : 'Success'
             );
         }
+
 
 
 
@@ -581,111 +682,92 @@ public function showLead($id)
 
 
         /**
- * Delete / soft delete lead by ID
- */
-public function deleteLead($id)
-{
-    $user = auth()->user();
-    $userId = $user->id_user;
-    $userRole = $user->role; // misal: 'admin', 'manager', 'sales'
+         * Delete / soft delete lead by ID
+        */
+        public function deleteLead($id)
+        {
+            $user = auth()->user();
+            $userId = $user->id_user;
+            $userRole = $user->role; // misal: 'admin', 'manager', 'sales'
 
-    // Ambil lead
-    $lead = DB::table('leads')->where('id', $id)->first();
+            // Ambil lead
+            $lead = DB::table('leads')->where('id', $id)->first();
 
-    if (!$lead) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Lead not found',
-            'data' => null
-        ], 404);
-    }
+            if (!$lead) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Lead not found',
+                    'data' => null
+                ], 404);
+            }
 
-    // Cek permission
-    if ($userRole === 'sales' && $lead->id_user != $userId && $lead->assigned_to != $userId) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Unauthorized to delete this lead',
-            'data' => null
-        ], 403);
-    }
+            // Cek permission
+            if ($userRole === 'sales' && $lead->id_user != $userId && $lead->assigned_to != $userId) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Unauthorized to delete this lead',
+                    'data' => null
+                ], 403);
+            }
 
-    try {
-        // Soft delete
-        DB::table('leads')->where('id', $id)->update([
-            'deleted_at' => now(),
-            'updated_at' => now(),
-        ]);
+            try {
+                // Soft delete
+                DB::table('leads')->where('id', $id)->update([
+                    'deleted_at' => now(),
+                    'updated_at' => now(),
+                ]);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Lead deleted successfully',
-            'data' => null
-        ]);
+                return response()->json([
+                    'success' => true,
+                    'message' => 'Lead deleted successfully',
+                    'data' => null
+                ]);
 
-    } catch (\Illuminate\Database\QueryException $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Failed to delete lead (query error)',
-            'exception' => config('app.debug') ? $e->getMessage() : null
-        ], 422);
-    } catch (\Exception $e) {
-        return response()->json([
-            'success' => false,
-            'message' => 'An error occurred while deleting the lead',
-            'exception' => config('app.debug') ? $e->getMessage() : null
-        ], 500);
-    }
-}
+            } catch (\Illuminate\Database\QueryException $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Failed to delete lead (query error)',
+                    'exception' => config('app.debug') ? $e->getMessage() : null
+                ], 422);
+            } catch (\Exception $e) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'An error occurred while deleting the lead',
+                    'exception' => config('app.debug') ? $e->getMessage() : null
+                ], 500);
+            }
+        }
 
 
 
 
           //import excel leads (belum selesai)
-        public function importExcel(Request $request)
-            {
-                $request->validate([
-                    'file' => 'required|file|mimes:xls,xlsx,csv'
-                ]);
+             public function importLeads(Request $request)
+                {
+                    // $request->validate([
+                    //     'file' => 'required|mimes:xlsx,xls,csv',
+                    // ]);
 
-                $userId = auth()->id(); // user login sebagai owner/creator
-                $file = $request->file('file');
-                $inserted = [];
+                    $file = $request->file('file');
+                    $user = auth()->user();
+                    $userId = $user->id_user;
 
-                Excel::load($file, function($reader) use ($userId, &$inserted) {
-                    $rows = $reader->get();
+                    try {
+                        // Import Excel ke database
+                        Excel::import(new LeadsImport($userId), $file);
 
-                    foreach ($rows as $index => $row) {
-                        if ($index === 0) continue; // skip header
-                        if (empty($row->company_name) || empty($row->contact_name)) continue;
-
-                        $leadId = DB::table('leads')->insertGetId([
-                            'company_name'     => $row->company_name,
-                            'contact_name'     => $row->contact_name,
-                            'email'            => $row->email ?? null,
-                            'phone'            => $row->phone ?? null,
-                            'lead_source'      => $row->lead_source ?? null,
-                            'lead_status'      => $row->lead_status ?? 'New',
-                            'industry_id'      => $row->industry_id ?? null,
-                            'lead_category_id' => $row->lead_category_id ?? null,
-                            'assigned_to'      => $row->assigned_to ?? null,
-                            'id_user'          => $userId,
-                            'created_by'       => $userId,
-                            'visibility_type'  => $row->visibility_type ?? 'PRIVATE',
-                            'notes'            => $row->notes ?? null,
-                            'last_contacted_at'=> $row->last_contacted_at ?? null,
-                            'created_at'       => now(),
-                            'updated_at'       => now(),
+                        return response()->json([
+                            'success' => true,
+                            'message' => 'Leads imported successfully',
                         ]);
-
-                        $inserted[] = $leadId;
+                    } catch (\Exception $e) {
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Import failed: ' . $e->getMessage(),
+                        ], 500);
                     }
-                });
+                }
 
-                return response()->json([
-                    'success' => true,
-                    'message' => count($inserted) . ' leads berhasil diimport',
-                    'data' => $inserted
-                ]);
-            }
+
 
 }

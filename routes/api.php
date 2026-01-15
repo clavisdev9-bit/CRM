@@ -119,8 +119,7 @@ Route::put('/leads-update/{id}', [Leads::class, 'updateLead'])->name('api.leads.
 Route::delete('/leads-delete/{id}', [Leads::class, 'deleteLead'])->name('api.leads.delete');
 
 
-
-Route::post('/leads/import-excel', [Leads::class, 'importExcel'])->name('api.leads.import.excel');//belum selesai
+Route::post('/leads/import-excel', [Leads::class, 'importLeads'])->name('api.leads.import.excel');//belum selesai
 });
 
 

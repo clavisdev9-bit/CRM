@@ -284,16 +284,6 @@ class Master extends Controller
 
 
 
-            // public function selectOffice()
-            //     {
-            //         return response()->json(
-            //             DB::table('offices')
-            //                 ->select('id', 'office_name')
-            //                 ->orderBy('office_name', 'asc')
-            //                 ->get()
-            //         );
-            //     }
-
                 public function selectOffice()
             {
                 return response()->json(
