@@ -684,59 +684,148 @@ public function showLead($id)
         /**
          * Delete / soft delete lead by ID
         */
-        public function deleteLead($id)
-        {
-            $user = auth()->user();
-            $userId = $user->id_user;
-            $userRole = $user->role; // misal: 'admin', 'manager', 'sales'
+        // public function deleteLead($id)
+        // {
+        //     $user = auth()->user();
+        //     $userId = $user->id_user;
+        //     $userRole = $user->role; // misal: 'admin', 'manager', 'sales'
 
-            // Ambil lead
-            $lead = DB::table('leads')->where('id', $id)->first();
+        //     // Ambil lead
+        //     $lead = DB::table('leads')->where('id', $id)->first();
 
-            if (!$lead) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Lead not found',
-                    'data' => null
-                ], 404);
+        //     if (!$lead) {
+        //         return response()->json([
+        //             'success' => false,
+        //             'message' => 'Lead not found',
+        //             'data' => null
+        //         ], 404);
+        //     }
+
+        //     // Cek permission
+        //     if ($userRole === 'sales' && $lead->id_user != $userId && $lead->assigned_to != $userId) {
+        //         return response()->json([
+        //             'success' => false,
+        //             'message' => 'Unauthorized to delete this lead',
+        //             'data' => null
+        //         ], 403);
+        //     }
+
+        //     try {
+        //         // Soft delete
+        //         DB::table('leads')->where('id', $id)->update([
+        //             'deleted_at' => now(),
+        //             'updated_at' => now(),
+        //         ]);
+
+        //         return response()->json([
+        //             'success' => true,
+        //             'message' => 'Lead deleted successfully',
+        //             'data' => null
+        //         ]);
+
+        //     } catch (\Illuminate\Database\QueryException $e) {
+        //         return response()->json([
+        //             'success' => false,
+        //             'message' => 'Failed to delete lead (query error)',
+        //             'exception' => config('app.debug') ? $e->getMessage() : null
+        //         ], 422);
+        //     } catch (\Exception $e) {
+        //         return response()->json([
+        //             'success' => false,
+        //             'message' => 'An error occurred while deleting the lead',
+        //             'exception' => config('app.debug') ? $e->getMessage() : null
+        //         ], 500);
+        //     }
+        // }
+
+        public function deleteLead(Request $request, $id)
+            {
+                $user = auth()->user();
+                $userId = $user->id_user;
+                $userRole = $user->role; // contoh: 'admin', 'manager', 'sales'
+
+                // Ambil tipe delete: soft (default) atau hard
+                $deleteType = $request->query('type', 'hard'); // ?type=hard untuk delete permanen
+
+                // Ambil lead
+                $lead = DB::table('leads')->where('id', $id)->first();
+
+                if (!$lead) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Lead not found',
+                        'data' => null
+                    ], 404);
+                }
+
+                // Cek permission
+                if ($userRole === 'sales' && $lead->id_user != $userId && $lead->assigned_to != $userId) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Unauthorized to delete this lead',
+                        'data' => null
+                    ], 403);
+                }
+
+                try {
+                    if ($deleteType === 'hard') {
+                        // 🔥 Hard delete → hapus permanen
+                        DB::table('leads')->where('id', $id)->delete();
+                        $msg = 'Lead deleted permanently';
+                    } else {
+                        // Soft delete → tetap di DB tapi diberi deleted_at
+                        DB::table('leads')->where('id', $id)->update([
+                            'deleted_at' => now(),
+                            'updated_at' => now(),
+                        ]);
+                        $msg = 'Lead deleted (soft delete)';
+                    }
+
+                    return response()->json([
+                        'success' => true,
+                        'message' => $msg,
+                        'data' => null
+                    ]);
+
+                } catch (\Illuminate\Database\QueryException $e) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'Failed to delete lead (query error)',
+                        'exception' => config('app.debug') ? $e->getMessage() : null
+                    ], 422);
+                } catch (\Exception $e) {
+                    return response()->json([
+                        'success' => false,
+                        'message' => 'An error occurred while deleting the lead',
+                        'exception' => config('app.debug') ? $e->getMessage() : null
+                    ], 500);
+                }
             }
 
-            // Cek permission
-            if ($userRole === 'sales' && $lead->id_user != $userId && $lead->assigned_to != $userId) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Unauthorized to delete this lead',
-                    'data' => null
-                ], 403);
-            }
 
-            try {
-                // Soft delete
-                DB::table('leads')->where('id', $id)->update([
-                    'deleted_at' => now(),
-                    'updated_at' => now(),
-                ]);
 
-                return response()->json([
-                    'success' => true,
-                    'message' => 'Lead deleted successfully',
-                    'data' => null
-                ]);
 
-            } catch (\Illuminate\Database\QueryException $e) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Failed to delete lead (query error)',
-                    'exception' => config('app.debug') ? $e->getMessage() : null
-                ], 422);
-            } catch (\Exception $e) {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'An error occurred while deleting the lead',
-                    'exception' => config('app.debug') ? $e->getMessage() : null
-                ], 500);
-            }
-        }
+
+        public function selectCategoryLead()
+                {
+                    return response()->json(
+                        DB::table('lead_categories')
+                            ->select('id', 'name')
+                            ->orderBy('name', 'asc')
+                            ->get()
+                    );
+                }
+
+
+         public function selectIndustryLead()
+                {
+                    return response()->json(
+                        DB::table('lead_industries')
+                            ->select('id', 'name')
+                            ->orderBy('name', 'asc')
+                            ->get()
+                    );
+                }        
 
 
 

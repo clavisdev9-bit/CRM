@@ -118,6 +118,8 @@ Route::put('/employee-restore-management/{id}',[Master::class, 'restoreEmployee'
 Route::put('/leads-update/{id}', [Leads::class, 'updateLead'])->name('api.leads.update');
 Route::delete('/leads-delete/{id}', [Leads::class, 'deleteLead'])->name('api.leads.delete');
 
+Route::get('/leads/select/category', [Leads::class, 'selectCategoryLead'])->name('api.leads.select.category');
+Route::get('/leads/select/industry', [Leads::class, 'selectIndustryLead'])->name('api.leads.select.industry');
 
 Route::post('/leads/import-excel', [Leads::class, 'importLeads'])->name('api.leads.import.excel');//belum selesai
 });

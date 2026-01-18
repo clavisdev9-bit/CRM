@@ -17,22 +17,45 @@ class LeadsValidationRequestBulk extends FormRequest
     /**
      * Get the validation rules that apply to the request.
      */
-    public function rules(): array
-    {
-      return [
-        'leads'                    => 'required|array|min:1',
-        'leads.*.company_name'     => 'required|string|max:255',
-        'leads.*.contact_name'     => 'required|string|max:255',
-        'leads.*.email'            => 'nullable|email|max:255',
-        'leads.*.phone'            => 'nullable|string|max:20',
-        'leads.*.lead_source'      => 'nullable|string|max:100',
-        'leads.*.lead_status'      => 'nullable|string|max:50',
-        'leads.*.industry_id'      => 'nullable|integer|exists:lead_industries,id',
-        'leads.*.lead_category_id' => 'nullable|integer|exists:lead_categories,id',
-        'leads.*.assigned_to'      => 'nullable|integer|exists:ms_users,id_user',
-        'leads.*.visibility_type'  => 'nullable|string|in:PRIVATE,PUBLIC,TEAM',
-        'leads.*.notes'            => 'nullable|string',
-        'leads.*.last_contacted_at'=> 'nullable|date',
+   public function rules(): array
+{
+    return [
+        'leads' => 'required|array|min:1',
+
+        'leads.*.company_name' => 'required|string|max:255',
+        'leads.*.contact_name' => 'required|string|max:255',
+        'leads.*.email'        => 'nullable|email|max:255',
+        'leads.*.phone'        => 'required|string|max:20',
+        'leads.*.lead_source'  => 'required|string|max:100',
+
+        'leads.*.industry_id'      => 'required|integer|exists:lead_industries,id',
+        'leads.*.lead_category_id' => 'required|integer|exists:lead_categories,id',
+
+        'leads.*.notes' => 'nullable|string|max:1000',
     ];
-    }
+}
+
+
+
+public function messages(): array
+{
+    return [
+        'leads.*.company_name.required' => 'Company name is required.',
+        'leads.*.contact_name.required' => 'Contact name is required.',
+        'leads.*.lead_source.required'  => 'Lead source is required.',
+
+        'leads.*.email.email' => 'Email format is invalid.',
+
+        'leads.*.industry_id.required' => 'Industry is required.',
+        'leads.*.industry_id.exists'   => 'Industry not found.',
+
+        'leads.*.lead_category_id.required' => 'Category is required.',
+        'leads.*.lead_category_id.exists'   => 'Category not found.',
+
+        'leads.*.notes.string' => 'Notes must be text.',
+        'leads.*.notes.max'    => 'Notes may not be greater than 1000 characters.',
+    ];
+}
+
+
 }

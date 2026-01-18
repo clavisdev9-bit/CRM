@@ -19,19 +19,18 @@ class LeadsValidationRequest extends FormRequest
      */
     public function rules(): array
     {
-        return [
-            'company_name'       => 'required|string|max:255',
-            'contact_name'       => 'required|string|max:255',
-            'email'              => 'nullable|email|max:255',
-            'phone'              => 'nullable|string|max:20',
-            'lead_source'        => 'nullable|string|max:100',
-            'lead_status'        => 'nullable|string|max:50',
-            'industry_id'        => 'nullable|integer|exists:lead_industries,id',
-            'lead_category_id'   => 'nullable|integer|exists:lead_categories,id',
-            'assigned_to'        => 'nullable|integer|exists:ms_users,id_user',
-            'visibility_type'    => 'nullable|string|in:PRIVATE,PUBLIC,TEAM',
-            'notes'              => 'nullable|string',
-            'last_contacted_at'  => 'nullable|date',
-        ];
+         return [
+        'company_name'     => 'required|string|max:255',
+        'contact_name'     => 'required|string|max:255',
+        'email'            => 'nullable|email|max:255',
+        'phone'            => 'required|string|max:20',
+        'lead_source'      => 'required|string|max:100',
+
+        'industry_id'      => 'required|integer|exists:lead_industries,id',
+        'lead_category_id' => 'required|integer|exists:lead_categories,id',
+
+        'visibility_type'  => 'nullable|in:PRIVATE,PUBLIC,TEAM',
+        'notes'            => 'nullable|string',
+    ];
     }
 }
