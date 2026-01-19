@@ -28,9 +28,12 @@ class LeadsValidationRequest extends FormRequest
 
         'industry_id'      => 'required|integer|exists:lead_industries,id',
         'lead_category_id' => 'required|integer|exists:lead_categories,id',
+        'assigned_to'      => 'nullable|integer',
 
         'visibility_type'  => 'nullable|in:PRIVATE,PUBLIC,TEAM',
         'notes'            => 'nullable|string',
+        'address' => 'nullable|string',
+
     ];
     }
 }

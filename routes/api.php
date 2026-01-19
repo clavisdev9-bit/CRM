@@ -110,7 +110,7 @@ Route::Post('/attendance/update/{id}', [Attendance::class, 'updateAttendance'])-
 // api Sales Leads
 Route::get('/leads/show/{id}', [Leads::class, 'showLead'])->name('api.leads.show');
 Route::get('/leads-master', [Leads::class, 'Leads'])->name('api.leads.master');
-Route::get('/all-leads-master', [Leads::class, 'allDataLeads'])->name('api.all.leads.master');
+Route::get('/all-leads-master-created-by-admin', [Leads::class, 'leadsAssignByAdminCreated'])->name('api.all.leads.master');
 Route::get('/leads-assigned-to-me', [Leads::class, 'leadsAssignByAdminOrManager'])->name('api.leads.assigned.to.me');
 Route::post('/leads-store', [Leads::class, 'storeLead'])->name('api.leads.store');
 Route::post('/leads-store-bulk', [Leads::class, 'storeBulkLead'])->name('api.leads.store.bulk');
@@ -120,6 +120,7 @@ Route::delete('/leads-delete/{id}', [Leads::class, 'deleteLead'])->name('api.lea
 
 Route::get('/leads/select/category', [Leads::class, 'selectCategoryLead'])->name('api.leads.select.category');
 Route::get('/leads/select/industry', [Leads::class, 'selectIndustryLead'])->name('api.leads.select.industry');
+Route::get('/leads/select/user-sales', [Leads::class, 'selectUserByDivision'])->name('api.leads.select.user.sales');
 
 Route::post('/leads/import-excel', [Leads::class, 'importLeads'])->name('api.leads.import.excel');//belum selesai
 });

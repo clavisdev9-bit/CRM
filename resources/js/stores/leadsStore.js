@@ -19,25 +19,26 @@ export const useLeadsStore = defineStore("leadsStore", () => {
   }
 
   /* ================= STATE ================= */
-  const leads = ref([])
-  const mode = ref("all")
-  const loading = ref(false)
+      const leads = ref([])
+      const mode = ref("all")
+      const loading = ref(false)
 
-  const search = ref("")
-  let searchTimeout = null
+      const search = ref("")
+      let searchTimeout = null
 
-  const leadDetail = ref(null)
- const loadingDetail = ref(false)
+      const leadDetail = ref(null)
+      const loadingDetail = ref(false)
 
- const categories = ref([])
-const industries = ref([])
+      const categories = ref([])
+      const industries = ref([])
 
-const loadingCategories = ref(false)
-const loadingIndustries = ref(false)
+      const loadingCategories = ref(false)
+      const loadingIndustries = ref(false)
 
-const savingLead = ref(false)
-const updatesLead = ref(false)
-const errorLead = ref(null)
+      const savingLead = ref(false)
+      const updatesLead = ref(false)
+      const errorLead = ref(null)
+
 
 
 
@@ -84,39 +85,6 @@ const errorLead = ref(null)
   }
 
   /* ================= FETCH ================= */
-  // const fetchLeads = async (newMode = null) => {
-  //   loading.value = true
-
-  //   if (newMode) {
-  //     mode.value = newMode
-  //     pagination.current_page = 1
-  //   }
-
-  //   try {
-  //     const res = await axios.get(buildUrl(), {
-  //       headers: getAuthHeader(),
-  //     })
-
-  //     const result = res.data
-  //     leads.value = result.data?.data ?? []
-
-  //     const pag = result.data?.pagination
-  //     if (pag) {
-  //       pagination.current_page = pag.current_page
-  //       pagination.per_page = pag.per_page
-  //       pagination.prev_page_url = pag.prev_page_url
-  //       pagination.next_page_url = pag.next_page_url
-  //       pagination.last_page = pag.last_page
-  //       pagination.total = pag.total
-  //     }
-
-  //   } catch (err) {
-  //     console.error("Fetch leads failed:", err)
-  //     leads.value = []
-  //   } finally {
-  //     loading.value = false
-  //   }
-  // }
 
   const fetchLeads = async (newMode = null, page = null) => {
   loading.value = true
@@ -419,8 +387,9 @@ const deleteLead = async (id) => {
   }
 }
 
+ 
 
-
+                      
 
   /* ================= EXPORT ================= */
   return {
@@ -458,6 +427,7 @@ const deleteLead = async (id) => {
 
     fetchLeadCategories,
     fetchLeadIndustries,
+  
 
      // state
   savingLead,

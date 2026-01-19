@@ -21,8 +21,9 @@ import settingApp from '../pages/backend/administrator/setting/settingApp.vue'
 //backend Sales
 import salesHome from '../pages/backend/sales/home/home.vue'
 import masterEmployee from '../pages/backend/sales/master/employee.vue'
-import presensi from '../pages/backend/sales/attendance/presensi.vue'
+import masterLeads from '../pages/backend/sales/master/leads.vue'
 
+import presensi from '../pages/backend/sales/attendance/presensi.vue'
 import leads from '../pages/backend/sales/leads/leads.vue'
 import followUp from '../pages/backend/sales/follow_up/followUp.vue'
 import costumers from '../pages/backend/sales/customers/customers.vue'
@@ -98,7 +99,6 @@ const routes = [
 
 
  // Backend Sales
-
   {
   path: '/sales-home',
   component: salesHome,
@@ -108,6 +108,12 @@ const routes = [
   {
   path: '/data-master-employee',
   component: masterEmployee,
+  // meta: { requiresAuth: true }   
+  },
+
+  {
+  path: '/data-master-leads-bulk',
+  component: masterLeads,
   // meta: { requiresAuth: true }   
   },
 

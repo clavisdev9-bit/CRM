@@ -166,7 +166,7 @@ public function showLead($id)
 
 
 
-         //  ambil data leads berdasarkan yang sales buat atau yang di assign ke sales
+         //  ambil data leads berdasarkan yang admin buat atau yang di assign ke sales
          //  ambil data leads yang hanya di assign ke sales yang login
      public function leadsAssignByAdminOrManager(LeadsValidationIndex $request)
         {
@@ -218,15 +218,8 @@ public function showLead($id)
                  * ==========================
                  * FILTER DATA UNIVERSAL
                  * ==========================
-                 * Tampilkan lead:
-                 * - yang dibuat oleh user login (manager)
-                 * - atau di-assign ke user login (sales)
+                 * Tampilkan lead yang di-assign ke user login (sales)
                  */
-                // ->where(function($q) use ($userId) {
-                //     $q->where('l.created_by', $userId)
-                //     ->orWhere('l.assigned_to', $userId);
-                // });
-
                 ->where('l.assigned_to', $userId);
 
 
@@ -441,14 +434,14 @@ public function showLead($id)
                     $data = $request->validated();
                     try {
                         // Optional: cek duplicate (misal company_name + contact_name)
-                        $errors = DB::table('leads')
-                            ->where('company_name', $data['company_name'])
-                            ->where('contact_name', $data['contact_name'])
-                            ->exists();
+                        // $errors = DB::table('leads')
+                        //     ->where('company_name', $data['company_name'])
+                        //     ->where('contact_name', $data['contact_name'])
+                        //     ->exists();
 
-                        if ($errors) {
-                            return ApiResponse::error('Validation failed', ['company_name' => ['The lead already exists']], 400);
-                        }
+                        // if ($errors) {
+                        //     return ApiResponse::error('Validation failed', ['company_name' => ['The lead already exists']], 400);
+                        // }
 
                         $user = auth()->user();
                         $userId = $user->id_user;
@@ -470,6 +463,7 @@ public function showLead($id)
 
                             'visibility_type'  => $data['visibility_type'] ?? 'PRIVATE',
                             'notes'            => $data['notes'] ?? null,
+                            'address'          => $data['address'] ?? null,
                             'last_contacted_at'=> $data['last_contacted_at'] ?? null,
 
                             'created_at'       => now(),
@@ -550,6 +544,7 @@ public function showLead($id)
                                     'id_user'          => $userId, // owner
                                     'created_by'       => $userId, // creator
                                     'visibility_type'  => $item['visibility_type'] ?? 'PRIVATE',
+                                    'address'          => $item['address'] ?? null,
                                     'notes'            => $item['notes'] ?? null,
                                     'last_contacted_at'=> $item['last_contacted_at'] ?? null,
                                     'created_at'       => now(),
@@ -825,7 +820,30 @@ public function showLead($id)
                             ->orderBy('name', 'asc')
                             ->get()
                     );
-                }        
+                }  
+                
+                
+             
+                    public function selectUserByDivision()
+                            {
+                                return response()->json(
+                                    DB::table('ms_users as mu')
+                                        ->join('ms_division as md', 'mu.divisi_id', '=', 'md.id')
+                                        ->where('mu.is_active', true)
+                                        ->where('mu.divisi_id', 3)
+                                        ->orderBy('mu.fullname', 'asc')
+                                        ->select(
+                                            'mu.id_user',
+                                            'mu.fullname as name',
+                                            'md.name_division'
+                                            
+                                        )
+                                        ->get()
+                                );
+                            }
+
+
+
 
 
 

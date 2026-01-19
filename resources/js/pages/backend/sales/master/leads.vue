@@ -1,112 +1,67 @@
 <script setup>
-import { ref, onMounted, computed  } from 'vue'
-import backendLayouts from "../../../../layouts/backendLayouts.vue"
-import { useLeadsStore } from '../../../../stores/leadsStore'
-import { useMenuStore } from "@/stores/menuStore"
-import { useRoute, useRouter } from "vue-router"
+import { ref, reactive, onMounted , watch} from 'vue'
+import backendLayouts from "../../../../layouts/backendLayouts.vue";
+import { useLeadByAdminCreate } from '../../../../stores/leadsByAdminStore';
+import { useMenuStore } from "@/stores/menuStore";
+import { useAccessMenuStore } from "@/stores/accessMenuStore";
 import Multiselect from "@vueform/multiselect"
 import { toasts } from "@/utils/toasts"
 import Swal from 'sweetalert2'
-const PagesTitle = 'Data Leads'
+import { useRoute, useRouter } from "vue-router";
 
-const dataLeads = useLeadsStore()
-const menuStore = useMenuStore()
-const route = useRoute()
-const router = useRouter()
+const PagesTitle = 'Data Master Leads';
 
-const permission = ref(null)
-const loadingPermission = ref(true)
+const dataLeads = useLeadByAdminCreate();
+const menuStore = useMenuStore();
+const accessMenuStore = useAccessMenuStore();
+const route = useRoute();
+const router = useRouter();
+
+const permission = ref(null);
+const loadingPermission = ref(true);
 
 const editLeadId = ref(null)
 
-
 onMounted(async () => {
   try {
-  if (!localStorage.getItem("auth_token")) {
-  // router.push('/login')
-  const result = await Swal.fire({
-    icon: 'warning',
-    title: 'Not logged in yet',
-    text: 'You must be logged in to access this page.',
-    showCancelButton: true,
-    confirmButtonText: 'Login',
-    cancelButtonText: 'Cancel'
-  })
-  if (result.isConfirmed) {
-    router.push('/login')
-  } else {
-    router.push('/')
-  }
-  return
-}
-    //  DEFAULT LOAD MASTER LEADS
-    await dataLeads.fetchLeads("all")
+    if (!localStorage.getItem("auth_token")) {
+      alert("Silakan login terlebih dahulu!");
+      router.push('/login');
+      return;
+    }
 
-    await menuStore.fetchMenus()
-    permission.value = menuStore.getPermission(route.path)
+    await dataLeads.fetchLeadsByAdmin(dataLeads.buildUrl());
+    await menuStore.fetchMenus();
 
-     await dataLeads.fetchLeadCategories()
+      await dataLeads.fetchLeadCategories()
      await dataLeads.fetchLeadIndustries()
-  
+     await dataLeads.fetchLeadUserSales()
 
+
+    permission.value = menuStore.getPermission(route.path);
   } catch (error) {
-    console.error(error)
+    console.error(error);
   } finally {
-    loadingPermission.value = false
+    loadingPermission.value = false;
   }
-})
+});
 
 
-const notFoundType = computed(() => {
-  if (dataLeads.mode === 'assigned') {
-    return 'assigned'
-  }
+watch(
+  () => dataLeads.searchLead,
+  dataLeads.searchWithDelay
+);
 
-  if (dataLeads.searchLeads?.length > 0) {
-    return 'search'
-  }
 
-  return 'empty'
-})
 
-const notFoundConfig = {
-  assigned: {
-    image: 'https://cdn.dribbble.com/users/285475/screenshots/2083086/dribbble_1.gif',
-    title: 'No Leads Assigned Yet (Belum Ada Assigned Leads)',
-    message: 'There are currently no leads assigned to you (Saat ini belum ada leads yang di-assign ke Anda)'
-  },
-  search: {
-    image: 'https://cdn.dribbble.com/users/285475/screenshots/2083086/dribbble_1.gif',
-    title: 'Data Not Found (Data Tidak Ditemukan)',
-    message: 'Try changing your search keywords. (Coba ubah kata kunci pencarian Anda.)'
-  },
-  empty: {
-    image: 'https://cdn.dribbble.com/users/285475/screenshots/2083086/dribbble_1.gif',
-    title: 'No Leads Data Yet (Belum Ada Data Leads)',
-    message: 'Please add new leads data. (Silakan tambahkan data leads baru.)'
-  }
-}
-
-const formatDate = (value) => {
-  if (!value) return '-'
-
-  const date = new Date(value)
-
-  return date.toLocaleDateString('id-ID', {
-    day: '2-digit',
-    month: 'short',
-    year: 'numeric'
-  })
-}
 
 
 const openDetail = async (id) => {
-  await dataLeads.fetchLeadDetail(id)
-
-  const modal = new bootstrap.Modal(
-    document.getElementById("userDetailModal")
-  )
-  modal.show()
+  try {
+    await dataLeads.fetchLeadDetail(id)
+  } catch (e) {
+    console.error(e)
+  }
 }
 
 
@@ -120,10 +75,11 @@ const singleLead = ref({
   phone: '',
   lead_source: '',
   lead_category_id: null,
+  assigned_to: null,
   industry_id: null,
-  notes: '',
+  visibility_type: null,
   address: '',
- 
+  notes: '',
 })
 
 // Bulk leads
@@ -135,9 +91,11 @@ const bulkLeads = ref([
     phone: '',
     lead_source: '',
     lead_category_id: null,
+    assigned_to: null,
     industry_id: null,
-    notes: '',
+    visibility_type: null,
     address: '',
+    notes:'',
   },
 ])
 
@@ -149,8 +107,9 @@ const addRow = () => {
     phone: '',
     lead_source: '',
     lead_category_id: null,
+    visibility_type: null,
+    assigned_to: null,
     industry_id: null,
-    notes: '',
     address: '',
   })
 }
@@ -171,11 +130,13 @@ const openEditLead = (lead) => {
     contact_name: lead.contact_name,
     email: lead.email,
     phone: lead.phone,
+    assigned_to: lead.assigned_to,
     lead_source: lead.lead_source,
     industry_id: lead.industry_id,
     lead_category_id: lead.lead_category_id,
-    notes: lead.notes,
+    visibility_type: lead.visibility_type,
     address: lead.address,
+    notes: lead.notes,
   }
 
   const modal = new bootstrap.Modal(
@@ -194,8 +155,6 @@ onMounted(() => {
 
 
 
-
-
 const saveLead = async () => {
   if (dataLeads.savingLead) return
 
@@ -209,16 +168,12 @@ const saveLead = async () => {
       } else {
         await dataLeads.storeLead({
           ...singleLead.value,
-          lead_status: 'New',
-          visibility_type: 'PRIVATE',
         })
       }
     } else {
       await dataLeads.storeBulkLeads(
         bulkLeads.value.map(lead => ({
           ...lead,
-          lead_status: 'New',
-          visibility_type: 'PRIVATE',
         }))
       )
     }
@@ -243,8 +198,10 @@ const saveLead = async () => {
         lead_source: '',
         lead_category_id: null,
         industry_id: null,
+        visibility_type: null,
+        assigned_to: null,
+        address:'',
         notes: '',
-        address: '',
       })
 
       // reset bulkLeads
@@ -258,9 +215,10 @@ const saveLead = async () => {
           lead_source: '',
           lead_category_id: null,
           industry_id: null,
+          visibility_type: null,
+          assigned_to: null,
+          address:'',
           notes: '',
-          address: '',
-
         }
       ]
     }, { once: true }) // event hanya sekali
@@ -282,37 +240,98 @@ const saveLead = async () => {
 }
 
 
-const confirmDelete = async (id) => {
-  const result = await Swal.fire({
-    icon: 'warning',
-    title: 'Are you sure?',
-    text: 'Leads will be permanently deleted!',
-    showCancelButton: true,
-    confirmButtonText: 'Yes, delete!',
-    cancelButtonText: 'Cancelled',
-  })
 
-  if (result.isConfirmed) {
-    try {
-      await dataLeads.deleteLead(id)
-      toasts.fire({
-        icon: 'success',
-        title: 'Lead successfully removed',
-      })
-    } catch (err) {
-      toasts.fire({
-        icon: 'error',
-        title: err.response?.data?.message || 'Failed to delete lead',
-      })
-    }
+
+// code export excel
+const exportModalOpen = ref(false)
+const exportType = ref('month') // 'month', 'date', 'year'
+const selectedMonth = ref(new Date().getMonth() + 1)
+const selectedYear = ref(new Date().getFullYear())
+const startDate = ref('')
+const endDate = ref('')
+
+const years = ref([])
+const generateYears = () => {
+  const currentYear = new Date().getFullYear();
+  for (let i = currentYear; i >= 2000; i--) {
+    years.value.push(i);
   }
 }
 
+const openExportModal = () => {
+     generateYears();
+    exportModalOpen.value = true
+}
+
+// // code export pdf
+const exportModalOpenPdf = ref(false)
+const exportTypePdf = ref('month') // 'month', 'date', 'year'
+const selectedMonthPdf = ref(new Date().getMonth() + 1)
+const selectedYearPdf = ref(new Date().getFullYear())
+const startDatePdf = ref('')
+const endDatePdf = ref('')
+
+const yearsPdf = ref([])
+const generateYearsPdf = () => {
+  yearsPdf.value = []
+  const currentYear = new Date().getFullYear()
+  for (let i = currentYear; i >= 2000; i--) {
+    yearsPdf.value.push(i)
+  }
+}
+
+const openExportModalPdf = () => {
+  generateYearsPdf()
+  exportModalOpenPdf.value = true
+}
+
+// import csv
+const importCsvModalOpen = ref(false)
+const selectedCsvFile = ref(null)
+
+const openImportCsvModal = () => {
+  importCsvModalOpen.value = true
+}
+
+// Event ketika file dipilih
+const handleCsvFile = (event) => {
+  selectedCsvFile.value = event.target.files[0]
+}
+
+// Tombol upload (sementara hanya alert)
+const handleImportCsv = () => {
+  if (!selectedCsvFile.value) {
+    alert("Silakan pilih file CSV terlebih dahulu")
+    return
+  }
+  alert(`Mengupload file: ${selectedCsvFile.value.name}`)
+  importCsvModalOpen.value = false
+}
 
 
+// import excel
+const importExcelModalOpen = ref(false)
+const selectedExcelFile = ref(null)
 
+const openImportExcelModal = () => {
+  importExcelModalOpen.value = true
+}
+
+// Event ketika file dipilih
+const handleExcelFile = (event) => {
+  selectedExcelFile.value = event.target.files[0]
+}
+
+// Tombol upload (sementara hanya alert)
+const handleImportExcel = () => {
+  if (!selectedExcelFile.value) {
+    alert("Silakan pilih file Excel terlebih dahulu")
+    return
+  }
+  alert(`Mengupload file: ${selectedExcelFile.value.name}`)
+  importExcelModalOpen.value = false
+}
 </script>
-
 
 <template>
   <backendLayouts>
@@ -339,30 +358,81 @@ const confirmDelete = async (id) => {
           </div>
         </div>
       </div>
+
+      <!-- Page Body -->
+      <div class="page-body flex-grow-1">
+        <div class="container-xl">
+
+          <!-- Card: Export/Import -->
+         <div class="card mb-4">
+  <div class="card-header d-flex gap-2 flex-wrap align-items-center">
+    
+    <!-- Tombol kiri -->
+    <div class="d-flex gap-2 flex-wrap">
+ 
+     <div class="dropdown d-inline-block me-2">
+            <button
+                class="btn btn-primary btn-sm dropdown-toggle"
+                type="button"
+                data-bs-toggle="dropdown"
+                aria-expanded="false"
+            >
+                <i class="fa-solid fa-upload"></i> Export
+            </button>
+
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li>
+                <button class="dropdown-item" @click="openExportModalPdf">
+                    <i class="fas fa-file-pdf"></i> Export PDF
+                </button>
+                </li>
+                <li>
+                <button class="dropdown-item" @click="openExportModal">
+                    <i class="fas fa-file-excel"></i> Export Excel
+                </button>
+                </li>
+               
+             </ul>
+    </div>
+
+            <div class="dropdown d-inline-block">
+                <button
+                    class="btn btn-primary btn-sm dropdown-toggle"
+                    type="button"
+                    data-bs-toggle="dropdown"
+                    aria-expanded="false"
+                >
+                    <i class="fa fa-download"></i> Import
+                </button>
+
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li>
+                    <button class="dropdown-item" @click="openImportCsvModal">
+                        <i class="fas fa-file-import"></i> Import CSV
+                    </button>
+                    </li>
+                     <li>
+                    <button class="dropdown-item" @click="openImportExcelModal">
+                        <i class="fas fa-file-import"></i> Import Excel
+                    </button>
+                    </li>
+                </ul>
+            </div>
+
+    </div>
+
+        <!-- Tombol Reset paling kanan -->
+        <button class="btn btn-warning btn-sm d-flex align-items-center ms-auto" @click="dataLeads.resetFilters">
+          <i class="fas fa-undo"></i> Reset
+        </button>
+
       </div>
+    </div>
 
 
-      <!-- LOADING PERMISSION -->
-        <div v-if="loadingPermission" class="text-center py-5">
-          <div class="spinner-border text-primary"></div>
-          <p class="text-muted mt-2">Loading access rights...</p>
-        </div>
 
-        <!-- NO ACCESS -->
-        <div
-          v-else-if="!permission?.can_view"
-          class="text-center py-5"
-        >
-          <i class="fa fa-lock fa-2x text-muted mb-2"></i>
-          <p class="fw-semibold text-muted">
-            You don't have access to view the data
-          </p>
-        </div>
-     
-
-      <!-- Card: Filter & Sort -->
-      <div v-else class="card mb-4">
-         
+          <!-- Card: Filter & Sort -->
+          <div class="card mb-4">
             <div class="card-header d-flex justify-content-between flex-wrap gap-3">
               <!-- Kiri -->
              <div class="d-flex flex-column gap-3">
@@ -372,9 +442,8 @@ const confirmDelete = async (id) => {
                     <i class="fas fa-list-ul me-1"></i> Showing:
                     </label>
                     <select class="form-select w-auto"
-                     v-model="dataLeads.pagination.per_page"
-                      @change="dataLeads.changePageSize()"
-                    >
+                     v-model.number="dataLeads.pagination.per_page" 
+                     @change="dataLeads.changePageSize">
                     <option>10</option>
                     <option>25</option>
                     <option>50</option>
@@ -383,286 +452,190 @@ const confirmDelete = async (id) => {
                 </div>
 
                 <!-- Tombol add -->
-               <div class="d-flex gap-2">
-                    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modal-add-data">
-                        <i class="fa fa-plus"></i> Add Data 
+                 <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modal-add-data">
+                    <i class="fa fa-plus"></i> Add Data
                     </button>
-                    <button type="button" class="btn btn-secondary me-1">
-                    <i class="fa fa-undo"></i> Reset
-                    </button>
-
-
-
-                    
                 </div>
-                <div class="dropdown">
-                    <button 
-                      class="btn btn-success btn-sm dropdown-toggle" 
-                      type="button" 
-                      data-bs-toggle="dropdown" 
-                      aria-expanded="false"
-                    >
-                    <i class="fa-solid fa-filter"></i> Filter Data Leads By
-                  </button>
-                  <ul class="dropdown-menu">
-                    <li>
-                      <button 
-                        class="dropdown-item" 
-                        type="button" 
-                        @click="dataLeads.fetchLeads('all')"
-                      >
-                        Master Leads you Created
-                      </button>
-                    </li>
-                    <li>
-                      <button 
-                        class="dropdown-item" 
-                        type="button" 
-                        @click="dataLeads.fetchLeads('assigned')"
-                      >
-                        My Assigned Leads from Admin/Manager
-                      </button>
-                    </li>
-                  </ul>
-                  </div>
-                </div>
-
-                  
 
 
               <!-- Kanan -->
              <div class="d-flex flex-column gap-3 align-items-end" style="min-width:300px;">
                 <!-- Pencarian -->
                 <div class="input-group">
-                    <input type="text" class="form-control" placeholder="Searching...." 
-                     @input="e => dataLeads.searchWithDelay(e.target.value)">
+                    <input type="text" class="form-control" placeholder="Searching...."  v-model="dataLeads.searchLead">
                     <span class="input-group-text bg-white"><i class="fa fa-search"></i></span>
                 </div>
 
                 <!-- Urutan -->
                 <div class="d-flex gap-2 align-items-center">
                     <label class="mb-0 fw-semibold">Sort:</label>
-                    <!-- SORT COLUMN -->
-                    <select
-                      class="form-select w-auto"
-                      v-model="dataLeads.sort.column"
-                      @change="dataLeads.changeSorting()"
-                    >
-                      <option value="company_name">By Company</option>
-                      <option value="created_at">By Created Date</option>
+                    <select class="form-select w-auto" v-model="dataLeads.sort.column" @change="dataLeads.changeSorting">
+                    <option value="fullname">By Name</option>
+                    <option value="created_at">By Created Date</option>
                     </select>
-
-                    <!-- SORT DIRECTION -->
-                    <select
-                      class="form-select w-auto"
-                      v-model="dataLeads.sort.direction"
-                      @change="dataLeads.changeSorting()"
-                    >
-                      <option value="asc">Ascending</option>
-                      <option value="desc">Descending</option>
+                    <select class="form-select w-auto" v-model="dataLeads.sort.direction" @change="dataLeads.changeSorting">
+                    <option value="asc">Ascending</option>
+                    <option value="desc">Descending</option>
                     </select>
-                  </div>
+                </div>
                 </div>
             </div>
+          </div>
 
-            
-
+          <!-- Card: Table -->
+          <div class="card mb-4">
+            <div class="card-header">
+             
+            </div>
             <div class="table-responsive">
-              <table class="table card-table table-vcenter text-nowrap">
-               
+             <table class="table card-table table-vcenter text-nowrap">
                 <thead>
-                <tr>
-                   <th :colspan="dataLeads.mode === 'assigned' ? 11 : 9"
-                        class="bg-light fw-bold text-primary">
-                      <i class="fa fa-table me-2"></i>
-                      {{ dataLeads.mode === 'assigned'
-                          ? 'My Assigned Leads from Admin/Manager'
-                          : 'Master Leads your Created'
-                      }}
-                    </th>
+                  <tr>
+                    <th style="width: 5%;">No.</th>
+                    <th>Company Name</th>
+                    <th>Contact Name</th>
+                    <th>Phone</th>
+                    <th>Email</th>
+                    <th>Created By</th>
+                    <th>Assign To Sales</th>
+                    <th style="width: 8%;">Actions</th>
                   </tr>
-                <tr>
-                <th>No</th>
-                <th @click="dataLeads.toggleSort('company_name')">Company</th>
-                <th>Contact</th>
-                <th>Email</th>
-                <th>Phone</th>
-                <th>Source</th>
-                <th>Status</th>
-               <th v-if="dataLeads.mode === 'assigned'">Assigned To</th>
-               <th v-if="dataLeads.mode === 'assigned'">Visibility</th>
-                <th>Last Contact</th>
-                <th>Actions</th>
-                </tr>
                 </thead>
 
-              <tbody v-if="dataLeads.loading">
+                 <tbody v-if="dataLeads.loadingLead">
                 <tr>
-                  <td 
-                      class="text-center" colspan="11">
+                  <td colspan="8" class="text-center py-4">
                     <div class="spinner-border text-primary"></div>
                   </td>
                 </tr>
               </tbody>
-              <tbody v-else-if="dataLeads.leads.length === 0">
-                <tr>
-                  <td
-                  
-                    class="text-center text-muted" colspan="11"
-                   >
-                    <div class="d-flex flex-column align-items-center justify-content-center">
-                      <img
-                        :src="notFoundConfig[notFoundType].image"
-                        alt="No data"
-                         style="max-width: 250px; height: auto;"
-                        class="mb-3"
-                      />
 
-                      <h6 class="fw-bold text-dark">
-                        {{ notFoundConfig[notFoundType].title }}
-                      </h6>
-                      
+              <!-- EMPTY DATA -->
+              <tbody v-else-if="dataLeads.LeadData.length === 0">
+                   <tr>
+                      <td colspan="8" class="text-center">
+                        <div class="d-flex flex-column align-items-center justify-content-center">
+                          <img
+                            src="https://cdn.dribbble.com/users/285475/screenshots/2083086/dribbble_1.gif"
+                            alt="No data found"
+                            style="max-width: 250px; height: auto;"
+                            class="mb-3"
+                          />
+                          <p class="text-danger fw-bold fst-italic">
+                            <i class="fa fa-exclamation-circle me-1"></i>
+                            Lead data not found.
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
+               </tbody>
 
-                      <p class="fst-italic text-secondary mb-0">
-                        {{ notFoundConfig[notFoundType].message }}
-                      </p>
-                    </div>
-                  </td>
-                </tr>
-              </tbody>
+
 
 
                 <tbody v-else>
-                  <tr v-for="(lead, index) in dataLeads.leads" :key="lead.id">
-                    <td>{{ (dataLeads.pagination.current_page - 1) * dataLeads.pagination.per_page + index + 1 }}</td>
+                    <tr
+                      v-for="(led, index) in dataLeads.LeadData"
+                      :key="led.id"
+                    >
+                      <td>
+                        {{
+                          index + 1 +
+                          dataLeads.pagination.per_page *
+                            (dataLeads.pagination.current_page - 1)
+                        }}.
+                      </td>
+                      <td>{{ led.company_name }}</td>
+                      <td>{{ led.contact_name }}</td>
+                      <td>{{ led.phone }}</td>
+                      <td>{{ led.email }}</td>
+                      <td>{{ led.owner_name }}</td>
+                      <td>{{ led.assigned_name }}</td>
 
+                      <td>
 
-                    <td>
-                      <strong>{{ lead.company_name }}</strong><br>
-                      <small class="text-muted">{{ lead.industry_name }}</small>
-                    </td>
-
-                    <td>{{ lead.contact_name }}</td>
-                    <td>{{ lead.email }}</td>
-                    <td>{{ lead.phone }}</td>
-
-                    <td>
-                      <span class="badge bg-info">{{ lead.lead_source }}</span>
-                    </td>
-
-                    <td>
-                      <span class="badge bg-warning">{{ lead.lead_status }}</span>
-                    </td>
-
-                    <!-- ASSIGNED ONLY -->
-                    <td v-if="dataLeads.mode === 'assigned'">
-                      <i class="fa fa-user me-1 text-primary"></i>
-                      {{ lead.assigned_name ?? '-' }}
-                    </td>
-
-                    <td v-if="dataLeads.mode === 'assigned'">
-                      <span class="badge bg-primary">
-                        {{ lead.visibility_type }}
-                      </span>
-                    </td>
-
-                  <td>
-                  <div class="fw-semibold">
-                    {{ formatDate(lead.last_contacted_at) }}
-                  </div>
-                  
-                </td>
-
-
-                    <td>
-                     
-                        <button
+                         <!-- DETAIL -->
+                       <button
                           class="btn btn-outline-primary btn-sm me-1"
                           data-bs-toggle="modal"
                           data-bs-target="#leadDetailModal"
-                          @click="openDetail(lead.id)"
+                          @click="openDetail(led.id)"
                           >
                           <i class="fa fa-circle-info"></i>
                         </button>
 
-                      <button
-                        v-if="!loadingPermission && permission?.can_delete && dataLeads.mode === 'all'"
-                        class="btn btn-outline-danger btn-sm me-1"
-                        @click="confirmDelete(lead.id)"
-                      >
-                        <i class="fa fa-trash"></i>
-                      </button>
-
-                      
-
-                      <button
-                         
-                           v-if="!loadingPermission && permission?.can_update && dataLeads.mode === 'all'"
+                        <!-- UPDATE -->
+                        <button
                           class="btn btn-outline-warning btn-sm me-1"
-                          @click="openEditLead(lead)"
+                          data-bs-toggle="modal"
+                          data-bs-target="#modal-add-data"
                         >
                           <i class="fa fa-edit"></i>
-                      </button>
+                        </button>
 
-
-                    </td>
-                  </tr>
-                </tbody>
-
-                  </table>
+                        <!-- DELETE -->
+                        <button
+                          class="btn btn-outline-danger btn-sm me-1"
+                        >
+                          <i class="fa fa-trash"></i>
+                        </button>
+                      </td>
+                    </tr>
+                  </tbody>
+             </table>
             </div>
+          </div>
 
-             <div class="card-header d-flex justify-content-between align-items-center">
-                 <button
-                  class="btn btn-danger btn-sm"
-                  :disabled="dataLeads.pagination.current_page === 1 || dataLeads.loading"
-                  @click="dataLeads.prevPage()"
-                >
-                  <i class="fa-solid fa-circle-chevron-left"></i> Prev
-                </button>
-
+          <!-- Card: Pagination -->
+          <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <button class="btn btn-danger btn-sm" 
+                :disabled="!dataLeads.pagination.prev_page_url || dataLeads.loadingLeads"
+                  @click="dataLeads.fetchLeads(dataLeads.pagination.prev_page_url)"
+                 >
+                <i class="fa-solid fa-circle-chevron-left"
+                ></i> Prev
+              </button>
+  
                 <div class="mx-2 d-flex flex-column flex-sm-row align-items-center gap-1">
-                  <span class="badge border text-secondary px-3 py-2">
-                    {{ dataLeads.leads.length }} data |
-                    page {{ dataLeads.pagination.current_page }}
-                  </span>
-                  <span class="badge border text-secondary px-3 py-2">
-                    Total: {{ dataLeads.pagination.total }}
-                  </span>
+                    <span class="badge border text-secondary px-3 py-2"> {{ dataLeads.LeadData.length }} data | on page {{ dataLeads.pagination.current_page }}</span>
+                    <span class="badge border text-secondary px-3 py-2">Total: {{ dataLeads.pagination.total }}</span>
                 </div>
-
-                <button
-                  class="btn btn-danger btn-sm"
-                  :disabled="dataLeads.pagination.current_page === dataLeads.pagination.last_page || dataLeads.loading"
-                  @click="dataLeads.nextPage()"
-                >
-                  Next <i class="fa-solid fa-circle-chevron-right"></i>
+  
+                <button class="btn btn-danger btn-sm"
+                 :disabled="!dataLeads.pagination.next_page_url || dataLeads.loadingLeads"
+                  @click="dataLeads.fetchLeads(dataLeads.pagination.next_page_url)"
+               >
+                    Next <i class="fa-solid fa-circle-chevron-right"></i>
                 </button>
             </div>
           </div>
-      
-      
+        </div>
+      </div>
+    </div>
 
 
+    <!-- Code Modal: Detail Data -->
+   <div class="modal fade" id="leadDetailModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
 
-        
-        
+      <!-- Header -->
+      <div class="modal-header">
+        <h5 class="modal-title">Detail Menu</h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
+      </div>
+
+      <!-- Body -->
+      <div class="modal-body">
 
 
-
-
-          <div class="modal fade" id="leadDetailModal" tabindex="-1">
-            <div class="modal-dialog modal-lg modal-dialog-centered">
-              <div class="modal-content">
-
-                <div class="modal-header">
-                  <h5 class="modal-title">Detail Lead</h5>
-                  <button class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-
-                <div class="modal-body">
-
-                  <!-- LOADING -->
+           <!-- LOADING -->
                   <div
                     v-if="dataLeads.loadingDetail"
                     class="d-flex justify-content-center align-items-center"
@@ -673,20 +646,20 @@ const confirmDelete = async (id) => {
 
                   <!-- DATA -->
                   <div v-else-if="dataLeads.leadDetail">
-                    <p><strong>Company or Store Name:</strong> {{ dataLeads.leadDetail.company_name }}</p>
-                    <p><strong>Contact Name:</strong> {{ dataLeads.leadDetail.contact_name }}</p>
+                    <p><strong>Company:</strong> {{ dataLeads.leadDetail.company_name }}</p>
+                    <p><strong>Contact:</strong> {{ dataLeads.leadDetail.contact_name }}</p>
                     <p><strong>Email:</strong> {{ dataLeads.leadDetail.email || '-' }}</p>
                     <p><strong>Phone:</strong> {{ dataLeads.leadDetail.phone || '-' }}</p>
                     <p><strong>Industry:</strong> {{ dataLeads.leadDetail.industry_name || '-' }}</p>
                     <p><strong>Category:</strong> {{ dataLeads.leadDetail.category_name || '-' }}</p>
-                    <p><strong>Created By:</strong> {{ dataLeads.leadDetail.owner_name || '-' }}</p>
                     <p><strong>Status:</strong>
                       <span class="badge bg-warning">
                         {{ dataLeads.leadDetail.lead_status }}
                       </span>
                     </p>
                     <p><strong>Source:</strong> {{ dataLeads.leadDetail.lead_source }}</p>
-                    <div class="mb-3">
+
+                      <div class="mb-3">
                       <label class="form-label fw-semibold">Notes</label>
                       <textarea
                         class="form-control"
@@ -703,7 +676,6 @@ const confirmDelete = async (id) => {
                         readonly
                       >{{ dataLeads.leadDetail.address || '-' }}</textarea>
                     </div>
-
                   </div>
 
                   <!-- EMPTY -->
@@ -713,20 +685,36 @@ const confirmDelete = async (id) => {
 
                 </div>
 
-                <div class="modal-footer">
-                  <button class="btn btn-secondary" data-bs-dismiss="modal">
-                    Close
-                  </button>
-                </div>
+       
+      <!-- Footer -->
+      <div class="modal-footer">
+        <button
+          type="button"
+          class="btn btn-outline-secondary"
+          data-bs-dismiss="modal"
+        >
+          Close
+        </button>
+      </div>
 
-              </div>
-            </div>
-          </div>
+    </div>
+  </div>
+</div>
 
 
 
 
-            <!-- Modal: Add Lead (Single & Bulk) -->
+
+
+
+
+
+
+
+
+
+    <!-- Code Modal: Add Data -->
+ <!-- Modal: Add Lead (Single & Bulk) -->
           <div class="modal modal-blur fade" id="modal-add-data" tabindex="-1">
               <div class="modal-dialog modal-xl modal-dialog-centered modal-dialog-scrollable">
                 <div class="modal-content">
@@ -781,6 +769,7 @@ const confirmDelete = async (id) => {
                               <input
                                 type="text"
                                 class="form-control"
+                                placeholder="Enter company or store name"
                                 v-model="singleLead.company_name"
                                 :class="{ 'is-invalid': dataLeads.errorLead?.company_name }"
                                 @input="() => {
@@ -805,6 +794,7 @@ const confirmDelete = async (id) => {
                             <input
                               type="text"
                               class="form-control"
+                              placeholder="Enter contact name"
                               v-model="singleLead.contact_name"
                               :class="{ 'is-invalid': dataLeads.errorLead?.contact_name }"
                               @input="() => {
@@ -828,6 +818,7 @@ const confirmDelete = async (id) => {
                             <input
                               type="email"
                               class="form-control"
+                              placeholder="Enter email"
                               v-model="singleLead.email"
                               :class="{ 'is-invalid': dataLeads.errorLead?.email }"
                               @input="() => {
@@ -851,6 +842,7 @@ const confirmDelete = async (id) => {
                           <input
                             type="text"
                             class="form-control"
+                            placeholder="Enter phone number"
                             v-model="singleLead.phone"
                             :class="{ 'is-invalid': dataLeads.errorLead?.phone }"
                             @input="() => {
@@ -960,50 +952,111 @@ const confirmDelete = async (id) => {
                           </div>
 
 
-                         <div class="col-lg-12 mb-3">
-                                <label class="form-label">Address</label>
-
-                                <textarea
-                                  class="form-control"
-                                  v-model="singleLead.address"
-                                  rows="3"
-                                  :class="{ 'is-invalid': dataLeads.errorLead?.address }"
-                                  @input="() => {
-                                    if (dataLeads.errorLead?.address) {
-                                      dataLeads.errorLead.address = null
-                                    }
-                                  }"
-                                ></textarea>
-                                <div
-                                  v-if="dataLeads.errorLead?.address"
-                                  class="invalid-feedback"
-                                >
-                                  {{ dataLeads.errorLead.address[0] }}
-                                </div>
+                          <div class="col-lg-6 mb-3">
+                            <label class="form-label">Assign To Sales <small class="text-danger">**</small></label>
+                            <div
+                              class="multiselect-wrapper"
+                              :class="{ 'is-invalid': dataLeads.errorLead?.assigned_to}"
+                            >
+                              <Multiselect
+                                v-model="singleLead.assigned_to"
+                                :options="dataLeads.userSales"
+                                label="name"
+                                valueProp="id_user"
+                                placeholder="Select Assign To Sales"
+                                :searchable="true"
+                                :loading="dataLeads.loadingUserSales"
+                                @update:modelValue="() => {
+                                  if (dataLeads.errorLead?.assigned_to) {
+                                    dataLeads.errorLead.assigned_to = null
+                                  }
+                                }"
+                              />
                             </div>
+                            <div
+                              v-if="dataLeads.errorLead?.assigned_to"
+                              class="invalid-feedback d-block"
+                            >
+                              {{ dataLeads.errorLead.assigned_to[0] }}
+                            </div>
+                          </div>
+
+
+                           <div class="col-lg-6 mb-3">
+                            <label class="form-label">Visibility Type <small class="text-danger">**</small></label>
+                            <div
+                              class="multiselect-wrapper"
+                              :class="{ 'is-invalid': dataLeads.errorLead?.visibility_type }"
+                            >
+                              <Multiselect
+                                v-model="singleLead.visibility_type"
+                                :options="dataLeads.visibilityType"
+                                label="label"
+                                valueProp="value"
+                                placeholder="Select Visibility Type"
+                                @update:modelValue="() => {
+                                  if (dataLeads.errorLead?.visibility_type) {
+                                    dataLeads.errorLead.visibility_type = null
+                                  }
+                                }"
+                              />
+                            </div>
+                            <div
+                              v-if="dataLeads.errorLead?.visibility_type"
+                              class="invalid-feedback d-block"
+                            >
+                              {{ dataLeads.errorLead.visibility_type[0] }}
+                            </div>
+                          </div>
+
+
+                          <div class="col-lg-12 mb-3">
+                              <label class="form-label">Address</label>
+
+                              <textarea
+                                class="form-control"
+                                placeholder="Enter address"
+                                v-model="singleLead.address"
+                                rows="3"
+                                :class="{ 'is-invalid': dataLeads.errorLead?.address }"
+                                @input="() => {
+                                  if (dataLeads.errorLead?.address) {
+                                    dataLeads.errorLead.address = null
+                                  }
+                                }"
+                              ></textarea>
+                              <div
+                                v-if="dataLeads.errorLead?.address"
+                                class="invalid-feedback"
+                              >
+                                {{ dataLeads.errorLead.address[0] }}
+                              </div>
+                              </div>
+                          
 
 
                             <div class="col-lg-12 mb-3">
-                                <label class="form-label">Notes</label>
+                              <label class="form-label">Notes</label>
 
-                                <textarea
-                                  class="form-control"
-                                  v-model="singleLead.notes"
-                                  rows="3"
-                                  :class="{ 'is-invalid': dataLeads.errorLead?.notes }"
-                                  @input="() => {
-                                    if (dataLeads.errorLead?.notes) {
-                                      dataLeads.errorLead.notes = null
-                                    }
-                                  }"
-                                ></textarea>
-                                <div
-                                  v-if="dataLeads.errorLead?.notes"
-                                  class="invalid-feedback"
-                                >
-                                  {{ dataLeads.errorLead.notes[0] }}
-                                </div>
-                            </div>
+                              <textarea
+                                class="form-control"
+                                placeholder="Enter notes"
+                                v-model="singleLead.notes"
+                                rows="3"
+                                :class="{ 'is-invalid': dataLeads.errorLead?.notes }"
+                                @input="() => {
+                                  if (dataLeads.errorLead?.notes) {
+                                    dataLeads.errorLead.notes = null
+                                  }
+                                }"
+                              ></textarea>
+                              <div
+                                v-if="dataLeads.errorLead?.notes"
+                                class="invalid-feedback"
+                              >
+                                {{ dataLeads.errorLead.notes[0] }}
+                              </div>
+                              </div>
                           </div>
                         </form>
                       </div>
@@ -1170,24 +1223,85 @@ const confirmDelete = async (id) => {
                                   </small>
                                 </div>
 
-                                 <div class="col-12">
+
+
+
+                            <div class="col-lg-6 mb-3">
+                            <label class="form-label">Visibility Type <small class="text-danger">**</small></label>
+                            <div
+                              class="multiselect-wrapper"
+                              :class="{ 'is-invalid': dataLeads.errorLead?.visibility_type }"
+                            >
+                              <Multiselect
+                                v-model="lead.visibility_type"
+                                :options="dataLeads.visibilityType"
+                                label="label"
+                                valueProp="value"
+                                placeholder="Select Visibility Type"
+                                @update:modelValue="() => {
+                                  if (dataLeads.errorLead?.visibility_type) {
+                                    dataLeads.errorLead.visibility_type = null
+                                  }
+                                }"
+                              />
+                            </div>
+                            <div
+                              v-if="dataLeads.errorLead?.visibility_type"
+                              class="invalid-feedback d-block"
+                            >
+                              {{ dataLeads.errorLead.visibility_type[0] }}
+                            </div>
+                          </div>
+
+
+                          <div class="col-lg-6 mb-3">
+                            <label class="form-label">Assign To Sales <small class="text-danger">**</small></label>
+                            <div
+                              class="multiselect-wrapper"
+                              :class="{ 'is-invalid': dataLeads.errorLead?.assigned_to}"
+                            >
+                              <Multiselect
+                                v-model="lead.assigned_to"
+                                :options="dataLeads.userSales"
+                                label="name"
+                                valueProp="id_user"
+                                placeholder="Select Assign To Sales"
+                                :searchable="true"
+                                :loading="dataLeads.loadingUserSales"
+                                @update:modelValue="() => {
+                                  if (dataLeads.errorLead?.assigned_to) {
+                                    dataLeads.errorLead.assigned_to = null
+                                  }
+                                }"
+                              />
+                            </div>
+                            <div
+                              v-if="dataLeads.errorLead?.assigned_to"
+                              class="invalid-feedback d-block"
+                            >
+                              {{ dataLeads.errorLead.assigned_to[0] }}
+                            </div>
+                          </div>
+
+                            <!-- Notes -->
+                                <div class="col-12">
                                   <label class="form-label">Address</label>
                                   <textarea
                                     class="form-control"
                                     rows="2"
                                     v-model="lead.address"
                                   ></textarea>
-                                </div>
+                            </div>
 
                                 <!-- Notes -->
-                                <div class="col-12">
+                            <div class="col-12">
                                   <label class="form-label">Notes</label>
                                   <textarea
                                     class="form-control"
                                     rows="2"
                                     v-model="lead.notes"
                                   ></textarea>
-                                </div>
+                            </div>
                               </div>
                             </div>
                           </div>
@@ -1224,10 +1338,249 @@ const confirmDelete = async (id) => {
                 </div>
               </div>
             </div>
-          
+
+
+
+
+    <!-- ### Modal Export Laporan --> 
+    <div class="modal fade" id="exportExcelModal" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Ekspor Laporan Invoice (excel)</h5>
+            <button type="button" class="btn-close" @click="exportModalOpen=false"></button>
+          </div>
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label">Pilih Tipe Ekspor</label>
+              <div class="d-flex gap-3">
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" v-model="exportType" value="month" id="exportByMonth">
+                  <label class="form-check-label" for="exportByMonth">Bulan</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" v-model="exportType" value="date" id="exportByDate">
+                  <label class="form-check-label" for="exportByDate">Tanggal</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" v-model="exportType" value="year" id="exportByYear">
+                  <label class="form-check-label" for="exportByYear">Tahun</label>
+                </div>
+              </div>
+            </div>
+
+            <div v-if="exportType === 'month'" class="row g-2 mb-3">
+              <div class="col">
+                <label class="form-label">Bulan</label>
+                <select v-model="selectedMonth" class="form-select">
+                  <option value="1">Januari</option>
+                  <option value="2">Februari</option>
+                  <option value="3">Maret</option>
+                  <option value="4">April</option>
+                  <option value="5">Mei</option>
+                  <option value="6">Juni</option>
+                  <option value="7">Juli</option>
+                  <option value="8">Agustus</option>
+                  <option value="9">September</option>
+                  <option value="10">Oktober</option>
+                  <option value="11">November</option>
+                  <option value="12">Desember</option>
+                </select>
+              </div>
+              <div class="col">
+                <label class="form-label">Tahun</label>
+                <select v-model="selectedYear" class="form-select">
+                  <option v-for="y in years" :key="y" :value="y">{{ y }}</option>
+                </select>
+              </div>
+            </div>
+
+            <div v-if="exportType === 'date'" class="row g-2 mb-3">
+              <div class="col">
+                <label class="form-label">Tanggal Mulai</label>
+                <input type="date" v-model="startDate" class="form-control" />
+              </div>
+              <div class="col">
+                <label class="form-label">Tanggal Akhir</label>
+                <input type="date" v-model="endDate" class="form-control" />
+              </div>
+            </div>
+            
+            <div v-if="exportType === 'year'" class="mb-3">
+              <label class="form-label">Pilih Tahun</label>
+              <select v-model="selectedYear" class="form-select">
+                <option v-for="y in years" :key="y" :value="y">{{ y }}</option>
+              </select>
+            </div>
+
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" @click="exportModalOpen=false">Batal</button>
+            <button class="btn btn-primary" @click="handleExport">Ekspor</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+
+
+
+    <!-- ### Modal Export Laporan PDF --> 
+    <div class="modal fade" id="leadDetailModal" tabindex="-1">
+      <div class="modal-dialog">
+        <div class="modal-content">
+          <div class="modal-header">
+            <h5 class="modal-title">Ekspor Laporan Invoice (PDF)</h5>
+            <button type="button" class="btn-close" @click="exportModalOpenPdf=false"></button>
+          </div>
+
+          <div class="modal-body">
+            <div class="mb-3">
+              <label class="form-label">Pilih Tipe Ekspor</label>
+              <div class="d-flex gap-3">
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" v-model="exportTypePdf" value="month" id="exportByMonthPdf">
+                  <label class="form-check-label" for="exportByMonthPdf">Bulan</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" v-model="exportTypePdf" value="date" id="exportByDatePdf">
+                  <label class="form-check-label" for="exportByDatePdf">Tanggal</label>
+                </div>
+                <div class="form-check">
+                  <input class="form-check-input" type="radio" v-model="exportTypePdf" value="year" id="exportByYearPdf">
+                  <label class="form-check-label" for="exportByYearPdf">Tahun</label>
+                </div>
+              </div>
+            </div>
+
+            <!-- Filter Bulan -->
+            <div v-if="exportTypePdf === 'month'" class="row g-2 mb-3">
+              <div class="col">
+                <label class="form-label">Bulan</label>
+                <select v-model="selectedMonthPdf" class="form-select">
+                  <option value="1">Januari</option>
+                  <option value="2">Februari</option>
+                  <option value="3">Maret</option>
+                  <option value="4">April</option>
+                  <option value="5">Mei</option>
+                  <option value="6">Juni</option>
+                  <option value="7">Juli</option>
+                  <option value="8">Agustus</option>
+                  <option value="9">September</option>
+                  <option value="10">Oktober</option>
+                  <option value="11">November</option>
+                  <option value="12">Desember</option>
+                </select>
+              </div>
+              <div class="col">
+                <label class="form-label">Tahun</label>
+                <select v-model="selectedYearPdf" class="form-select">
+                  <option v-for="y in yearsPdf" :key="y" :value="y">{{ y }}</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Filter Tanggal -->
+            <div v-if="exportTypePdf === 'date'" class="row g-2 mb-3">
+              <div class="col">
+                <label class="form-label">Tanggal Mulai</label>
+                <input type="date" v-model="startDatePdf" class="form-control" />
+              </div>
+              <div class="col">
+                <label class="form-label">Tanggal Akhir</label>
+                <input type="date" v-model="endDatePdf" class="form-control" />
+              </div>
+            </div>
+
+            <!-- Filter Tahun -->
+            <div v-if="exportTypePdf === 'year'" class="mb-3">
+              <label class="form-label">Pilih Tahun</label>
+              <select v-model="selectedYearPdf" class="form-select">
+                <option v-for="y in yearsPdf" :key="y" :value="y">{{ y }}</option>
+              </select>
+            </div>
+
+            <div class="alert alert-info">
+              Klik tombol "Ekspor" untuk mendownload laporan dalam format PDF.
+            </div>
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn btn-secondary" @click="exportModalOpenPdf=false">Batal</button>
+            <button class="btn btn-danger" @click="handleExportPdf">Ekspor PDF</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+
+<!-- ### Modal Import CSV --> 
+
+ <div class="modal fade" id="leadDetailModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Import Data CSV</h5>
+        <button type="button" class="btn-close" @click="importCsvModalOpen=false"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Pilih File CSV</label>
+          <input type="file" class="form-control" accept=".csv" @change="handleCsvFile" />
+        </div>
+
+        <div class="alert alert-info">
+          Pastikan format CSV sesuai template.
+          <a href="/template.csv" target="_blank">Download Template CSV</a>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" @click="importCsvModalOpen=false">Batal</button>
+        <button class="btn btn-primary" @click="handleImportCsv">Upload CSV</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
+
+<!-- ### Modal Import Excel --> 
+
+ <div class="modal fade" id="leadDetailModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Import Data Excel</h5>
+        <button type="button" class="btn-close" @click="importExcelModalOpen=false"></button>
+      </div>
+
+      <div class="modal-body">
+        <div class="mb-3">
+          <label class="form-label">Pilih File Excel</label>
+          <input type="file" class="form-control" accept=".xlsx,.xls" @change="handleExcelFile" />
+        </div>
+
+        <div class="alert alert-info">
+          Pastikan format kolom sesuai template.
+          <a href="/template.xlsx" target="_blank">Download Template Excel</a>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" @click="importExcelModalOpen=false">Batal</button>
+        <button class="btn btn-primary" @click="handleImportExcel">Upload Excel</button>
+      </div>
+    </div>
+  </div>
+</div>
 
   </backendLayouts>
 </template>
+
+
 
 
 <style scoped>

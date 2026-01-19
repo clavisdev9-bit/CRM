@@ -35,6 +35,8 @@ class MsLeadsModel extends Model
     'notes',
     'last_contacted_at',
     'converted_at',
+
+    'address'
 ];
 
 

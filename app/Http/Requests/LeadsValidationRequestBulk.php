@@ -32,6 +32,7 @@ class LeadsValidationRequestBulk extends FormRequest
         'leads.*.lead_category_id' => 'required|integer|exists:lead_categories,id',
 
         'leads.*.notes' => 'nullable|string|max:1000',
+        'leads.*.address' => 'nullable|string|max:1000',
     ];
 }
 
@@ -51,9 +52,14 @@ public function messages(): array
 
         'leads.*.lead_category_id.required' => 'Category is required.',
         'leads.*.lead_category_id.exists'   => 'Category not found.',
+        'assigned_to'      => 'nullable|integer',
 
         'leads.*.notes.string' => 'Notes must be text.',
         'leads.*.notes.max'    => 'Notes may not be greater than 1000 characters.',
+
+         'leads.*.address.string' => 'Address must be text.',
+        'leads.*.address.max'    => 'Address may not be greater than 1000 characters.',
+
     ];
 }
 

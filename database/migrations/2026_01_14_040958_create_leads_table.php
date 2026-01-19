@@ -81,6 +81,7 @@ return new class extends Migration
             // ACTIVITY TRACKING
             // =========================
             $table->text('notes')->nullable();
+            $table->text('address')->nullable();
             $table->timestamp('last_contacted_at')->nullable();
             $table->timestamp('converted_at')->nullable();
 
@@ -96,7 +97,7 @@ return new class extends Migration
             $table->index('email');
             $table->index('lead_status');
             $table->index('visibility_type');
-            $table->index('id_user');      // ✅ FIX
+            $table->index('id_user');      
             $table->index('assigned_to');
         });
     }
