@@ -17,7 +17,7 @@ class LeadSeeder extends Seeder
                 'phone'               => '081234567890',
 
                 'lead_source'         => 'Website',
-                'lead_status'         => 'Contacted',
+                'lead_status'         => 'Converted',
 
                 'industry_id'         => 1,   // pastikan industries.id = 1 ADA
                 'lead_category_id'    => 1,   // pastikan lead_categories.id = 1 ADA
@@ -25,6 +25,8 @@ class LeadSeeder extends Seeder
                 'assigned_to'         => null,   // user/sales id
                 'id_user'             => 1,   // owner lead
                 'created_by'          => 1,   // creator
+                'converted_at'     => now(),
+
 
                 'visibility_type'     => 'PRIVATE',
                 'last_contacted_at'   => '2026-01-12 10:00:00',
@@ -39,7 +41,8 @@ class LeadSeeder extends Seeder
                 'phone'               => '081298765432',
 
                 'lead_source'         => 'Referral',
-                'lead_status'         => 'New',
+                'lead_status'         => 'Converted',
+                       'converted_at'     => now(),
 
                 'industry_id'         => 2,   // pastikan industries.id = 2 ADA
                 'lead_category_id'    => 2,   // pastikan lead_categories.id = 2 ADA

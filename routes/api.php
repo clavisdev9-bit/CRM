@@ -11,6 +11,7 @@ use App\Http\Controllers\Api\Master\Master;
 use App\Http\Controllers\Api\GeoLocation\Location;
 use App\Http\Controllers\Api\Users\Attendance\Attendance;
 use App\Http\Controllers\Api\Users\Sales\Leads\Leads;
+use App\Http\Controllers\Api\Users\Sales\Costumers\Costumers;
 
 Route::post('/signIn', [SignAuth::class, 'signIn'])->name('api.sign.in');
 Route::post('/forgot-password-request', [SignAuth::class, 'requestResetPassword'])->name('api.forgot.password');
@@ -123,6 +124,10 @@ Route::get('/leads/select/industry', [Leads::class, 'selectIndustryLead'])->name
 Route::get('/leads/select/user-sales', [Leads::class, 'selectUserByDivision'])->name('api.leads.select.user.sales');
 
 Route::post('/leads/import-excel', [Leads::class, 'importLeads'])->name('api.leads.import.excel');//belum selesai
+
+
+// api sales Customers
+Route::get('/customers-masters', [Costumers::class, 'customers'])->name('api.customers.master'); 
 });
 
 

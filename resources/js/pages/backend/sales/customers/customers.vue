@@ -249,47 +249,111 @@ const handleImportExcel = () => {
           <!-- Card: Table -->
           <div class="card mb-4">
             <div class="card-header">
-              <h3 class="card-title">{{ PagesTitle }}</h3>
+              <!-- <h3 class="card-title">{{ PagesTitle }}</h3> -->
             </div>
             <div class="table-responsive">
               <table class="table card-table table-vcenter text-nowrap">
-                <thead>
-                  <tr>
-                    <th style="width: 5%;">No.</th>
-                    <th>Role Name</th>
-                    <th>Description</th>
-                    <th>Created</th>
-                    <th style="width: 8%;">Actions</th>
-                  </tr>
-                </thead>
+  <thead>
+    <tr>
+      <th style="width:5%;">No.</th>
+      <th>Customer Code</th>
+      <th>Company Name</th>
+      <th>Contact</th>
+      <th>Email</th>
+      <th>Phone</th>
+      <th>Status</th>
+      <th>Converted At</th>
+      <th style="width:10%;">Actions</th>
+    </tr>
+  </thead>
 
-            
+  <tbody>
+    <tr>
+      <td>1</td>
+      <td>CUST-000001</td>
+      <td>PT Maju Jaya</td>
+      <td>Andi Saputra</td>
+      <td>andi@majujaya.co.id</td>
+      <td>081234567890</td>
+      <td>
+        <span class="badge bg-success">Active</span>
+      </td>
+      <td>2026-01-12</td>
+      <td>
+        <button class="btn btn-outline-primary btn-sm me-1">
+          <i class="fa fa-edit"></i>
+        </button>
+        <button class="btn btn-outline-danger btn-sm me-1">
+          <i class="fa fa-trash"></i>
+        </button>
+        <button
+          class="btn btn-outline-secondary btn-sm"
+          data-bs-toggle="modal"
+          data-bs-target="#customerDetailModal"
+        >
+          <i class="fa fa-eye"></i>
+        </button>
+      </td>
+    </tr>
 
-                <tbody>
-                    <tr>
-                      <td>1</td>
-                      <td>sdsdsdsd</td>
-                      <td>dsdsdsdsd</td>
-                    
-                      <td>12313</td>
-                      <td>
-                        <button class="btn btn-outline-primary btn-sm me-2">
-                         <i class="fa fa-edit"></i> 
-                       </button>
+    <tr>
+      <td>2</td>
+      <td>CUST-000002</td>
+      <td>PT Sukses Makmur</td>
+      <td>Budi Santoso</td>
+      <td>budi@suksesmakmur.co.id</td>
+      <td>081298765432</td>
+      <td>
+        <span class="badge bg-success">Active</span>
+      </td>
+      <td>2026-01-14</td>
+      <td>
+        <button class="btn btn-outline-primary btn-sm me-1">
+          <i class="fa fa-edit"></i>
+        </button>
+        <button class="btn btn-outline-danger btn-sm me-1">
+          <i class="fa fa-trash"></i>
+        </button>
+        <button
+          class="btn btn-outline-secondary btn-sm"
+          data-bs-toggle="modal"
+          data-bs-target="#customerDetailModal"
+        >
+          <i class="fa fa-eye"></i>
+        </button>
+      </td>
+    </tr>
 
-                        <button class="btn btn-outline-primary btn-sm me-2">
-                            <i class="fa fa-trash"></i> 
-                        </button>
+    <tr>
+      <td>3</td>
+      <td>CUST-000003</td>
+      <td>CV Digital Nusantara</td>
+      <td>Siti Aminah</td>
+      <td>siti@digitalnusantara.id</td>
+      <td>081377788899</td>
+      <td>
+        <span class="badge bg-secondary">Inactive</span>
+      </td>
+      <td>2026-01-18</td>
+      <td>
+        <button class="btn btn-outline-primary btn-sm me-1">
+          <i class="fa fa-edit"></i>
+        </button>
+        <button class="btn btn-outline-danger btn-sm me-1">
+          <i class="fa fa-trash"></i>
+        </button>
+        <button
+          class="btn btn-outline-secondary btn-sm"
+          data-bs-toggle="modal"
+          data-bs-target="#customerDetailModal"
+        >
+          <i class="fa fa-eye"></i>
+        </button>
+      </td>
+    </tr>
+  </tbody>
+</table>
 
-                         <button class="btn btn-outline-primary btn-sm"  data-bs-toggle="modal"
-                            data-bs-target="#userDetailModal"
-                          >
-                            <i class="fa fa-eye"></i> 
-                        </button>
-                      </td>
-                    </tr>
-                </tbody>
-              </table>
             </div>
           </div>
 

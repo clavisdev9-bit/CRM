@@ -501,7 +501,6 @@ const confirmDelete = async (id) => {
               <tbody v-else-if="dataLeads.leads.length === 0">
                 <tr>
                   <td
-                  
                     class="text-center text-muted" colspan="11"
                    >
                     <div class="d-flex flex-column align-items-center justify-content-center">
@@ -564,12 +563,10 @@ const confirmDelete = async (id) => {
                   <div class="fw-semibold">
                     {{ formatDate(lead.last_contacted_at) }}
                   </div>
-                  
                 </td>
 
 
                     <td>
-                     
                         <button
                           class="btn btn-outline-primary btn-sm me-1"
                           data-bs-toggle="modal"
@@ -634,16 +631,7 @@ const confirmDelete = async (id) => {
                 </button>
             </div>
           </div>
-      
-      
-
-
-
-        
-        
-
-
-
+    
 
           <div class="modal fade" id="leadDetailModal" tabindex="-1">
             <div class="modal-dialog modal-lg modal-dialog-centered">
