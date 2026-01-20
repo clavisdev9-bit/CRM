@@ -503,7 +503,7 @@ const handleImportExcel = () => {
 
                       <!-- DELETE -->
                       <button
-                     v-if="!loadingPermission && permission?.can_delete"
+                        v-if="!loadingPermission && permission?.can_delete"
                         class="btn btn-outline-danger btn-sm me-1"
                          :disabled="dataMenu.deletingMenu"
                          @click="handleDeleteMenu(mn)"

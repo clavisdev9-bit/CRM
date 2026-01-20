@@ -32,7 +32,7 @@ class LeadsValidationRequest extends FormRequest
 
         'visibility_type'  => 'nullable|in:PRIVATE,PUBLIC,TEAM',
         'notes'            => 'nullable|string',
-        'address' => 'nullable|string',
+        'address'          => 'nullable|string',
 
     ];
     }

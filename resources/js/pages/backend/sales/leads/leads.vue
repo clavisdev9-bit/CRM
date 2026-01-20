@@ -387,13 +387,7 @@ const confirmDelete = async (id) => {
                     <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modal-add-data">
                         <i class="fa fa-plus"></i> Add Data 
                     </button>
-                    <button type="button" class="btn btn-secondary me-1">
-                    <i class="fa fa-undo"></i> Reset
-                    </button>
-
-
-
-                    
+                  
                 </div>
                 <div class="dropdown">
                     <button 

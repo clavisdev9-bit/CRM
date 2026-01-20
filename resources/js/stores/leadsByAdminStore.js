@@ -1,10 +1,9 @@
-import { ref, reactive } from "vue";
-import { defineStore } from "pinia";
-import axios from "axios";
-import Swal from 'sweetalert2'
+    import { ref, reactive } from "vue";
+    import { defineStore } from "pinia";
+    import axios from "axios";
+    import Swal from 'sweetalert2'
 
-export const useLeadByAdminCreate = defineStore('Data-Lead-By-Admin-Create', () => {
-
+    export const useLeadByAdminCreate = defineStore('Data-Lead-By-Admin-Create', () => {
 
         /* ================= ENDPOINT ================= */
         const endpoints = {
@@ -24,7 +23,6 @@ export const useLeadByAdminCreate = defineStore('Data-Lead-By-Admin-Create', () 
         
 
         const updatingLead = ref(false)
-        const deletingLead = ref(false)
         const leadDetail = ref(null)
         const loading = ref(false) 
         const loadingDetail = ref(false)
@@ -41,7 +39,9 @@ export const useLeadByAdminCreate = defineStore('Data-Lead-By-Admin-Create', () 
 
         const savingLead = ref(false)
         const updatesLead = ref(false)
+        const deletingLead = ref(false)
         const errorLead = ref(null)
+    
 
 
          const pagination = reactive({
@@ -339,44 +339,130 @@ export const useLeadByAdminCreate = defineStore('Data-Lead-By-Admin-Create', () 
                                     }
 
 
+                                    const updateLead = async (id, payload) => {
+                                        updatesLead.value = true
+                                        errorLead.value = null
 
-                                return{
-                                    LeadData,
-                                    loadingLead,
-                                    searchLead,
-                                    fetchLeadsByAdmin,
-                                    pagination,
-                                    sort,
-                                    toggleSort,
-                                    buildUrl,
-                                    searchWithDelay,
-                                    changePageSize,
-                                    changeSorting,
-                                    resetFilters,
-                                    formatDate,
-                                    leadDetail,
-                                    loadingLeads,
-                                    loadingDetail,
-                                    loading,
-                                    fetchLeadDetail,
-                                    leadSource,
-                                    visibilityType,
+                                        try {
+                                            const res = await axios.put(
+                                            `/api/leads-update/${id}`,
+                                            payload,
+                                            { headers: getAuthHeader() }
+                                            )
 
-                                        categories,
-                                        industries,
-                                        userSales,
-                                        loadingCategories,
-                                        loadingIndustries,
-                                        loadingUserSales,
+                                            await fetchLeadsByAdmin(buildUrl())
+
+                                            return res.data
+
+                                        } catch (err) {
+                                            if (err.response?.status === 422) {
+                                            errorLead.value = err.response.data.errors
+                                            }
+                                            throw err
+
+                                        } finally {
+                                            updatesLead.value = false
+                                        }
+                                        }
 
 
-                                        fetchLeadCategories,
-                                        fetchLeadIndustries,
-                                        fetchLeadUserSales,
+                                    
 
-                                        storeLead,
-                                        storeBulkLeads
-                                        
+                                    const deleteLeads = async (id) => {
+                                    deletingLead.value = true
 
-                                }
+                                    try {
+                                      await axios.delete(`/api/leads-delete/${id}`, {
+                                        headers: getAuthHeader(),
+                                      })
+
+                                      await fetchLeadsByAdmin(buildUrl())
+                                      Swal.fire({
+                                        icon: 'success',
+                                        title: 'Succeed',
+                                        text: 'Leads successfully deleted',
+                                        timer: 1500,
+                                        showConfirmButton: false,
+                                      })
+
+                                    } catch (err) {
+                                      if (err.response?.status === 403) {
+                                        Swal.fire('Access Denied', 'You do not have permission to delete the lead', 'error')
+                                      } else {
+                                        Swal.fire('Error', 'Failed to delete lead', 'error')
+                                      }
+                                      throw err
+                                    } finally {
+                                      deletingLead.value = false
+                                    }
+                                  }
+
+
+
+                                return {
+                        /* =========================
+                        * STATE - DATA
+                        * ========================= */
+                        LeadData,
+                        leadDetail,
+                        categories,
+                        industries,
+                        userSales,
+
+                        /* =========================
+                        * STATE - UI / FLAGS
+                        * ========================= */
+                        loading,
+                        loadingLead,
+                        loadingLeads,
+                        loadingDetail,
+                        loadingCategories,
+                        loadingIndustries,
+                        loadingUserSales,
+                        savingLead,
+                        deletingLead,
+                        errorLead,
+
+                        /* =========================
+                        * SEARCH / FILTER / SORT
+                        * ========================= */
+                        searchLead,
+                        pagination,
+                        sort,
+
+                        /* =========================
+                        * MASTER OPTIONS
+                        * ========================= */
+                        leadSource,
+                        visibilityType,
+
+                        /* =========================
+                        * FETCH / GETTERS
+                        * ========================= */
+                        fetchLeadsByAdmin,
+                        fetchLeadDetail,
+                        fetchLeadCategories,
+                        fetchLeadIndustries,
+                        fetchLeadUserSales,
+
+                        /* =========================
+                        * CRUD ACTIONS
+                        * ========================= */
+                        storeLead,
+                        storeBulkLeads,
+                        updateLead,
+                        deleteLeads,
+
+                        /* =========================
+                        * HELPERS / UTILS
+                        * ========================= */
+                        buildUrl,
+                        toggleSort,
+                        changeSorting,
+                        changePageSize,
+                        searchWithDelay,
+                        resetFilters,
+                        formatDate,
+                        }
+
                     }); 

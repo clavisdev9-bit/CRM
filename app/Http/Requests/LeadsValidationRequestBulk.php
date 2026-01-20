@@ -30,6 +30,7 @@ class LeadsValidationRequestBulk extends FormRequest
 
         'leads.*.industry_id'      => 'required|integer|exists:lead_industries,id',
         'leads.*.lead_category_id' => 'required|integer|exists:lead_categories,id',
+        'leads.*.assigned_to'      => 'nullable|integer',
 
         'leads.*.notes' => 'nullable|string|max:1000',
         'leads.*.address' => 'nullable|string|max:1000',
@@ -52,7 +53,8 @@ public function messages(): array
 
         'leads.*.lead_category_id.required' => 'Category is required.',
         'leads.*.lead_category_id.exists'   => 'Category not found.',
-        'assigned_to'      => 'nullable|integer',
+        'leads.*.assigned_to.required' => 'Assigned to is required.',
+     
 
         'leads.*.notes.string' => 'Notes must be text.',
         'leads.*.notes.max'    => 'Notes may not be greater than 1000 characters.',

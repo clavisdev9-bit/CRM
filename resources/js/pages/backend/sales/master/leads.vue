@@ -33,7 +33,7 @@ onMounted(async () => {
     await dataLeads.fetchLeadsByAdmin(dataLeads.buildUrl());
     await menuStore.fetchMenus();
 
-      await dataLeads.fetchLeadCategories()
+     await dataLeads.fetchLeadCategories()
      await dataLeads.fetchLeadIndustries()
      await dataLeads.fetchLeadUserSales()
 
@@ -54,8 +54,6 @@ watch(
 
 
 
-
-
 const openDetail = async (id) => {
   try {
     await dataLeads.fetchLeadDetail(id)
@@ -63,8 +61,6 @@ const openDetail = async (id) => {
     console.error(e)
   }
 }
-
-
 
 
 // Single lead
@@ -121,29 +117,33 @@ const removeRow = (index) => {
 }
 
 
-const openEditLead = (lead) => {
+
+const openEditLead = async (lead) => {
   editLeadId.value = lead.id
   dataLeads.errorLead = null
 
+  // 🔥 ambil detail lengkap dari API
+  await dataLeads.fetchLeadDetail(lead.id)
+
+  const detail = dataLeads.leadDetail
+
   singleLead.value = {
-    company_name: lead.company_name,
-    contact_name: lead.contact_name,
-    email: lead.email,
-    phone: lead.phone,
-    assigned_to: lead.assigned_to,
-    lead_source: lead.lead_source,
-    industry_id: lead.industry_id,
-    lead_category_id: lead.lead_category_id,
-    visibility_type: lead.visibility_type,
-    address: lead.address,
-    notes: lead.notes,
+    company_name: detail.company_name,
+    contact_name: detail.contact_name,
+    email: detail.email,
+    phone: detail.phone,
+    assigned_to: detail.assigned_to,
+    lead_source: detail.lead_source,
+    industry_id: detail.industry_id,
+    lead_category_id: detail.lead_category_id,
+    visibility_type: detail.visibility_type,
+    address: detail.address,  
+    notes: detail.notes,     
   }
 
-  const modal = new bootstrap.Modal(
-    document.getElementById('modal-add-data')
-  )
-  modal.show()
+  
 }
+
 
 onMounted(() => {
   const modal = document.getElementById('modal-add-data')
@@ -232,12 +232,34 @@ const saveLead = async () => {
 
   } catch (err) {
     console.error(err)
-    toasts.fire({
+     toasts.fire({
       icon: 'error',
       title: err.response?.data?.message || 'Failed to save leads',
     })
   }
 }
+
+
+const handleDeleteLead = async (lead) => {
+  const confirm = await Swal.fire({
+    title: 'Sure delete the Lead?',
+    text: `Lead  will be permanently deleted`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    confirmButtonText: 'Yes, delete it!',
+    cancelButtonText: 'Cancelled',
+  })
+
+  if (!confirm.isConfirmed) return
+
+  try {
+    await dataLeads.deleteLeads(lead.id)
+  } catch (e) {
+    console.error(e)
+  }
+}
+
 
 
 
@@ -359,41 +381,61 @@ const handleImportExcel = () => {
         </div>
       </div>
 
+
+       <!-- LOADING PERMISSION -->
+        <div v-if="loadingPermission" class="text-center py-5">
+          <div class="spinner-border text-primary"></div>
+          <p class="text-muted mt-2">Loading access rights...</p>
+        </div>
+
+        <!-- NO ACCESS -->
+        <div
+          v-else-if="!permission?.can_view"
+          class="text-center py-5"
+        >
+          <i class="fa fa-lock fa-2x text-muted mb-2"></i>
+          <p class="fw-semibold text-muted">
+            You don't have access to view the data
+          </p>
+        </div>
+
+
+
       <!-- Page Body -->
-      <div class="page-body flex-grow-1">
+      <div  v-else class="page-body flex-grow-1">
         <div class="container-xl">
 
           <!-- Card: Export/Import -->
          <div class="card mb-4">
-  <div class="card-header d-flex gap-2 flex-wrap align-items-center">
-    
-    <!-- Tombol kiri -->
-    <div class="d-flex gap-2 flex-wrap">
- 
-     <div class="dropdown d-inline-block me-2">
-            <button
-                class="btn btn-primary btn-sm dropdown-toggle"
-                type="button"
-                data-bs-toggle="dropdown"
-                aria-expanded="false"
-            >
-                <i class="fa-solid fa-upload"></i> Export
-            </button>
+          <div class="card-header d-flex gap-2 flex-wrap align-items-center">
+            
+            <!-- Tombol kiri -->
+            <div class="d-flex gap-2 flex-wrap">
+        
+            <div class="dropdown d-inline-block me-2">
+                    <button
+                        class="btn btn-primary btn-sm dropdown-toggle"
+                        type="button"
+                        data-bs-toggle="dropdown"
+                        aria-expanded="false"
+                    >
+                        <i class="fa-solid fa-upload"></i> Export
+                    </button>
 
-            <ul class="dropdown-menu dropdown-menu-end">
-                <li>
-                <button class="dropdown-item" @click="openExportModalPdf">
-                    <i class="fas fa-file-pdf"></i> Export PDF
-                </button>
-                </li>
-                <li>
-                <button class="dropdown-item" @click="openExportModal">
-                    <i class="fas fa-file-excel"></i> Export Excel
-                </button>
-                </li>
-               
-             </ul>
-    </div>
+                    <ul class="dropdown-menu dropdown-menu-end">
+                        <li>
+                        <button class="dropdown-item" @click="openExportModalPdf">
+                            <i class="fas fa-file-pdf"></i> Export PDF
+                        </button>
+                        </li>
+                        <li>
+                        <button class="dropdown-item" @click="openExportModal">
+                            <i class="fas fa-file-excel"></i> Export Excel
+                        </button>
+                        </li>
+                      
+                    </ul>
+            </div>
 
             <div class="dropdown d-inline-block">
                 <button
@@ -566,16 +608,20 @@ const handleImportExcel = () => {
 
                         <!-- UPDATE -->
                         <button
+                         v-if="!loadingPermission && permission?.can_update"
                           class="btn btn-outline-warning btn-sm me-1"
                           data-bs-toggle="modal"
                           data-bs-target="#modal-add-data"
+                            @click="openEditLead(led)"
                         >
                           <i class="fa fa-edit"></i>
                         </button>
 
                         <!-- DELETE -->
                         <button
+                           v-if="!loadingPermission && permission?.can_delete"
                           class="btn btn-outline-danger btn-sm me-1"
+                          @click="handleDeleteLead(led)"
                         >
                           <i class="fa fa-trash"></i>
                         </button>
@@ -590,21 +636,21 @@ const handleImportExcel = () => {
           <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
               <button class="btn btn-danger btn-sm" 
-                :disabled="!dataLeads.pagination.prev_page_url || dataLeads.loadingLeads"
-                  @click="dataLeads.fetchLeads(dataLeads.pagination.prev_page_url)"
+               :disabled="!dataLeads.pagination.prev_page_url || dataLeads.loadingLeads"
+                  @click="dataLeads.fetchLeadsByAdmin(dataLeads.pagination.prev_page_url)"
                  >
                 <i class="fa-solid fa-circle-chevron-left"
                 ></i> Prev
               </button>
   
                 <div class="mx-2 d-flex flex-column flex-sm-row align-items-center gap-1">
-                    <span class="badge border text-secondary px-3 py-2"> {{ dataLeads.LeadData.length }} data | on page {{ dataLeads.pagination.current_page }}</span>
+                      <span class="badge border text-secondary px-3 py-2"> {{ dataLeads.LeadData.length }} data | on page {{ dataLeads.pagination.current_page }}</span>
                     <span class="badge border text-secondary px-3 py-2">Total: {{ dataLeads.pagination.total }}</span>
                 </div>
   
                 <button class="btn btn-danger btn-sm"
-                 :disabled="!dataLeads.pagination.next_page_url || dataLeads.loadingLeads"
-                  @click="dataLeads.fetchLeads(dataLeads.pagination.next_page_url)"
+                :disabled="!dataLeads.pagination.next_page_url || dataLeads.loadingLeads"
+                  @click="dataLeads.fetchLeadsByAdmin(dataLeads.pagination.next_page_url)"
                >
                     Next <i class="fa-solid fa-circle-chevron-right"></i>
                 </button>
@@ -700,14 +746,6 @@ const handleImportExcel = () => {
     </div>
   </div>
 </div>
-
-
-
-
-
-
-
-
 
 
 
@@ -1056,7 +1094,7 @@ const handleImportExcel = () => {
                               >
                                 {{ dataLeads.errorLead.notes[0] }}
                               </div>
-                              </div>
+                            </div>
                           </div>
                         </form>
                       </div>
