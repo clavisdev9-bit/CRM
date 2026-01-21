@@ -29,6 +29,7 @@ class DatabaseSeeder extends Seeder
             IndustrySeeder::class,
             LeadSeeder::class,
             CustomerSeeder::class,
+            FollowUpsSeeder::class,
         ]);
     }
 }

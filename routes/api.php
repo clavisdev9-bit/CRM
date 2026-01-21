@@ -12,6 +12,7 @@ use App\Http\Controllers\Api\GeoLocation\Location;
 use App\Http\Controllers\Api\Users\Attendance\Attendance;
 use App\Http\Controllers\Api\Users\Sales\Leads\Leads;
 use App\Http\Controllers\Api\Users\Sales\Costumers\Costumers;
+use App\Http\Controllers\Api\Users\Sales\FollowUp\FollowUp;
 
 Route::post('/signIn', [SignAuth::class, 'signIn'])->name('api.sign.in');
 Route::post('/forgot-password-request', [SignAuth::class, 'requestResetPassword'])->name('api.forgot.password');
@@ -107,7 +108,6 @@ Route::delete('/attendance/delete/{id_attendance}', [Attendance::class, 'deleteA
 Route::Post('/attendance/update/{id}', [Attendance::class, 'updateAttendance'])->name('api.update.attendance');
 
 
-
 // api Sales Leads
 Route::get('/leads/show/{id}', [Leads::class, 'showLead'])->name('api.leads.show');
 Route::get('/leads-master', [Leads::class, 'Leads'])->name('api.leads.master');
@@ -123,12 +123,39 @@ Route::get('/leads/select/category', [Leads::class, 'selectCategoryLead'])->name
 Route::get('/leads/select/industry', [Leads::class, 'selectIndustryLead'])->name('api.leads.select.industry');
 Route::get('/leads/select/user-sales', [Leads::class, 'selectUserByDivision'])->name('api.leads.select.user.sales');
 
+
 Route::post('/leads/import-excel', [Leads::class, 'importLeads'])->name('api.leads.import.excel');//belum selesai
+/* ================= LEAD FOLLOW UP TIMELINE ================= */
+Route::get('/leads/{leadId}/follow-ups',[Leads::class, 'leadFollowUpTimeline'])->name('api.leads.follow.up.timeline');
+
 
 
 // api sales Customers
 Route::get('/customers-masters', [Costumers::class, 'customers'])->name('api.customers.master'); 
+Route::post('/customers/store', [Costumers::class, 'storeCostumers'])->name('api.customers.store');
+Route::put('/customers/update/{id}', [Costumers::class, 'updateCostumers'])->name('api.customers.update');
+Route::delete('/customers/delete/{id}', [Costumers::class, 'destroyCostumers'])->name('api.customers.delete');
+
+Route::get('/customers/show/{id}', [Costumers::class, 'showCostumers'])->name('api.customers.show');
+Route::get('/customers/select/industry', [Leads::class, 'selectIndustry'])->name('api.customers.select.lead.industry');
+Route::get('/customers/select/lead-category', [Leads::class, 'selectLeadCategory'])->name('api.customers.select.lead.category');
+Route::get('/customers/select/user-sales', [Leads::class, 'selectUserByDivision'])->name('api.leads.select.user.sales');
+ /* ================= CUSTOMER FOLLOW UP TIMELINE ================= */
+Route::get('/customers/{customerId}/follow-ups',[Costumers::class, 'customerFollowUpTimeline'])->name('api.customers.follow.up.timeline');
+
+
+
+
+// api sales Follow Up
+Route::get('/follow-up-masters', [FollowUp::class, 'followUpSales'])->name('api.follow.up.master');
+Route::get('/follow-up/show/{id}', [FollowUp::class, 'showFollowUp'])->name('api.follow.up.show');
+Route::post('/follow-up/store', [FollowUp::class, 'storeFollowUp'])->name('api.follow.up.store');
+Route::get('/follow-up/get-sales/leads', [FollowUp::class, 'getLeadsBySales'])->name('api.get.sales.leads');
+Route::get('/follow-up/get-sales/customers', [FollowUp::class, 'getCustomersBySales'])->name('api.get.sales.customers');
+Route::put('/follow-up/update/{id}', [FollowUp::class, 'updateFollowUp'])->name('api.follow.up.update');
+Route::delete('/follow-up/delete/{id}', [FollowUp::class, 'deleteFollowUp'])->name('api.follow.up.delete');
 });
+
 
 
 Route::get('/reverse-geocode', [Location::class, 'reverse']);

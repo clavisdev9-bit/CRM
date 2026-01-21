@@ -876,5 +876,61 @@ public function showLead($id)
                 }
 
 
+       //ini untuk timeline follow up lead tampil di lead detail (implementasi saat nanti semua sudah siap)
+        public function leadFollowUpTimeline(Request $request, $leadId)
+        {
+            $userId = auth()->user()->id_user;
+
+            try {
+                /* ================= CEK AKSES LEAD ================= */
+                $lead = DB::table('leads')
+                    ->where('id', $leadId)
+                    ->where(function ($q) use ($userId) {
+                        $q->where('created_by', $userId)
+                        ->orWhere('assigned_to', $userId);
+                    })
+                    ->whereNull('deleted_at')
+                    ->first();
+
+                if (!$lead) {
+                    return ApiResponse::error(
+                        'Lead not found or access denied',
+                        null,
+                        404
+                    );
+                }
+
+                /* ================= TIMELINE FOLLOW UP ================= */
+                $timeline = DB::table('follow_ups as fu')
+                    ->select([
+                        'fu.id',
+                        'fu.follow_up_at',
+                        'fu.follow_up_type',
+                        'fu.status',        // ⬅️ status follow up
+                        'fu.notes',
+                        'fu.created_at',
+
+                        'sales.fullname as sales_name',
+                    ])
+                    ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'fu.created_by')
+                    ->where('fu.lead_id', $leadId)
+                    ->whereNull('fu.deleted_at')
+                    ->orderBy('fu.follow_up_at', 'desc')
+                    ->get();
+
+                return ApiResponse::success(
+                    $timeline,
+                    'Success Get Lead Follow Up Timeline'
+                );
+
+            } catch (\Throwable $e) {
+                return ApiResponse::error(
+                    'Failed to get follow up timeline',
+                    config('app.debug') ? ['exception' => $e->getMessage()] : null,
+                    500
+                );
+            }
+        }
+
 
 }
