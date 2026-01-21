@@ -1,9 +1,104 @@
 <script setup>
 import { ref, reactive, onMounted , watch} from 'vue'
 import backendLayouts from "../../../../layouts/backendLayouts.vue";
+import { useCustomersStore } from '../../../../stores/customersStores';
+import { useMenuStore } from "@/stores/menuStore";
+import { toasts } from "@/utils/toasts"
+import { useRoute, useRouter } from "vue-router";
+import Multiselect from "@vueform/multiselect"
+import Swal from 'sweetalert2'
 const PagesTitle = 'Data Customers';
 
 
+
+const dataCustomers = useCustomersStore();
+const menuStore = useMenuStore();
+const route = useRoute();
+const router = useRouter();
+
+const permission = ref(null);
+const loadingPermission = ref(true);
+
+onMounted(async () => {
+  try {
+    if (!localStorage.getItem("auth_token")) {
+      alert("Silakan login terlebih dahulu!");
+      router.push('/login');
+      return;
+    }
+
+    await dataCustomers.fetchCustomers(dataCustomers.buildUrl());
+    await menuStore.fetchMenus();
+
+     await dataCustomers.fetchLeadCategories()
+     await dataCustomers.fetchLeadIndustries()
+
+    permission.value = menuStore.getPermission(route.path);
+  } catch (error) {
+    console.error(error);
+  } finally {
+    loadingPermission.value = false;
+  }
+});
+
+watch(
+  () => dataCustomers.searchCustomers,
+  dataCustomers.searchWithDelay
+);
+
+const showDetail = async (customerId) => {
+  try {
+    await dataCustomers.detailCustomers(customerId)
+  } catch (e) {
+    console.error(e)
+  }
+}
+
+
+const getStatusBadgeClass = (status) => {
+  switch (status) {
+    case 'New':
+      return 'bg-secondary';
+
+    case 'Contacted':
+      return 'bg-info text-dark';
+
+    case 'Qualified':
+      return 'bg-primary';
+
+    case 'Unqualified':
+      return 'bg-warning text-dark';
+
+    case 'Converted':
+      return 'bg-success';
+
+    case 'Lost':
+      return 'bg-danger';
+
+    default:
+      return 'bg-light text-dark';
+  }
+};
+
+
+
+
+//start code for form customers
+const form = reactive({
+  company_name: '',
+  contact_name: '',
+  email: '',
+  phone: '',
+  industry_id: '',
+  lead_category_id: '',
+  visibility_type: 'PRIVATE',
+  notes: '',
+  address: '',
+})
+
+
+
+// besok lanjut save example get from code menu
 
 
 
@@ -158,7 +253,7 @@ const handleImportExcel = () => {
                 </li>
                
              </ul>
-    </div>
+           </div>
 
             <div class="dropdown d-inline-block">
                 <button
@@ -183,16 +278,15 @@ const handleImportExcel = () => {
                     </li>
                 </ul>
             </div>
+          </div>
 
+        <!-- Tombol Reset paling kanan -->
+        <button class="btn btn-warning btn-sm d-flex align-items-center ms-auto"  @click="dataCustomers.resetFilters">
+          <i class="fas fa-undo"></i> Reset
+        </button>
+
+      </div>
     </div>
-
-    <!-- Tombol Reset paling kanan -->
-    <button class="btn btn-warning btn-sm d-flex align-items-center ms-auto">
-      <i class="fas fa-undo"></i> Reset
-    </button>
-
-  </div>
-</div>
 
 
 
@@ -207,6 +301,8 @@ const handleImportExcel = () => {
                     <i class="fas fa-list-ul me-1"></i> Showing:
                     </label>
                     <select class="form-select w-auto"
+                      v-model.number="dataCustomers.pagination.per_page" 
+                     @change="dataCustomers.changePageSize"
                     >
                     <option>10</option>
                     <option>25</option>
@@ -226,18 +322,18 @@ const handleImportExcel = () => {
              <div class="d-flex flex-column gap-3 align-items-end" style="min-width:300px;">
                 <!-- Pencarian -->
                 <div class="input-group">
-                    <input type="text" class="form-control" placeholder="Searching....">
+                    <input type="text" class="form-control" placeholder="Searching...." v-model="dataCustomers.searchCustomers">
                     <span class="input-group-text bg-white"><i class="fa fa-search"></i></span>
                 </div>
 
                 <!-- Urutan -->
                 <div class="d-flex gap-2 align-items-center">
                     <label class="mb-0 fw-semibold">Sort:</label>
-                    <select class="form-select w-auto">
-                    <option value="fullname">By Name</option>
+                    <select class="form-select w-auto" v-model="dataCustomers.sort.column" @change="dataCustomers.changeSorting">
+                    <option value="company_name">By Company Name</option>
                     <option value="created_at">By Created Date</option>
                     </select>
-                    <select class="form-select w-auto">
+                    <select class="form-select w-auto" v-model="dataCustomers.sort.direction" @change="dataCustomers.changeSorting">
                     <option value="asc">Ascending</option>
                     <option value="desc">Descending</option>
                     </select>
@@ -253,107 +349,110 @@ const handleImportExcel = () => {
             </div>
             <div class="table-responsive">
               <table class="table card-table table-vcenter text-nowrap">
-  <thead>
-    <tr>
-      <th style="width:5%;">No.</th>
-      <th>Customer Code</th>
-      <th>Company Name</th>
-      <th>Contact</th>
-      <th>Email</th>
-      <th>Phone</th>
-      <th>Status</th>
-      <th>Converted At</th>
-      <th style="width:10%;">Actions</th>
-    </tr>
-  </thead>
+                <thead>
+                  <tr>
+                    <th style="width:5%;">No.</th>
+                    <th>Customer Code</th>
+                    <th>Company Name</th>
+                    <th>Contact Name</th>
+                    <th>Email</th>
+                    <th>Phone</th>
+                    <th>Progress</th>
+                    <th>Converted</th>
+                    <th style="width:10%;">Actions</th>
+                  </tr>
+                </thead>
 
-  <tbody>
-    <tr>
-      <td>1</td>
-      <td>CUST-000001</td>
-      <td>PT Maju Jaya</td>
-      <td>Andi Saputra</td>
-      <td>andi@majujaya.co.id</td>
-      <td>081234567890</td>
-      <td>
-        <span class="badge bg-success">Active</span>
-      </td>
-      <td>2026-01-12</td>
-      <td>
-        <button class="btn btn-outline-primary btn-sm me-1">
-          <i class="fa fa-edit"></i>
-        </button>
-        <button class="btn btn-outline-danger btn-sm me-1">
-          <i class="fa fa-trash"></i>
-        </button>
-        <button
-          class="btn btn-outline-secondary btn-sm"
-          data-bs-toggle="modal"
-          data-bs-target="#customerDetailModal"
-        >
-          <i class="fa fa-eye"></i>
-        </button>
-      </td>
-    </tr>
+                  <!-- LOADING DATA -->
+              <tbody v-if="dataCustomers.loadingCustomers">
+                <tr>
+                  <td colspan="9" class="text-center py-4">
+                    <div class="spinner-border text-primary"></div>
+                  </td>
+                </tr>
+              </tbody>
 
-    <tr>
-      <td>2</td>
-      <td>CUST-000002</td>
-      <td>PT Sukses Makmur</td>
-      <td>Budi Santoso</td>
-      <td>budi@suksesmakmur.co.id</td>
-      <td>081298765432</td>
-      <td>
-        <span class="badge bg-success">Active</span>
-      </td>
-      <td>2026-01-14</td>
-      <td>
-        <button class="btn btn-outline-primary btn-sm me-1">
-          <i class="fa fa-edit"></i>
-        </button>
-        <button class="btn btn-outline-danger btn-sm me-1">
-          <i class="fa fa-trash"></i>
-        </button>
-        <button
-          class="btn btn-outline-secondary btn-sm"
-          data-bs-toggle="modal"
-          data-bs-target="#customerDetailModal"
-        >
-          <i class="fa fa-eye"></i>
-        </button>
-      </td>
-    </tr>
+              <!-- EMPTY DATA -->
+              <tbody v-else-if="dataCustomers.customersData.length === 0">
+                   <tr>
+                      <td colspan="9" class="text-center">
+                        <div class="d-flex flex-column align-items-center justify-content-center">
+                          <img
+                            src="https://cdn.dribbble.com/users/285475/screenshots/2083086/dribbble_1.gif"
+                            alt="No data found"
+                            style="max-width: 250px; height: auto;"
+                            class="mb-3"
+                          />
+                          <p class="text-danger fw-bold fst-italic">
+                            <i class="fa fa-exclamation-circle me-1"></i>
+                            Customers data not found.
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
+            </tbody>
 
-    <tr>
-      <td>3</td>
-      <td>CUST-000003</td>
-      <td>CV Digital Nusantara</td>
-      <td>Siti Aminah</td>
-      <td>siti@digitalnusantara.id</td>
-      <td>081377788899</td>
-      <td>
-        <span class="badge bg-secondary">Inactive</span>
-      </td>
-      <td>2026-01-18</td>
-      <td>
-        <button class="btn btn-outline-primary btn-sm me-1">
-          <i class="fa fa-edit"></i>
-        </button>
-        <button class="btn btn-outline-danger btn-sm me-1">
-          <i class="fa fa-trash"></i>
-        </button>
-        <button
-          class="btn btn-outline-secondary btn-sm"
-          data-bs-toggle="modal"
-          data-bs-target="#customerDetailModal"
-        >
-          <i class="fa fa-eye"></i>
-        </button>
-      </td>
-    </tr>
-  </tbody>
-</table>
 
+                <tbody v-else>
+                <tr
+                    v-for="(cs, index) in dataCustomers.customersData"
+                    :key="cs.id"
+                  >
+                    <td>
+                      {{
+                        index + 1 +
+                        dataCustomers.pagination.per_page *
+                          (dataCustomers.pagination.current_page - 1)
+                      }}.
+                    </td>
+                    <td>{{ cs.customer_code }}</td>
+                    <td>{{ cs.company_name }}</td>
+                    <td>{{ cs.contact_name }}</td>
+                    <td>{{ cs.email }}</td>
+                    <td>{{ cs.phone }}</td>
+                    <td>
+                      <span
+                        class="badge px-2 py-1"
+                        :class="getStatusBadgeClass(cs.lead_status)"
+                      >
+                        {{ cs.lead_status }}
+                      </span>
+                    </td>
+                    <td>{{ dataCustomers.formatDate(cs.converted_at) }}</td>
+                    <td>
+                      <!-- UPDATE -->
+                      <button
+                        class="btn btn-outline-warning btn-sm me-1"
+                        data-bs-toggle="modal"
+                        data-bs-target="#modal-add-data"
+                         
+                      >
+                        <i class="fa fa-edit"></i>
+                      </button>
+
+                      <!-- DELETE -->
+                      <button
+                        
+                        class="btn btn-outline-danger btn-sm me-1"
+                    
+                       
+                      >
+                        <i class="fa fa-trash"></i>
+                      </button>
+
+                      <!-- DETAIL -->
+                      <button
+                        class="btn btn-outline-primary btn-sm me-1"
+                        data-bs-toggle="modal"
+                        data-bs-target="#customersDetailModal"
+                        @click="showDetail(cs.id)"
+                        >
+                        <i class="fa fa-circle-info"></i>
+                      </button>
+                    </td>
+                  </tr>
+                </tbody>
+          </table>
             </div>
           </div>
 
@@ -361,17 +460,20 @@ const handleImportExcel = () => {
           <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
               <button class="btn btn-danger btn-sm" 
-                 >
+                 :disabled="!dataCustomers.pagination.prev_page_url || dataCustomers.loadingCustomers"
+                  @click="dataCustomers.fetchCustomers(dataCustomers.pagination.prev_page_url)">
                 <i class="fa-solid fa-circle-chevron-left"
                 ></i> Prev
               </button>
   
-                <div class="mx-2 d-flex flex-column flex-sm-row align-items-center gap-1">
-                    <span class="badge border text-secondary px-3 py-2"> 10 data | on page 19</span>
-                    <span class="badge border text-secondary px-3 py-2">Total: 19  data</span>
+                 <div class="mx-2 d-flex flex-column flex-sm-row align-items-center gap-1">
+                    <span class="badge border text-secondary px-3 py-2"> {{ dataCustomers.customersData.length }} data | on page {{ dataCustomers.pagination.current_page }}</span>
+                    <span class="badge border text-secondary px-3 py-2">Total: {{ dataCustomers.pagination.total }}</span>
                 </div>
   
                 <button class="btn btn-danger btn-sm"
+                :disabled="!dataCustomers.pagination.next_page_url || dataCustomers.loadingCustomers"
+                  @click="dataCustomers.fetchCustomers(dataCustomers.pagination.next_page_url)"
                >
                     Next <i class="fa-solid fa-circle-chevron-right"></i>
                 </button>
@@ -387,155 +489,425 @@ const handleImportExcel = () => {
 
 
 
+
   <!-- Code Modal: Detail Data -->
-<div class="modal modal-blur fade" id="userDetailModal" tabindex="-1" role="dialog" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+   <div class="modal fade" id="customersDetailModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content">
-      
+
       <!-- Header -->
       <div class="modal-header">
-        <h5 class="modal-title">Detail Role</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <h5 class="modal-title">Detail Customer</h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
       </div>
 
       <!-- Body -->
       <div class="modal-body">
-         <div class="modal-body">                   
-          <div class="d-flex justify-content-center align-items-center" style="min-height:150px;">
-  <div class="spinner-border text-secondary" role="status">
-    <span class="visually-hidden">Loading...</span>
+
+        <!-- Loading -->
+        <div
+          v-if="dataCustomers.loading"
+          class="d-flex justify-content-center align-items-center"
+          style="min-height: 180px;"
+        >
+          <div class="spinner-border text-primary" role="status">
+            <span class="visually-hidden">Loading...</span>
+          </div>
+        </div>
+
+       <!-- Content -->
+<div v-else-if="dataCustomers.customerDetail" class="row g-3">
+
+  <!-- BASIC INFO -->
+  <div class="col-12">
+    <h6 class="text-muted mb-2">Informasi Customer</h6>
+    <ul class="list-group list-group-flush">
+      <li class="list-group-item d-flex justify-content-between">
+        <span class="text-muted">Customer Code</span>
+        <span class="fw-semibold">
+          {{ dataCustomers.customerDetail.customer_code }}
+        </span>
+      </li>
+
+      <li class="list-group-item d-flex justify-content-between">
+        <span class="text-muted">Company Name</span>
+        <span class="fw-semibold">
+          {{ dataCustomers.customerDetail.company_name }}
+        </span>
+      </li>
+
+      <li class="list-group-item d-flex justify-content-between">
+        <span class="text-muted">Contact Name</span>
+        <span>
+          {{ dataCustomers.customerDetail.contact_name }}
+        </span>
+      </li>
+    </ul>
+  </div>
+
+  <!-- CONTACT -->
+  <div class="col-12">
+    <h6 class="text-muted mt-3 mb-2">Kontak</h6>
+    <ul class="list-group list-group-flush">
+      <li class="list-group-item d-flex justify-content-between">
+        <span class="text-muted">Email</span>
+        <span>{{ dataCustomers.customerDetail.email || '-' }}</span>
+      </li>
+
+      <li class="list-group-item d-flex justify-content-between">
+        <span class="text-muted">Phone</span>
+        <span>{{ dataCustomers.customerDetail.phone || '-' }}</span>
+      </li>
+    </ul>
+  </div>
+
+  <!-- CLASSIFICATION -->
+  <div class="col-12">
+    <h6 class="text-muted mt-3 mb-2">Klasifikasi</h6>
+    <ul class="list-group list-group-flush">
+      <li class="list-group-item d-flex justify-content-between">
+        <span class="text-muted">Category</span>
+        <span>{{ dataCustomers.customerDetail.category_name }}</span>
+      </li>
+
+      <li class="list-group-item d-flex justify-content-between">
+        <span class="text-muted">Industry</span>
+        <span>{{ dataCustomers.customerDetail.industry_name }}</span>
+      </li>
+
+      <li class="list-group-item d-flex justify-content-between">
+        <span class="text-muted">Status</span>
+        <span class="badge bg-success">
+          {{ dataCustomers.customerDetail.customer_status }}
+        </span>
+      </li>
+    </ul>
+  </div>
+
+  <!-- OWNERSHIP -->
+  <div class="col-12">
+    <h6 class="text-muted mt-3 mb-2">Ownership</h6>
+    <ul class="list-group list-group-flush">
+      <li class="list-group-item d-flex justify-content-between">
+        <span class="text-muted">Owner</span>
+        <span>{{ dataCustomers.customerDetail.owner_name }}</span>
+      </li>
+
+      <li class="list-group-item d-flex justify-content-between">
+        <span class="text-muted">Assigned Sales</span>
+        <span>{{ dataCustomers.customerDetail.assigned_name || '-' }}</span>
+      </li>
+    </ul>
+  </div>
+
+  <!-- NOTES -->
+  <div class="col-12" v-if="dataCustomers.customerDetail.notes">
+    <h6 class="text-muted mt-3 mb-2">Notes</h6>
+    <div class="border rounded p-2 bg-light">
+      {{ dataCustomers.customerDetail.notes }}
+    </div>
+  </div>
+
+  <!-- META -->
+  <div class="col-12">
+    <h6 class="text-muted mt-3 mb-2">Informasi Sistem</h6>
+    <ul class="list-group list-group-flush">
+      <li class="list-group-item d-flex justify-content-between">
+        <span class="text-muted">Converted At</span>
+        <span>
+          {{ dataCustomers.formatDate(dataCustomers.customerDetail.converted_at) }}
+        </span>
+      </li>
+
+      <li class="list-group-item d-flex justify-content-between">
+        <span class="text-muted">Created At</span>
+        <span>
+          {{ dataCustomers.formatDate(dataCustomers.customerDetail.created_at) }}
+        </span>
+      </li>
+    </ul>
   </div>
 </div>
+        <!-- Empty -->
+        <div v-else class="text-center text-muted py-5">
+          Data tidak tersedia
+        </div>
 
-          <div >
-            <p><strong>Role:</strong> </p>
-            <p><strong>Description:</strong></p>
-          </div>
       </div>
-      </div>
+
       <!-- Footer -->
       <div class="modal-footer">
-        <button type="button" class="btn btn-link link-secondary" data-bs-dismiss="modal">
+        <button
+          type="button"
+          class="btn btn-outline-secondary"
+          data-bs-dismiss="modal"
+        >
           Close
         </button>
       </div>
+
     </div>
   </div>
 </div>
-
 
 
 
     <!-- Code Modal: Add Data -->
-<div class="modal modal-blur fade" id="modal-add-data" tabindex="-1" role="dialog" aria-hidden="true">
+<!-- Code Modal: Add Customer -->
+<div
+  class="modal modal-blur fade"
+  id="modal-add-data"
+  tabindex="-1"
+  role="dialog"
+  aria-hidden="true"
+>
   <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
     <div class="modal-content">
-      
+
       <!-- Header -->
       <div class="modal-header">
-        <h5 class="modal-title">Tambah Data Baru</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <h5 class="modal-title">Form Customer</h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
       </div>
 
       <!-- Body -->
       <div class="modal-body">
-         <div class="modal-body">
-                                <div class="mb-3">
-                                  <label class="form-label">Name</label>
-                                  <input type="text" class="form-control" name="example-text-input" placeholder="Your report name" />
-                                </div>
-                                <label class="form-label">Report type</label>
-                                <div class="form-selectgroup-boxes row mb-3">
-                                  <div class="col-lg-6">
-                                    <label class="form-selectgroup-item">
-                                      <input type="radio" name="report-type" value="1" class="form-selectgroup-input" checked />
-                                      <span class="form-selectgroup-label d-flex align-items-center p-3">
-                                        <span class="me-3">
-                                          <span class="form-selectgroup-check"></span>
-                                        </span>
-                                        <span class="form-selectgroup-label-content">
-                                          <span class="form-selectgroup-title strong mb-1">Simple</span>
-                                          <span class="d-block text-secondary">Provide only basic data needed for the report</span>
-                                        </span>
-                                      </span>
-                                    </label>
-                                  </div>
-                                  <div class="col-lg-6">
-                                    <label class="form-selectgroup-item">
-                                      <input type="radio" name="report-type" value="1" class="form-selectgroup-input" />
-                                      <span class="form-selectgroup-label d-flex align-items-center p-3">
-                                        <span class="me-3">
-                                          <span class="form-selectgroup-check"></span>
-                                        </span>
-                                        <span class="form-selectgroup-label-content">
-                                          <span class="form-selectgroup-title strong mb-1">Advanced</span>
-                                          <span class="d-block text-secondary"
-                                            >Insert charts and additional advanced analyses to be inserted in the report</span
-                                          >
-                                        </span>
-                                      </span>
-                                    </label>
-                                  </div>
-                                </div>
-                                <div class="row">
-                                  <div class="col-lg-8">
-                                    <div class="mb-3">
-                                      <label class="form-label">Report url</label>
-                                      <div class="input-group input-group-flat">
-                                        <span class="input-group-text"> https://tabler.io/reports/ </span>
-                                        <input type="text" class="form-control ps-0" value="report-01" autocomplete="off" />
-                                      </div>
-                                    </div>
-                                  </div>
-                                  <div class="col-lg-4">
-                                    <div class="mb-3">
-                                      <label class="form-label">Visibility</label>
-                                      <select class="form-select">
-                                        <option value="1" selected>Private</option>
-                                        <option value="2">Public</option>
-                                        <option value="3">Hidden</option>
-                                      </select>
-                                    </div>
-                                  </div>
-                                </div>
+        <div class="row">
+
+          <!-- Company Name -->
+          <div class="col-lg-6 mb-3">
+             <label class="form-label">Company or Store Name <small class="text-danger">**</small></label>
+            <input
+              type="text"
+              class="form-control"
+              placeholder="Example : PT. Clavis Indonesia"
+              v-model="form.company_name"
+               @input="() => {
+                                  if (dataCustomers.errorCustomer?.company_name) {
+                                    dataCustomers.errorCustomer.company_name = null
+                                  }
+                                }"
+            />
+            <div
+              v-if="dataCustomers.errorCustomer?.company_name"
+              class="invalid-feedback"
+               >
+              {{ dataCustomers.errorCustomer.company_name[0] }}
+            </div>
+          </div>
+
+          <!-- Contact Name -->
+          <div class="col-lg-6 mb-3">
+            <label class="form-label">Contact Name <small class="text-danger">**</small></label>
+            <input
+              type="text"
+              class="form-control"
+              placeholder="John Doe"
+              v-model="form.contact_name"
+                :class="{ 'is-invalid': dataCustomers.errorCustomer?.contact_name }"
+                              @input="() => {
+                                if (dataCustomers.errorCustomer?.contact_name) {
+                                  dataCustomers.errorCustomer.contact_name = null
+                                }
+                              }"
+            />
+             <div
+              v-if="dataCustomers.errorCustomer?.contact_name"
+              class="invalid-feedback"
+               >
+              {{ dataCustomers.errorCustomer.contact_name[0] }}
+            </div>
+          </div>
+
+          <!-- Email -->
+          <div class="col-lg-6 mb-3">
+           <label class="form-label">Email <small class="text-danger">**</small></label>
+            <input
+              type="email"
+              class="form-control"
+              placeholder="email@company.com"
+              v-model="form.email"
+                :class="{ 'is-invalid': dataCustomers.errorCustomer?.email }"
+                              @input="() => {
+                                if (dataCustomers.errorCustomer?.email) {
+                                  dataCustomers.errorCustomer.email = null
+                                }
+                              }"
+            />
+            <div
+              v-if="dataCustomers.errorCustomer?.email"
+              class="invalid-feedback"
+              >
+              {{ dataCustomers.errorCustomer.email[0] }}
+            </div>
+          </div>
+
+          <!-- Phone -->
+          <div class="col-lg-6 mb-3">
+              <label class="form-label">Phone <small class="text-danger">**</small></label>
+            <input
+              type="text"
+              class="form-control"
+              placeholder="08xxxxxxxxxx"
+              v-model="form.phone"
+               :class="{ 'is-invalid': dataCustomers.errorCustomer?.phone }"
+                            @input="() => {
+                              if (dataCustomers.errorCustomer?.phone) {
+                                dataCustomers.errorCustomer.phone = null
+                              }
+                            }"
+            />
+            <div
+              v-if="dataCustomers.errorCustomer?.phone"
+              class="invalid-feedback"
+              >
+              {{ dataCustomers.errorCustomer.phone[0] }}
+            </div>
+          </div>
+
+          <!-- Industry -->
+          <div class="col-lg-6 mb-3">
+             <label class="form-label">Industry Customer<small class="text-danger">**</small></label>
+              <div
+                              class="multiselect-wrapper"
+                              :class="{ 'is-invalid': dataCustomers.errorCustomer?.industry_id }"
+                            >
+                              <Multiselect
+                                v-model="form.industry_id"
+                                :options="dataCustomers.industries"
+                                label="name"
+                                valueProp="id"
+                                placeholder="Select Industry"
+                                :searchable="true"
+                                :loading="dataCustomers.loadingIndustries"
+                                @update:modelValue="() => {
+                                  if (dataCustomers.errorCustomer?.industry_id) {
+                                    dataCustomers.errorCustomer.industry_id = null
+                                  }
+                                }"
+                              />
+                          </div>
+                           <div
+                              v-if="dataCustomers.errorCustomer?.industry_id"
+                              class="invalid-feedback d-block"
+                            >
+                              {{ dataCustomers.errorCustomer.industry_id[0] }}
+                            </div>
+                      </div>
+
+                     <!-- Lead Category -->
+                      <div class="col-lg-6 mb-3">
+                        <label class="form-label">Category Customer<small class="text-danger">**</small></label>
+                        <div
+                                class="multiselect-wrapper"
+                                :class="{ 'is-invalid': dataCustomers.errorCustomer?.lead_category_id }"
+                              >
+                                <Multiselect
+                                  v-model="form.lead_category_id"
+                                  :options="dataCustomers.categories"
+                                  label="name"
+                                  valueProp="id"
+                                  placeholder="Select Category"
+                                  :searchable="true"
+                                  :loading="dataCustomers.loadingCategories"
+                                  :close-on-select="true"
+                                  @update:modelValue="() => {
+                                    if (dataCustomers.errorCustomer?.lead_category_id) {
+                                      dataCustomers.errorCustomer.lead_category_id = null
+                                    }
+                                  }"
+                                />
                               </div>
-                              <div class="modal-body">
-                                <div class="row">
-                                  <div class="col-lg-6">
-                                    <div class="mb-3">
-                                      <label class="form-label">Client name</label>
-                                      <input type="text" class="form-control" />
-                                    </div>
-                                  </div>
-                                  <div class="col-lg-6">
-                                    <div class="mb-3">
-                                      <label class="form-label">Reporting period</label>
-                                      <input type="date" class="form-control" />
-                                    </div>
-                                  </div>
-                                  <div class="col-lg-12">
-                                    <div>
-                                      <label class="form-label">Additional information</label>
-                                      <textarea class="form-control" rows="3"></textarea>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
+                          <div
+                              v-if="dataCustomers.errorCustomer?.lead_category_id"
+                              class="invalid-feedback d-block"
+                            >
+                              {{ dataCustomers.errorCustomer.lead_category_id[0] }}
+                          </div>
+            </div>
+
+
+          <!-- Address -->
+          <div class="col-lg-12 mb-3">
+            <label class="form-label">Address</label>
+            <textarea
+              class="form-control"
+              rows="2"
+              placeholder="address Customers"
+              v-model="form.address"
+               :class="{ 'is-invalid': dataCustomers.errorCustomer?.address }"
+                                  @input="() => {
+                                    if (dataCustomers.errorCustomer?.address) {
+                                      dataCustomers.errorCustomer.address = null
+                                    }
+                                  }"
+            ></textarea>
+             <div
+               v-if="dataCustomers.errorCustomer?.address"
+               class="invalid-feedback"
+               >
+               {{ dataCustomers.errorCustomer.address[0] }}
+              </div>
+          </div>
+
+          <!-- Notes -->
+          <div class="col-lg-12">
+            <label class="form-label">Notes</label>
+            <textarea
+              class="form-control"
+              rows="3"
+              placeholder="Additional notes for customer"
+              v-model="form.notes"
+                :class="{ 'is-invalid': dataCustomers.errorCustomer?.notes }"
+                                  @input="() => {
+                                    if (dataCustomers.errorCustomer?.notes) {
+                                      dataCustomers.errorCustomer.notes = null
+                                    }
+                                  }"
+            ></textarea>
+             <div
+                  v-if="dataCustomers.errorCustomer?.notes"
+                  class="invalid-feedback"
+                 >
+                 {{ dataCustomers.errorCustomer.notes[0] }}
+                 </div>
+          </div>
+
+        </div>
       </div>
 
       <!-- Footer -->
       <div class="modal-footer">
-        <button type="button" class="btn btn-link link-secondary" data-bs-dismiss="modal">
-          Batal
+        <button
+          type="button"
+          class="btn btn-outline-secondary"
+          data-bs-dismiss="modal"
+        >
+          Cancel
         </button>
-        <button type="button" class="btn btn-primary ms-auto">
-          <i class="fas fa-save me-1"></i> Simpan
+        <button
+          type="button"
+          class="btn btn-primary"
+          @click="submitCustomer"
+        >
+          <i class="fa fa-save me-1"></i> Save
         </button>
       </div>
 
     </div>
   </div>
 </div>
+
 
 
 
