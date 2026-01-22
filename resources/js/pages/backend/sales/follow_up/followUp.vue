@@ -1,7 +1,130 @@
 <script setup>
 import { ref, reactive, onMounted , watch} from 'vue'
 import backendLayouts from "../../../../layouts/backendLayouts.vue";
+import { useFollowUpsStore } from '../../../../stores/followUpStore';
+import { useMenuStore } from "@/stores/menuStore";
+import { toasts } from "@/utils/toasts"
+import { useRoute, useRouter } from "vue-router";
+import Swal from 'sweetalert2'
 const PagesTitle = 'Data Follow Up';
+
+const dataFollowUps = useFollowUpsStore();
+const menuStore = useMenuStore();
+const route = useRoute();
+const router = useRouter();
+
+const permission = ref(null);
+const loadingPermission = ref(true);
+
+onMounted(async () => {
+  try {
+    if (!localStorage.getItem("auth_token")) {
+      alert("Silakan login terlebih dahulu!");
+      router.push('/login');
+      return;
+    }
+
+    await dataFollowUps.fetchFollowUp(dataFollowUps.buildUrl());
+    await menuStore.fetchMenus();
+
+    permission.value = menuStore.getPermission(route.path);
+  } catch (error) {
+    console.error(error);
+  } finally {
+    loadingPermission.value = false;
+  }
+});
+
+watch(
+  () => dataFollowUps.searchFollowUp,
+  dataFollowUps.searchWithDelay
+);
+
+
+
+// untuk detail
+const openDetailModal = async (id) => {
+  await dataFollowUps.fetchFollowUpDetail(id)
+
+  const modal = new bootstrap.Modal(
+    document.getElementById('followUpDetailModal')
+  )
+  modal.show()
+}
+const getFollowUpTypeBadge = (type) => {
+  switch (type) {
+    case 'CALL':
+      return 'bg-info'
+    case 'EMAIL':
+      return 'bg-primary'
+    case 'MEETING':
+      return 'bg-success'
+    default:
+      return 'bg-secondary'
+  }
+}
+
+const getFollowUpStatusBadge = (status) => {
+  return status === 'DONE'
+    ? 'bg-success'
+    : 'bg-warning text-dark'
+}
+
+const formatDateTime = (value) => {
+  if (!value || value === '-') return '-'
+  return new Date(value).toLocaleString('id-ID', {
+    dateStyle: 'medium',
+    timeStyle: 'short'
+  })
+}
+
+
+
+
+// untuk table
+const getTypeBadge = (type) => {
+  switch (type) {
+    case 'CALL':
+      return 'bg-info'
+    case 'EMAIL':
+      return 'bg-primary'
+    case 'MEETING':
+      return 'bg-success'
+    default:
+      return 'bg-secondary'
+  }
+}
+
+const getStatusBadge = (status) => {
+  return status === 'DONE'
+    ? 'bg-success'
+    : 'bg-warning text-dark'
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
@@ -187,7 +310,7 @@ const handleImportExcel = () => {
     </div>
 
     <!-- Tombol Reset paling kanan -->
-    <button class="btn btn-warning btn-sm d-flex align-items-center ms-auto">
+    <button class="btn btn-warning btn-sm d-flex align-items-center ms-auto" @click="dataFollowUps.resetFilters">
       <i class="fas fa-undo"></i> Reset
     </button>
 
@@ -207,7 +330,8 @@ const handleImportExcel = () => {
                     <i class="fas fa-list-ul me-1"></i> Showing:
                     </label>
                     <select class="form-select w-auto"
-                    >
+                    v-model.number="dataFollowUps.pagination.per_page" 
+                     @change="dataFollowUps.changePageSize">
                     <option>10</option>
                     <option>25</option>
                     <option>50</option>
@@ -226,18 +350,18 @@ const handleImportExcel = () => {
              <div class="d-flex flex-column gap-3 align-items-end" style="min-width:300px;">
                 <!-- Pencarian -->
                 <div class="input-group">
-                    <input type="text" class="form-control" placeholder="Searching....">
+                    <input type="text" class="form-control" placeholder="Searching...."  v-model="dataFollowUps.searchFollowUp">
                     <span class="input-group-text bg-white"><i class="fa fa-search"></i></span>
                 </div>
 
                 <!-- Urutan -->
                 <div class="d-flex gap-2 align-items-center">
                     <label class="mb-0 fw-semibold">Sort:</label>
-                    <select class="form-select w-auto">
-                    <option value="fullname">By Name</option>
+                    <select class="form-select w-auto" v-model="dataFollowUps.sort.column" @change="dataFollowUps.changeSorting">
+                    <option value="company_name">By Company Name</option>
                     <option value="created_at">By Created Date</option>
                     </select>
-                    <select class="form-select w-auto">
+                    <select class="form-select w-auto" v-model="dataFollowUps.sort.direction" @change="dataFollowUps.changeSorting">
                     <option value="asc">Ascending</option>
                     <option value="desc">Descending</option>
                     </select>
@@ -249,47 +373,158 @@ const handleImportExcel = () => {
           <!-- Card: Table -->
           <div class="card mb-4">
             <div class="card-header">
-              <h3 class="card-title">{{ PagesTitle }}</h3>
+           
             </div>
             <div class="table-responsive">
-              <table class="table card-table table-vcenter text-nowrap">
-                <thead>
-                  <tr>
-                    <th style="width: 5%;">No.</th>
-                    <th>Role Name</th>
-                    <th>Description</th>
-                    <th>Created</th>
-                    <th style="width: 8%;">Actions</th>
-                  </tr>
-                </thead>
+              <table class="table card-table table-vcenter">
+            <thead>
+              <tr>
+                <th style="width:5%">No.</th>
+                <th>Type</th>
+                <th>Subject</th>
+                <th>
+                    <div>FollowUp</div>
+                    <div>Lead / Customer</div>
+                  </th>
+                <th>Notes</th>
+                <th>Follow Up At</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th style="width:10%">Actions</th>
+              </tr>
+            </thead>
 
-            
 
-                <tbody>
-                    <tr>
-                      <td>1</td>
-                      <td>sdsdsdsd</td>
-                      <td>dsdsdsdsd</td>
-                    
-                      <td>12313</td>
-                      <td>
-                        <button class="btn btn-outline-primary btn-sm me-2">
-                         <i class="fa fa-edit"></i> 
-                       </button>
+                <!-- LOADING DATA -->
+              <tbody v-if="dataFollowUps.loadingFollowUp">
+                <tr>
+                  <td colspan="9" class="text-center py-4">
+                    <div class="spinner-border text-primary"></div>
+                  </td>
+                </tr>
+              </tbody>
 
-                        <button class="btn btn-outline-primary btn-sm me-2">
-                            <i class="fa fa-trash"></i> 
-                        </button>
-
-                         <button class="btn btn-outline-primary btn-sm"  data-bs-toggle="modal"
-                            data-bs-target="#userDetailModal"
-                          >
-                            <i class="fa fa-eye"></i> 
-                        </button>
+              <!-- EMPTY DATA -->
+              <tbody v-else-if="dataFollowUps.followUpData.length === 0">
+                   <tr>
+                      <td colspan="9" class="text-center">
+                        <div class="d-flex flex-column align-items-center justify-content-center">
+                          <img
+                            src="https://cdn.dribbble.com/users/285475/screenshots/2083086/dribbble_1.gif"
+                            alt="No data found"
+                            style="max-width: 250px; height: auto;"
+                            class="mb-3"
+                          />
+                          <p class="text-danger fw-bold fst-italic">
+                            <i class="fa fa-exclamation-circle me-1"></i>
+                            Follow UP data not found.
+                          </p>
+                        </div>
                       </td>
                     </tr>
-                </tbody>
-              </table>
+            </tbody>
+
+            <tbody v-else>
+        <tr
+          v-for="(fu, index) in dataFollowUps.followUpData"
+          :key="fu.id"
+        >
+          <!-- NO -->
+          <td>
+            {{
+              index + 1 +
+              dataFollowUps.pagination.per_page *
+                (dataFollowUps.pagination.current_page - 1)
+            }}.
+          </td>
+
+          <!-- TYPE -->
+          <td>
+            <span class="badge" :class="getTypeBadge(fu.follow_up_type)">
+              {{ fu.follow_up_type }}
+            </span>
+          </td>
+
+          <td>
+            <span class="text-truncate d-inline-block" style="max-width: 220px">
+              {{ fu.subject }}
+            </span>
+          </td>
+
+          <td>
+              <div class="fw-semibold">
+                {{ fu.target_name }}
+              </div>
+
+              <span
+                class="badge badge-sm mt-1"
+                :class="fu.target_source === 'LEAD'
+                  ? 'bg-secondary'
+                  : 'bg-primary'"
+              >
+                {{ fu.target_source }}
+              </span>
+          </td>
+
+
+          <td>
+            <span class="text-truncate d-inline-block" style="max-width: 250px">
+              {{ fu.notes?.substring(0, 10) }}{{ fu.notes?.length > 10 ? '...' : '' }}
+            </span>
+          </td>
+
+
+
+          <!-- FOLLOW UP AT -->
+          <td>{{ dataFollowUps.formatDateTime(fu.follow_up_at) }}</td>
+
+          <!-- STATUS -->
+          <td>
+          
+          <span class="badge" :class="getStatusBadge(fu.status)">
+            {{ fu.status }}
+          </span>
+          </td>
+
+          <!-- CREATED -->
+          <td>{{ dataFollowUps.formatDate(fu.created_at) }}</td>
+
+          <!-- ACTIONS -->
+          <td>
+           <button
+  class="btn btn-outline-primary btn-sm"
+  @click="openDetailModal(fu.id)"
+>
+  <i class="fa fa-circle-info"></i>
+</button>
+
+
+
+
+            <!-- DELETE -->
+            <button
+              v-if="!loadingPermission && permission?.can_delete"
+              class="btn btn-outline-danger btn-sm me-1"
+              :disabled="dataFollowUps.deletingFollowUp"
+              @click="handleDeleteFollowUp(fu.id)"
+            >
+              <i class="fa fa-trash"></i>
+            </button>
+
+            <!-- DETAIL -->
+            <!-- <button
+              class="btn btn-outline-primary btn-sm"
+              data-bs-toggle="modal"
+              data-bs-target="#followUpDetailModal"
+              @click="showFollowUpDetail(fu)"
+            >
+              <i class="fa fa-eye"></i>
+            </button> -->
+          </td>
+        </tr>
+       </tbody>
+    </table>
+
             </div>
           </div>
 
@@ -297,64 +532,178 @@ const handleImportExcel = () => {
           <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
               <button class="btn btn-danger btn-sm" 
-                 >
+                 :disabled="!dataFollowUps.pagination.prev_page_url || dataFollowUps.loadingFollowUp"
+                  @click="dataFollowUps.fetchFollowUp(dataFollowUps.pagination.prev_page_url)">
                 <i class="fa-solid fa-circle-chevron-left"
                 ></i> Prev
               </button>
   
                 <div class="mx-2 d-flex flex-column flex-sm-row align-items-center gap-1">
-                    <span class="badge border text-secondary px-3 py-2"> 10 data | on page 19</span>
-                    <span class="badge border text-secondary px-3 py-2">Total: 19  data</span>
+                       <span class="badge border text-secondary px-3 py-2"> {{ dataFollowUps.followUpData.length }} data | on page {{ dataFollowUps.pagination.current_page }}</span>
+                    <span class="badge border text-secondary px-3 py-2">Total: {{ dataFollowUps.pagination.total }}</span>
                 </div>
   
                 <button class="btn btn-danger btn-sm"
-               >
+                  :disabled="!dataFollowUps.pagination.next_page_url || dataFollowUps.loadingFollowUp"
+                  @click="dataFollowUps.fetchFollowUp(dataMenu.pagination.next_page_url)" >
                     Next <i class="fa-solid fa-circle-chevron-right"></i>
                 </button>
             </div>
           </div>
-
         </div>
       </div>
-
-     
     </div>
 
 
-
-
-  <!-- Code Modal: Detail Data -->
-<div class="modal modal-blur fade" id="userDetailModal" tabindex="-1" role="dialog" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+        <!-- Modal: Detail Follow Up -->
+       <!-- Modal: Detail Follow Up -->
+<div class="modal fade" id="followUpDetailModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
     <div class="modal-content">
-      
+
       <!-- Header -->
       <div class="modal-header">
-        <h5 class="modal-title">Detail Role</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        <h5 class="modal-title">
+          <i class="fa fa-circle-info me-1"></i> Detail Follow Up
+        </h5>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+          aria-label="Close"
+        ></button>
       </div>
 
       <!-- Body -->
       <div class="modal-body">
-         <div class="modal-body">                   
-          <div class="d-flex justify-content-center align-items-center" style="min-height:150px;">
-  <div class="spinner-border text-secondary" role="status">
-    <span class="visually-hidden">Loading...</span>
-  </div>
-</div>
 
-          <div >
-            <p><strong>Role:</strong> </p>
-            <p><strong>Description:</strong></p>
+        <!-- LOADING -->
+        <div v-if="dataFollowUps.loadingDetail" class="text-center py-5">
+          <div class="spinner-border text-primary"></div>
+          <p class="mt-2 text-muted">Memuat detail follow up...</p>
+        </div>
+
+        <!-- DETAIL -->
+        <div v-else-if="dataFollowUps.followUpDetail" class="row g-3">
+
+          <!-- TYPE -->
+          <div class="col-md-6">
+            <label class="form-label">Follow Up Type</label>
+            <span
+              class="badge w-100 text-center py-2"
+              :class="getFollowUpTypeBadge(dataFollowUps.followUpDetail.follow_up_type)"
+            >
+              {{ dataFollowUps.followUpDetail.follow_up_type }}
+            </span>
           </div>
+
+          <!-- STATUS -->
+          <div class="col-md-6">
+            <label class="form-label">Status</label>
+            <span
+              class="badge w-100 text-center py-2"
+              :class="getFollowUpStatusBadge(dataFollowUps.followUpDetail.status)"
+            >
+              {{ dataFollowUps.followUpDetail.status }}
+            </span>
+          </div>
+
+          <!-- SUBJECT -->
+          <div class="col-12">
+            <label class="form-label">Subject</label>
+            <input
+              type="text"
+              class="form-control"
+              :value="dataFollowUps.followUpDetail.subject"
+              readonly
+            />
+          </div>
+
+          <!-- NOTES -->
+          <div class="col-12">
+            <label class="form-label">Notes</label>
+            <textarea
+              class="form-control"
+              rows="4"
+              readonly
+            >{{ dataFollowUps.followUpDetail.notes }}</textarea>
+          </div>
+
+          <!-- FOLLOW UP DATE -->
+          <div class="col-md-6">
+            <label class="form-label">Follow Up At</label>
+            <input
+              type="text"
+              class="form-control"
+              :value="formatDateTime(dataFollowUps.followUpDetail.follow_up_at)"
+              readonly
+            />
+          </div>
+
+          <!-- CREATED AT -->
+          <div class="col-md-6">
+            <label class="form-label">Created At</label>
+            <input
+              type="text"
+              class="form-control"
+              :value="formatDateTime(dataFollowUps.followUpDetail.created_at)"
+              readonly
+            />
+          </div>
+
+          <!-- LEAD -->
+          <div class="col-md-6">
+            <label class="form-label">Lead</label>
+            <input
+              type="text"
+              class="form-control"
+              :value="dataFollowUps.followUpDetail.lead_company_name ?? '-'"
+              readonly
+            />
+          </div>
+
+          <!-- CUSTOMER -->
+          <div class="col-md-6">
+            <label class="form-label">Customer</label>
+            <input
+              type="text"
+              class="form-control"
+              :value="dataFollowUps.followUpDetail.customer_company_name ?? '-'"
+              readonly
+            />
+          </div>
+
+          <!-- SALES / CREATED BY -->
+          <div class="col-12">
+            <label class="form-label">Created By (Sales)</label>
+            <input
+              type="text"
+              class="form-control"
+              :value="dataFollowUps.followUpDetail.sales_name ?? '-'"
+              readonly
+            />
+          </div>
+
+        </div>
+
+        <!-- EMPTY -->
+        <div v-else class="text-muted text-center py-5">
+          Data tidak ditemukan
+        </div>
+
       </div>
-      </div>
+
       <!-- Footer -->
       <div class="modal-footer">
-        <button type="button" class="btn btn-link link-secondary" data-bs-dismiss="modal">
+        <button
+          type="button"
+          class="btn btn-outline-secondary"
+          data-bs-dismiss="modal"
+        >
           Close
         </button>
       </div>
+
     </div>
   </div>
 </div>

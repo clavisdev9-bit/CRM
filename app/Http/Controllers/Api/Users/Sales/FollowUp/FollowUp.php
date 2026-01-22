@@ -37,25 +37,48 @@ class FollowUp extends Controller
 
     $search    = $validated['search'] ?? null;
     $perPage   = $validated['per_page'] ?? 10;
-    // UBAH: dari follow_up_date menjadi follow_up_at
-    $sortBy    = $validated['sort_by'] ?? 'follow_up_at'; 
+    $sortBy    = $validated['sort_by'] ?? 'follow_ups.follow_up_at';
     $sortDir   = $validated['sort_dir'] ?? 'desc';
     $startDate = $validated['start_date'] ?? null;
     $endDate   = $validated['end_date'] ?? null;
 
     $query = $this->MsFollowUp->query()
         ->select([
-            'follow_ups.*',
+            'follow_ups.id',
+            'follow_ups.follow_up_type',
+            'follow_ups.subject',
+            'follow_ups.notes',
+            'follow_ups.follow_up_at',
+            'follow_ups.status',
+            'follow_ups.created_at',
+
+            // MASTER LEAD
             'l.company_name as lead_company_name',
-            'l.contact_name as lead_contact_name',
+
+            // MASTER CUSTOMER
             'c.company_name as customer_company_name',
-            'c.contact_name as customer_contact_name',
+
+            // SALES
             'sales.fullname as sales_name',
+
+            // 🔥 PENENTU SUMBER DATA
+            DB::raw("
+                CASE
+                    WHEN follow_ups.lead_id IS NOT NULL THEN 'LEAD'
+                    WHEN follow_ups.customer_id IS NOT NULL THEN 'CUSTOMER'
+                END as target_source
+            "),
+
+            // 🔥 NAMA YANG DIPAKAI UI
+            DB::raw("
+                COALESCE(l.company_name, c.company_name) as target_name
+            "),
         ])
         ->leftJoin('leads as l', 'l.id', '=', 'follow_ups.lead_id')
         ->leftJoin('customers as c', 'c.id', '=', 'follow_ups.customer_id')
         ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'follow_ups.created_by')
-        ->where('follow_ups.created_by', $user->id_user);
+        ->where('follow_ups.created_by', $user->id_user)
+        ->whereNull('follow_ups.deleted_at');
 
     /* ================= SEARCH ================= */
     if ($search) {
@@ -67,7 +90,6 @@ class FollowUp extends Controller
     }
 
     /* ================= DATE FILTER ================= */
-    // UBAH: Pastikan kolom di whereDate juga follow_up_at
     if ($startDate) {
         $query->whereDate('follow_ups.follow_up_at', '>=', $startDate);
     }
@@ -77,19 +99,81 @@ class FollowUp extends Controller
     }
 
     /* ================= SORT ================= */
-    // Tambahkan prefix tabel agar tidak ambigu
-    $query->orderBy("follow_ups.{$sortBy}", $sortDir);
+    $query->orderBy($sortBy, $sortDir);
 
     $results = $query->paginate($perPage);
 
-    /* ================= RESPONSE ================= */
-    $message = $results->isEmpty() ? "Data tidak ditemukan" : "Success Get Follow Up Sales";
+    $message = $results->isEmpty()
+        ? "Data tidak ditemukan"
+        : "Success Get Follow Up Sales";
 
     return ApiResponse::success(
         new FollowUpResourcesCollection($results),
         $message
     );
 }
+
+
+//      public function followUpSales(FollowUpValidationIndex $request)
+// {
+//     $validated = $request->validated();
+//     $user = auth()->user();
+
+//     $search    = $validated['search'] ?? null;
+//     $perPage   = $validated['per_page'] ?? 10;
+//     // UBAH: dari follow_up_date menjadi follow_up_at
+//     $sortBy    = $validated['sort_by'] ?? 'follow_up_at'; 
+//     $sortDir   = $validated['sort_dir'] ?? 'desc';
+//     $startDate = $validated['start_date'] ?? null;
+//     $endDate   = $validated['end_date'] ?? null;
+
+//     $query = $this->MsFollowUp->query()
+//         ->select([
+//             'follow_ups.*',
+//             'l.company_name as lead_company_name',
+//             'l.contact_name as lead_contact_name',
+//             'c.company_name as customer_company_name',
+//             'c.contact_name as customer_contact_name',
+//             'sales.fullname as sales_name',
+//         ])
+//         ->leftJoin('leads as l', 'l.id', '=', 'follow_ups.lead_id')
+//         ->leftJoin('customers as c', 'c.id', '=', 'follow_ups.customer_id')
+//         ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'follow_ups.created_by')
+//         ->where('follow_ups.created_by', $user->id_user);
+
+//     /* ================= SEARCH ================= */
+//     if ($search) {
+//         $query->where(function ($q) use ($search) {
+//             $q->where('follow_ups.notes', 'ILIKE', "%{$search}%")
+//               ->orWhere('l.company_name', 'ILIKE', "%{$search}%")
+//               ->orWhere('c.company_name', 'ILIKE', "%{$search}%");
+//         });
+//     }
+
+//     /* ================= DATE FILTER ================= */
+//     // UBAH: Pastikan kolom di whereDate juga follow_up_at
+//     if ($startDate) {
+//         $query->whereDate('follow_ups.follow_up_at', '>=', $startDate);
+//     }
+
+//     if ($endDate) {
+//         $query->whereDate('follow_ups.follow_up_at', '<=', $endDate);
+//     }
+
+//     /* ================= SORT ================= */
+//     // Tambahkan prefix tabel agar tidak ambigu
+//     $query->orderBy("follow_ups.{$sortBy}", $sortDir);
+
+//     $results = $query->paginate($perPage);
+
+//     /* ================= RESPONSE ================= */
+//     $message = $results->isEmpty() ? "Data tidak ditemukan" : "Success Get Follow Up Sales";
+
+//     return ApiResponse::success(
+//         new FollowUpResourcesCollection($results),
+//         $message
+//     );
+// }
 
 
 public function storeFollowUp(FollowUpValidationRequest $request)
@@ -324,6 +408,59 @@ public function deleteFollowUp($id)
 
 
 
+// public function showFollowUp($id)
+// {
+//     $userId = auth()->user()->id_user;
+
+//     try {
+//         $followUp = DB::table('follow_ups as fu')
+//             ->select([
+//                 'fu.*',
+
+//                 // Lead
+//                 'l.company_name as lead_company_name',
+//                 'l.contact_name as lead_contact_name',
+
+//                 // Customer
+//                 'c.company_name as customer_company_name',
+//                 'c.contact_name as customer_contact_name',
+
+//                 // Sales
+//                 'sales.fullname as sales_name',
+//             ])
+//             ->leftJoin('leads as l', 'l.id', '=', 'fu.lead_id')
+//             ->leftJoin('customers as c', 'c.id', '=', 'fu.customer_id')
+//             ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'fu.created_by')
+//             ->where('fu.id', $id)
+//             ->where('fu.created_by', $userId)
+//             ->whereNull('fu.deleted_at')
+//             ->first();
+
+//         if (!$followUp) {
+//             return ApiResponse::error(
+//                 'Follow up not found or access denied',
+//                 null,
+//                 404
+//             );
+//         }
+
+//         return ApiResponse::success(
+//             $followUp,
+//             'Success Get Follow Up Detail'
+//         );
+
+//     } catch (\Throwable $e) {
+//         return ApiResponse::error(
+//             'Failed to get follow up detail',
+//             config('app.debug') ? ['exception' => $e->getMessage()] : null,
+//             500
+//         );
+//     }
+// }
+
+
+
+
 public function showFollowUp($id)
 {
     $userId = auth()->user()->id_user;
@@ -361,7 +498,7 @@ public function showFollowUp($id)
         }
 
         return ApiResponse::success(
-            $followUp,
+            new FollowUpResources($followUp),
             'Success Get Follow Up Detail'
         );
 
