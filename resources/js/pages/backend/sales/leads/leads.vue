@@ -384,8 +384,11 @@ const confirmDelete = async (id) => {
 
                 <!-- Tombol add -->
                <div class="d-flex gap-2">
-                    <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modal-add-data">
-                        <i class="fa fa-plus"></i> Add Data 
+                    <button class="btn btn-primary btn-sm" 
+                     v-if="!loadingPermission && permission?.can_create"
+                    data-bs-toggle="modal" 
+                    data-bs-target="#modal-add-data">
+                    <i class="fa fa-plus"></i> Add Data 
                     </button>
                   
                 </div>

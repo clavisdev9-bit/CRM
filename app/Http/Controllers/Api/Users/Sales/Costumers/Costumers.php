@@ -152,6 +152,7 @@ class Costumers extends Controller
                     'industry_id'      => $data['industry_id'] ?? null,
                     'lead_category_id' => $data['lead_category_id'] ?? null,
                     'assigned_to'      => $data['assigned_to'] ?? null,
+                    'customer_status'  => 'Converted',
 
                     'id_user'          => $userId,
                     'created_by'       => $userId,
@@ -159,6 +160,7 @@ class Costumers extends Controller
                     'visibility_type'  => $data['visibility_type'] ?? 'PRIVATE',
                     'notes'            => $data['notes'] ?? null,
                     'address'          => $data['address'] ?? null,
+                    'converted_at'     => now(),
                     'created_at'       => now(),
                     'updated_at'       => now(),
                 ]);
@@ -222,7 +224,7 @@ class Costumers extends Controller
                     'phone'            => $data['phone'] ?? null,
                     'industry_id'      => $data['industry_id'] ?? null,
                     'lead_category_id' => $data['lead_category_id'] ?? null,
-                    'assigned_to'      => $data['assigned_to'] ?? null,
+                    // 'assigned_to'      => $data['assigned_to'] ?? null,
                     'visibility_type'  => $data['visibility_type'] ?? 'PRIVATE',
                     'notes'            => $data['notes'] ?? null,
                     'address'          => $data['address'] ?? null,

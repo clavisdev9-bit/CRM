@@ -221,21 +221,110 @@ export const useCustomersStore = defineStore("customersStore", () => {
 
 
                         const fetchLeadIndustries = async () => {
-                        loadingIndustries.value = true
+                            loadingIndustries.value = true
 
-                        try {
-                            const res = await axios.get(endpoints.industries, {
-                            headers: getAuthHeader(),
-                            })
+                            try {
+                                const res = await axios.get(endpoints.industries, {
+                                headers: getAuthHeader(),
+                                })
 
-                            industries.value = res.data ?? []
-                        } catch (err) {
-                            console.error("Fetch industries failed:", err)
-                            industries.value = []
-                        } finally {
-                            loadingIndustries.value = false
+                                industries.value = res.data ?? []
+                            } catch (err) {
+                                console.error("Fetch industries failed:", err)
+                                industries.value = []
+                            } finally {
+                                loadingIndustries.value = false
+                            }
                         }
-                        }
+
+                         const storeCustomers = async (payload) => {
+                                    savingCustomer.value = true
+                                    errorCustomer.value = null
+
+                                    try {
+                                        const res = await axios.post(
+                                        '/api/customers/store',
+                                        payload,
+                                        { headers: getAuthHeader() }
+                                        )
+
+                                        await fetchCustomers(buildUrl())
+                                        return res.data
+                                    } catch (err) {
+                                        if (err.response?.status === 422) {
+                                        errorCustomer.value = err.response.data.errors
+                                        }
+                                        throw err
+                                    } finally {
+                                        savingCustomer.value = false
+                                    }
+                                  }
+
+
+                                     const updateCustomers = async (id, payload) => {
+                                    updatingCustomer.value = true
+                                    errorCustomer.value = null
+
+                                    try {
+                                      await axios.put(`/api/customers/update/${id}`, payload, {
+                                        headers: getAuthHeader(),
+                                      })
+
+                                      await fetchCustomers(buildUrl())
+                                    } catch (err) {
+                                      if (err.response?.status === 422) {
+                                        errorCustomer.value = err.response.data.errors
+                                      }
+                                      throw err
+                                    } finally {
+                                      //  INI YANG SERING LUPA
+                                      updatingCustomer.value = false
+                                    }
+                                  }
+
+
+
+                                  const deleteCustomer = async (id) => {
+                                    deletingCustomer.value = true
+
+                                    try {
+                                      await axios.delete(`/api/customers/delete/${id}`, {
+                                        headers: getAuthHeader(),
+                                      })
+
+                                      await fetchCustomers(buildUrl())
+                                      Swal.fire({
+                                        icon: 'success',
+                                        title: 'Succeed',
+                                        text: 'Menu successfully deleted',
+                                        timer: 1500,
+                                        showConfirmButton: false,
+                                      })
+
+                                    } catch (err) {
+                                      if (err.response?.status === 403) {
+                                        Swal.fire('Access Denied', 'You do not have permission to delete the menu', 'error')
+                                      } else {
+                                        Swal.fire('Error', 'Failed to delete menu', 'error')
+                                      }
+                                      throw err
+                                    } finally {
+                                      deletingCustomer.value = false
+                                    }
+                                  }
+
+
+                                  const leadSource = ref([
+                                    { value: 'Cold Call', label: 'Cold Call' },
+                                    { value: 'Website', label: 'Website' },
+                                    { value: 'Referral', label: 'Referral' },,
+                                    { value: 'Social Media', label: 'Social Media' },,
+                                    { value: 'Email Campaign', label: 'Email Campaign' },
+                                    { value: 'Event', label: 'Event' },
+                                    { value: 'Partner', label: 'Partner' },
+                                    { value: 'Ads', label: 'Ads' },
+                                    { value: 'Other', label: 'Other' },
+                                    ])
 
 
 
@@ -266,6 +355,7 @@ export const useCustomersStore = defineStore("customersStore", () => {
                 resetFilters,
                 formatDate,
                 detailCustomers,
+                errorCustomer,
 
                 //new
                 endpoints,
@@ -277,6 +367,12 @@ export const useCustomersStore = defineStore("customersStore", () => {
                 loadingUserSales,
                 fetchLeadCategories,
                 fetchLeadIndustries,
+                leadSource,
+
+                storeCustomers,
+                updateCustomers,
+                deleteCustomer
+
                 
 
             }

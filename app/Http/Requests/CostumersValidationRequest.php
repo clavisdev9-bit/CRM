@@ -33,38 +33,7 @@ class CostumersValidationRequest extends FormRequest
         ];
     }
 
-    /**
-     * Custom error messages for validation.
-     */
-    // public function messages(): array
-    // {
-    //     return [
-    //         'company_name.required'      => 'Nama perusahaan wajib diisi.',
-    //         'company_name.string'        => 'Nama perusahaan harus berupa teks.',
-    //         'company_name.max'           => 'Nama perusahaan maksimal 255 karakter.',
-
-    //         'contact_name.required'      => 'Nama kontak wajib diisi.',
-    //         'contact_name.string'        => 'Nama kontak harus berupa teks.',
-    //         'contact_name.max'           => 'Nama kontak maksimal 255 karakter.',
-
-    //         'email.email'                => 'Email tidak valid.',
-    //         'email.max'                  => 'Email maksimal 255 karakter.',
-
-    //         'phone.string'               => 'Nomor telepon harus berupa teks.',
-    //         'phone.max'                  => 'Nomor telepon maksimal 50 karakter.',
-
-    //         'industry_id.integer'        => 'Industri harus berupa angka.',
-    //         'lead_category_id.integer'   => 'Kategori lead harus berupa angka.',
-    //         'assigned_to.integer'        => 'Sales yang ditugaskan harus berupa angka.',
-
-    //         'visibility_type.in'         => 'Visibility harus PRIVATE atau PUBLIC.',
-    //         'visibility_type.string'     => 'Visibility harus berupa teks.',
-
-    //         'notes.string'               => 'Catatan harus berupa teks.',
-    //         'address.string'             => 'Alamat harus berupa teks.',
-    //     ];
-    // }
-
+  
     public function messages(): array
 {
     return [

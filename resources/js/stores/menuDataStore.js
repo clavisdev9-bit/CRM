@@ -186,7 +186,7 @@ export const useDataMenuStore = defineStore('Data-Menu', () => {
 
                                 
 
-                                    const storeMenu = async (payload) => {
+                                  const storeMenu = async (payload) => {
                                     savingMenu.value = true
                                     errorMenu.value = null
 
@@ -207,7 +207,7 @@ export const useDataMenuStore = defineStore('Data-Menu', () => {
                                     } finally {
                                         savingMenu.value = false
                                     }
-                                    }
+                                  }
 
                                     
                                  

@@ -1,5 +1,5 @@
 <script setup>
-import { ref, reactive, onMounted , watch} from 'vue'
+import { ref, reactive, onMounted , watch, computed } from 'vue'
 import backendLayouts from "../../../../layouts/backendLayouts.vue";
 import { useCustomersStore } from '../../../../stores/customersStores';
 import { useMenuStore } from "@/stores/menuStore";
@@ -9,13 +9,10 @@ import Multiselect from "@vueform/multiselect"
 import Swal from 'sweetalert2'
 const PagesTitle = 'Data Customers';
 
-
-
 const dataCustomers = useCustomersStore();
 const menuStore = useMenuStore();
 const route = useRoute();
 const router = useRouter();
-
 const permission = ref(null);
 const loadingPermission = ref(true);
 
@@ -84,6 +81,11 @@ const getStatusBadgeClass = (status) => {
 
 
 //start code for form customers
+const isProcessing = computed(() => {
+  return dataCustomers.savingCustomer || dataCustomers.updatingCustomer
+})
+
+
 const form = reactive({
   company_name: '',
   contact_name: '',
@@ -96,10 +98,137 @@ const form = reactive({
   address: '',
 })
 
+const editCustomerId = ref(null)
+const customersInput = ref(null)
+
+const dataCustomer = reactive({
+  error: null,
+  updating: false,
+})
 
 
-// besok lanjut save example get from code menu
+const openAddModal = () => {
+  editCustomerId.value = null
 
+  Object.assign(form, {
+    company_name: '',
+    contact_name: '',
+    email: '',
+    phone: '',
+    industry_id: '',
+    lead_category_id: '',
+    visibility_type: 'PRIVATE',
+    notes: '',
+    address: '',
+  })
+
+  dataCustomer.error = null
+}
+
+
+const openEditModal = (customer) => {
+  editCustomerId.value = customer.id
+
+  Object.assign(form, {
+    company_name: customer.company_name,
+    contact_name: customer.contact_name,
+    email: customer.email,
+    phone: customer.phone,
+    industry_id: customer.industry_id,
+    lead_category_id: customer.lead_category_id,
+    visibility_type: customer.visibility_type,
+    notes: customer.notes,
+    address: customer.address,
+  })
+
+  dataCustomer.error = null
+  dataCustomer.updating = true
+}
+
+
+const saveCustomers = async () => {
+  if (dataCustomers.savingCustomer || dataCustomers.updatingCustomer) return
+
+  try {
+    const isEdit = !!editCustomerId.value
+
+    if (isEdit) {
+      await dataCustomers.updateCustomers(editCustomerId.value, form)
+    } else {
+      await dataCustomers.storeCustomers(form)
+    }
+
+    // reset state
+    editCustomerId.value = null
+    dataCustomer.updating = false
+
+    Object.assign(form, {
+      company_name: '',
+      contact_name: '',
+      email: '',
+      phone: '',
+      industry_id: '',
+      lead_category_id: '',
+      visibility_type: 'PRIVATE',
+      notes: '',
+      address: '',
+    })
+
+    // close modal
+    const modal = document.getElementById("modal-add-data")
+    const instance =
+      bootstrap.Modal.getInstance(modal) ||
+      new bootstrap.Modal(modal)
+
+    instance.hide()
+
+    modal.addEventListener(
+      "hidden.bs.modal",
+      () => {
+        toasts.fire({
+          icon: "success",
+          title: isEdit
+            ? "Customer berhasil diupdate"
+            : "Customer berhasil ditambahkan",
+        })
+      },
+      { once: true }
+    )
+
+    // refresh list
+    await dataCustomers.fetchCustomers(dataCustomers.buildUrl())
+
+  } catch (err) {
+    console.error(err)
+
+    toasts.fire({
+      icon: "error",
+      title: err.response?.data?.message || "Gagal menyimpan customer",
+    })
+  }
+}
+
+
+
+const handleDeleteCustomers = async (customer) => {
+  const confirm = await Swal.fire({
+    title: 'Sure delete the menu?',
+    text: `Customer "${customer.customer_code}" will be permanently deleted`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    confirmButtonText: 'Yes, delete it!',
+    cancelButtonText: 'Cancelled',
+  })
+
+  if (!confirm.isConfirmed) return
+
+  try {
+    await dataCustomers.deleteCustomer(customer.id)
+  } catch (e) {
+    console.error(e)
+  }
+}
 
 
 // code export excel
@@ -219,13 +348,31 @@ const handleImportExcel = () => {
         </div>
       </div>
 
+
+       <!-- LOADING PERMISSION -->
+        <div v-if="loadingPermission" class="text-center py-5">
+          <div class="spinner-border text-primary"></div>
+          <p class="text-muted mt-2">Loading access rights...</p>
+        </div>
+
+        <!-- NO ACCESS -->
+        <div
+          v-else-if="!permission?.can_view"
+          class="text-center py-5"
+        >
+          <i class="fa fa-lock fa-2x text-muted mb-2"></i>
+          <p class="fw-semibold text-muted">
+            You don't have access to view the data
+          </p>
+        </div>
+
       <!-- Page Body -->
-      <div class="page-body flex-grow-1">
+      <div v-else class="page-body flex-grow-1">
         <div class="container-xl">
 
           <!-- Card: Export/Import -->
          <div class="card mb-4">
-  <div class="card-header d-flex gap-2 flex-wrap align-items-center">
+      <div class="card-header d-flex gap-2 flex-wrap align-items-center">
     
     <!-- Tombol kiri -->
     <div class="d-flex gap-2 flex-wrap">
@@ -312,7 +459,12 @@ const handleImportExcel = () => {
                 </div>
 
                 <!-- Tombol add -->
-                 <button class="btn btn-primary btn-sm" data-bs-toggle="modal" data-bs-target="#modal-add-data">
+                 <button 
+                 class="btn btn-primary btn-sm" 
+                 v-if="!loadingPermission && permission?.can_create"
+                 data-bs-toggle="modal" 
+                 data-bs-target="#modal-add-data" 
+                 @click="openAddModal">
                     <i class="fa fa-plus"></i> Add Data
                     </button>
                 </div>
@@ -413,35 +565,37 @@ const handleImportExcel = () => {
                     <td>
                       <span
                         class="badge px-2 py-1"
-                        :class="getStatusBadgeClass(cs.lead_status)"
+                        :class="getStatusBadgeClass(cs.customer_status)"
                       >
-                        {{ cs.lead_status }}
+                        {{ cs.customer_status }}
                       </span>
                     </td>
                     <td>{{ dataCustomers.formatDate(cs.converted_at) }}</td>
                     <td>
                       <!-- UPDATE -->
                       <button
+                          v-if="!loadingPermission && permission?.can_update"
                         class="btn btn-outline-warning btn-sm me-1"
                         data-bs-toggle="modal"
                         data-bs-target="#modal-add-data"
-                         
+                           @click="openEditModal(cs)"
                       >
                         <i class="fa fa-edit"></i>
                       </button>
 
                       <!-- DELETE -->
                       <button
-                        
+                        v-if="!loadingPermission && permission?.can_delete"
                         class="btn btn-outline-danger btn-sm me-1"
-                    
-                       
+                         :disabled="dataCustomers.deletingCustomer"
+                         @click="handleDeleteCustomers(cs)"
                       >
                         <i class="fa fa-trash"></i>
                       </button>
 
                       <!-- DETAIL -->
                       <button
+                       v-if="!loadingPermission && permission?.can_view"
                         class="btn btn-outline-primary btn-sm me-1"
                         data-bs-toggle="modal"
                         data-bs-target="#customersDetailModal"
@@ -613,6 +767,13 @@ const handleImportExcel = () => {
     </div>
   </div>
 
+  <div class="col-12" v-if="dataCustomers.customerDetail.address">
+    <h6 class="text-muted mt-3 mb-2">address</h6>
+    <div class="border rounded p-2 bg-light">
+      {{ dataCustomers.customerDetail.address }}
+    </div>
+  </div>
+
   <!-- META -->
   <div class="col-12">
     <h6 class="text-muted mt-3 mb-2">Informasi Sistem</h6>
@@ -681,27 +842,30 @@ const handleImportExcel = () => {
       </div>
 
       <!-- Body -->
+        <form @submit.prevent="saveCustomers">
       <div class="modal-body">
         <div class="row">
 
           <!-- Company Name -->
           <div class="col-lg-6 mb-3">
              <label class="form-label">Company or Store Name <small class="text-danger">**</small></label>
+            
             <input
               type="text"
               class="form-control"
               placeholder="Example : PT. Clavis Indonesia"
               v-model="form.company_name"
-               @input="() => {
-                                  if (dataCustomers.errorCustomer?.company_name) {
-                                    dataCustomers.errorCustomer.company_name = null
-                                  }
-                                }"
+              :class="{ 'is-invalid': dataCustomers.errorCustomer?.company_name }"
+              @input="() => {
+                if (dataCustomers.errorCustomer?.company_name) {
+                  dataCustomers.errorCustomer.company_name = null
+                }
+              }"
             />
             <div
               v-if="dataCustomers.errorCustomer?.company_name"
               class="invalid-feedback"
-               >
+            >
               {{ dataCustomers.errorCustomer.company_name[0] }}
             </div>
           </div>
@@ -729,159 +893,191 @@ const handleImportExcel = () => {
             </div>
           </div>
 
-          <!-- Email -->
-          <div class="col-lg-6 mb-3">
-           <label class="form-label">Email <small class="text-danger">**</small></label>
-            <input
-              type="email"
-              class="form-control"
-              placeholder="email@company.com"
-              v-model="form.email"
-                :class="{ 'is-invalid': dataCustomers.errorCustomer?.email }"
-                              @input="() => {
-                                if (dataCustomers.errorCustomer?.email) {
-                                  dataCustomers.errorCustomer.email = null
-                                }
-                              }"
-            />
-            <div
-              v-if="dataCustomers.errorCustomer?.email"
-              class="invalid-feedback"
-              >
-              {{ dataCustomers.errorCustomer.email[0] }}
-            </div>
-          </div>
 
-          <!-- Phone -->
-          <div class="col-lg-6 mb-3">
-              <label class="form-label">Phone <small class="text-danger">**</small></label>
-            <input
-              type="text"
-              class="form-control"
-              placeholder="08xxxxxxxxxx"
-              v-model="form.phone"
-               :class="{ 'is-invalid': dataCustomers.errorCustomer?.phone }"
-                            @input="() => {
-                              if (dataCustomers.errorCustomer?.phone) {
-                                dataCustomers.errorCustomer.phone = null
-                              }
-                            }"
-            />
-            <div
-              v-if="dataCustomers.errorCustomer?.phone"
-              class="invalid-feedback"
-              >
-              {{ dataCustomers.errorCustomer.phone[0] }}
-            </div>
-          </div>
+          
 
-          <!-- Industry -->
-          <div class="col-lg-6 mb-3">
-             <label class="form-label">Industry Customer<small class="text-danger">**</small></label>
-              <div
-                              class="multiselect-wrapper"
-                              :class="{ 'is-invalid': dataCustomers.errorCustomer?.industry_id }"
-                            >
-                              <Multiselect
-                                v-model="form.industry_id"
-                                :options="dataCustomers.industries"
-                                label="name"
-                                valueProp="id"
-                                placeholder="Select Industry"
-                                :searchable="true"
-                                :loading="dataCustomers.loadingIndustries"
-                                @update:modelValue="() => {
-                                  if (dataCustomers.errorCustomer?.industry_id) {
-                                    dataCustomers.errorCustomer.industry_id = null
+              <!-- Email -->
+              <div class="col-lg-6 mb-3">
+              <label class="form-label">Email <small class="text-danger">**</small></label>
+                <input
+                  type="email"
+                  class="form-control"
+                  placeholder="email@company.com"
+                  v-model="form.email"
+                    :class="{ 'is-invalid': dataCustomers.errorCustomer?.email }"
+                                  @input="() => {
+                                    if (dataCustomers.errorCustomer?.email) {
+                                      dataCustomers.errorCustomer.email = null
+                                    }
+                                  }"
+                />
+                <div
+                  v-if="dataCustomers.errorCustomer?.email"
+                  class="invalid-feedback"
+                  >
+                  {{ dataCustomers.errorCustomer.email[0] }}
+                </div>
+              </div>
+
+              <!-- Phone -->
+              <div class="col-lg-6 mb-3">
+                  <label class="form-label">Phone <small class="text-danger">**</small></label>
+                <input
+                  type="text"
+                  class="form-control"
+                  placeholder="08xxxxxxxxxx"
+                  v-model="form.phone"
+                  :class="{ 'is-invalid': dataCustomers.errorCustomer?.phone }"
+                                @input="() => {
+                                  if (dataCustomers.errorCustomer?.phone) {
+                                    dataCustomers.errorCustomer.phone = null
                                   }
                                 }"
-                              />
-                          </div>
-                           <div
-                              v-if="dataCustomers.errorCustomer?.industry_id"
-                              class="invalid-feedback d-block"
-                            >
-                              {{ dataCustomers.errorCustomer.industry_id[0] }}
-                            </div>
-                      </div>
+                />
+                <div
+                  v-if="dataCustomers.errorCustomer?.phone"
+                  class="invalid-feedback"
+                  >
+                  {{ dataCustomers.errorCustomer.phone[0] }}
+                </div>
+              </div>
 
-                     <!-- Lead Category -->
-                      <div class="col-lg-6 mb-3">
-                        <label class="form-label">Category Customer<small class="text-danger">**</small></label>
-                        <div
+            <!-- Industry -->
+            <div class="col-lg-6 mb-3">
+              <label class="form-label">Industry Customer<small class="text-danger">**</small></label>
+                <div
                                 class="multiselect-wrapper"
-                                :class="{ 'is-invalid': dataCustomers.errorCustomer?.lead_category_id }"
+                                :class="{ 'is-invalid': dataCustomers.errorCustomer?.industry_id }"
                               >
                                 <Multiselect
-                                  v-model="form.lead_category_id"
-                                  :options="dataCustomers.categories"
+                                  v-model="form.industry_id"
+                                  :options="dataCustomers.industries"
                                   label="name"
                                   valueProp="id"
-                                  placeholder="Select Category"
+                                  placeholder="Select Industry"
                                   :searchable="true"
-                                  :loading="dataCustomers.loadingCategories"
-                                  :close-on-select="true"
+                                  :loading="dataCustomers.loadingIndustries"
                                   @update:modelValue="() => {
-                                    if (dataCustomers.errorCustomer?.lead_category_id) {
-                                      dataCustomers.errorCustomer.lead_category_id = null
+                                    if (dataCustomers.errorCustomer?.industry_id) {
+                                      dataCustomers.errorCustomer.industry_id = null
                                     }
                                   }"
                                 />
+                            </div>
+                            <div
+                                v-if="dataCustomers.errorCustomer?.industry_id"
+                                class="invalid-feedback d-block"
+                              >
+                                {{ dataCustomers.errorCustomer.industry_id[0] }}
                               </div>
+                        </div>
+
+                      <!-- Lead Category -->
+                        <div class="col-lg-6 mb-3">
+                          <label class="form-label">Category Customer<small class="text-danger">**</small></label>
                           <div
-                              v-if="dataCustomers.errorCustomer?.lead_category_id"
+                                  class="multiselect-wrapper"
+                                  :class="{ 'is-invalid': dataCustomers.errorCustomer?.lead_category_id }"
+                                >
+                                  <Multiselect
+                                    v-model="form.lead_category_id"
+                                    :options="dataCustomers.categories"
+                                    label="name"
+                                    valueProp="id"
+                                    placeholder="Select Category"
+                                    :searchable="true"
+                                    :loading="dataCustomers.loadingCategories"
+                                    :close-on-select="true"
+                                    @update:modelValue="() => {
+                                      if (dataCustomers.errorCustomer?.lead_category_id) {
+                                        dataCustomers.errorCustomer.lead_category_id = null
+                                      }
+                                    }"
+                                  />
+                                </div>
+                            <div
+                                v-if="dataCustomers.errorCustomer?.lead_category_id"
+                                class="invalid-feedback d-block"
+                              >
+                                {{ dataCustomers.errorCustomer.lead_category_id[0] }}
+                            </div>
+                    </div>
+
+
+
+                    <div class="col-lg-6 mb-3">
+                            <label class="form-label">Lead Source <small class="text-danger">**</small></label>
+                            <div
+                              class="multiselect-wrapper"
+                              :class="{ 'is-invalid': dataCustomers.errorCustomer?.lead_source }"
+                            >
+                              <Multiselect
+                                v-model="form.lead_source"
+                                :options="dataCustomers.leadSource"
+                                label="label"
+                                valueProp="value"
+                                placeholder="Select Lead Source"
+                                @update:modelValue="() => {
+                                  if (dataCustomers.errorCustomer?.lead_source) {
+                                    dataCustomers.errorCustomer.lead_source = null
+                                  }
+                                }"
+                              />
+                            </div>
+                            <div
+                              v-if="dataCustomers.errorCustomer?.lead_source"
                               class="invalid-feedback d-block"
                             >
-                              {{ dataCustomers.errorCustomer.lead_category_id[0] }}
-                          </div>
-            </div>
+                              {{ dataCustomers.errorCustomer.lead_source[0] }}
+                            </div>
+                      </div>
 
 
-          <!-- Address -->
-          <div class="col-lg-12 mb-3">
-            <label class="form-label">Address</label>
-            <textarea
-              class="form-control"
-              rows="2"
-              placeholder="address Customers"
-              v-model="form.address"
-               :class="{ 'is-invalid': dataCustomers.errorCustomer?.address }"
-                                  @input="() => {
-                                    if (dataCustomers.errorCustomer?.address) {
-                                      dataCustomers.errorCustomer.address = null
-                                    }
-                                  }"
-            ></textarea>
-             <div
-               v-if="dataCustomers.errorCustomer?.address"
-               class="invalid-feedback"
-               >
-               {{ dataCustomers.errorCustomer.address[0] }}
-              </div>
-          </div>
+                <!-- Address -->
+                <div class="col-lg-12 mb-3">
+                  <label class="form-label">Address</label>
+                  <textarea
+                    class="form-control"
+                    rows="2"
+                    placeholder="address Customers"
+                    v-model="form.address"
+                    :class="{ 'is-invalid': dataCustomers.errorCustomer?.address }"
+                                        @input="() => {
+                                          if (dataCustomers.errorCustomer?.address) {
+                                            dataCustomers.errorCustomer.address = null
+                                          }
+                                        }"
+                  ></textarea>
+                  <div
+                    v-if="dataCustomers.errorCustomer?.address"
+                    class="invalid-feedback"
+                    >
+                    {{ dataCustomers.errorCustomer.address[0] }}
+                    </div>
+                </div>
 
-          <!-- Notes -->
-          <div class="col-lg-12">
-            <label class="form-label">Notes</label>
-            <textarea
-              class="form-control"
-              rows="3"
-              placeholder="Additional notes for customer"
-              v-model="form.notes"
-                :class="{ 'is-invalid': dataCustomers.errorCustomer?.notes }"
-                                  @input="() => {
-                                    if (dataCustomers.errorCustomer?.notes) {
-                                      dataCustomers.errorCustomer.notes = null
-                                    }
-                                  }"
-            ></textarea>
-             <div
-                  v-if="dataCustomers.errorCustomer?.notes"
-                  class="invalid-feedback"
-                 >
-                 {{ dataCustomers.errorCustomer.notes[0] }}
-                 </div>
-          </div>
+                <!-- Notes -->
+                <div class="col-lg-12">
+                  <label class="form-label">Notes</label>
+                  <textarea
+                    class="form-control"
+                    rows="3"
+                    placeholder="Additional notes for customer"
+                    v-model="form.notes"
+                      :class="{ 'is-invalid': dataCustomers.errorCustomer?.notes }"
+                                        @input="() => {
+                                          if (dataCustomers.errorCustomer?.notes) {
+                                            dataCustomers.errorCustomer.notes = null
+                                          }
+                                        }"
+                  ></textarea>
+                  <div
+                        v-if="dataCustomers.errorCustomer?.notes"
+                        class="invalid-feedback"
+                      >
+                      {{ dataCustomers.errorCustomer.notes[0] }}
+                      </div>
+                </div>
 
         </div>
       </div>
@@ -889,20 +1085,29 @@ const handleImportExcel = () => {
       <!-- Footer -->
       <div class="modal-footer">
         <button
-          type="button"
-          class="btn btn-outline-secondary"
-          data-bs-dismiss="modal"
-        >
-          Cancel
-        </button>
+        type="button"
+        class="btn btn-outline-secondary"
+        data-bs-dismiss="modal"
+        :disabled="isProcessing"
+      >
+        Cancel
+      </button>
+       
         <button
-          type="button"
-          class="btn btn-primary"
-          @click="submitCustomer"
-        >
-          <i class="fa fa-save me-1"></i> Save
-        </button>
+            type="submit"
+            class="btn btn-primary ms-auto"
+            :disabled="dataCustomers.savingCustomer || dataCustomers.updatingCustomer"
+          >
+            <i class="fas fa-save me-1"></i>
+            {{
+              editCustomerId
+                ? (dataCustomers.updatingCustomer ? 'Updating...' : 'Update')
+                : (dataCustomers.savingCustomer ? 'Saving...' : 'Save')
+            }}
+          </button>
       </div>
+
+      </form>
 
     </div>
   </div>

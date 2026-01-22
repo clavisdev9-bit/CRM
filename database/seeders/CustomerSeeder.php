@@ -30,6 +30,7 @@ class CustomerSeeder extends Seeder
                 'lead_id' => $lead->id,
                 'lead_category_id' => $lead->lead_category_id,
                 'industry_id' => $lead->industry_id,
+                'lead_source' => $lead->lead_source,
 
                 'customer_code' => $this->generateCustomerCode(),
                 'company_name' => $lead->company_name,
@@ -42,7 +43,7 @@ class CustomerSeeder extends Seeder
                 'created_by' => $lead->created_by,
                 'visibility_type' => 'PRIVATE',
 
-                'customer_status' => 'Active',
+                'customer_status' => 'Converted',
                 'address' => $lead->address,
                 'notes' => $lead->notes,
 

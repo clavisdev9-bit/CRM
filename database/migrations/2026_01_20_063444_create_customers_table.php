@@ -69,8 +69,15 @@ return new class extends Migration
     $table->index('lead_id');
     $table->index('lead_category_id');
     $table->index('industry_id');
+    $table->string('lead_source', 30)->default('Website');
     $table->index('assigned_to');
     $table->index('customer_status');
+      // New
+      // Contacted
+      // Qualified
+      // Unqualified
+      // Converted
+      // Lost
 
     // =========================
     // FOREIGN KEY
