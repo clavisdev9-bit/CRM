@@ -1093,18 +1093,27 @@ const handleImportExcel = () => {
         Cancel
       </button>
        
-        <button
-            type="submit"
-            class="btn btn-primary ms-auto"
-            :disabled="dataCustomers.savingCustomer || dataCustomers.updatingCustomer"
-          >
-            <i class="fas fa-save me-1"></i>
-            {{
-              editCustomerId
-                ? (dataCustomers.updatingCustomer ? 'Updating...' : 'Update')
-                : (dataCustomers.savingCustomer ? 'Saving...' : 'Save')
-            }}
-          </button>
+       <button
+  type="submit"
+  class="btn btn-primary ms-auto"
+  :disabled="dataCustomers.savingCustomer || dataCustomers.updatingCustomer"
+>
+  <i
+    v-if="dataCustomers.savingCustomer || dataCustomers.updatingCustomer"
+    class="fas fa-spinner fa-spin me-1"
+  ></i>
+  <i
+    v-else
+    class="fas fa-save me-1"
+  ></i>
+
+  {{
+    editCustomerId
+      ? (dataCustomers.updatingCustomer ? 'Updating...' : 'Update')
+      : (dataCustomers.savingCustomer ? 'Saving...' : 'Save')
+  }}
+</button>
+
       </div>
 
       </form>

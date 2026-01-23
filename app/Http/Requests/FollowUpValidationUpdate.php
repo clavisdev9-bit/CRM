@@ -14,9 +14,41 @@ class FollowUpValidationUpdate extends FormRequest
     public function rules(): array
     {
         return [
-            'follow_up_date' => 'required|date_format:Y-m-d H:i:s',
+            // TARGET (wajib salah satu)
+            'lead_id'     => 'nullable|integer|exists:leads,id',
+            'customer_id' => 'nullable|integer|exists:customers,id',
+            'status' => 'nullable|in:PENDING,DONE,CANCELED',
+
+            // DATA UTAMA
+            'subject'        => 'required|string|max:255',
+            'follow_up_at' => 'required|date_format:Y-m-d H:i',
             'follow_up_type' => 'required|in:CALL,MEETING,WHATSAPP,EMAIL',
             'notes'          => 'nullable|string',
         ];
+    }
+
+    public function withValidator($validator)
+    {
+        $validator->after(function ($validator) {
+
+            $lead     = $this->input('lead_id');
+            $customer = $this->input('customer_id');
+
+            // ❌ dua-duanya kosong
+            if (!$lead && !$customer) {
+                $validator->errors()->add(
+                    'lead_id',
+                    'Pilih Lead atau Customer.'
+                );
+            }
+
+            // ❌ dua-duanya diisi
+            if ($lead && $customer) {
+                $validator->errors()->add(
+                    'lead_id',
+                    'Tidak boleh memilih Lead dan Customer bersamaan.'
+                );
+            }
+        });
     }
 }

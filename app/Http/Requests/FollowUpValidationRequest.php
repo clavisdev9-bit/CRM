@@ -16,6 +16,8 @@ class FollowUpValidationRequest extends FormRequest
         return [
             'lead_id'       => 'nullable|exists:leads,id',
             'customer_id'   => 'nullable|exists:customers,id',
+            'subject'        => 'required|string|max:255',
+            'status' => 'nullable|in:PENDING,DONE,CANCELED',
 
             'follow_up_date'=> 'required|date',
             'follow_up_type'=> 'required|in:CALL,MEETING,WHATSAPP,EMAIL',

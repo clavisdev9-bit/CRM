@@ -215,6 +215,119 @@ export const useFollowUpsStore = defineStore("followUpStore", () => {
                                 }
 
 
+                                  const fetchLeads = async () => {
+                                        loadingLeads.value = true
+
+                                        try {
+                                            const res = await axios.get(endpoints.leads, {
+                                            headers: getAuthHeader(),
+                                            })
+
+                                            leads.value = res.data.data ?? []
+                                        } catch (err) {
+                                            console.error("Fetch Leads Failed:", err)
+                                            leads.value = []
+                                        } finally {
+                                            loadingLeads.value = false
+                                        }
+                                    }
+
+
+                                     const fetchCustomers = async () => {
+                                        loadingCustomers.value = true
+                                        try {
+                                            const res = await axios.get(endpoints.customers, {
+                                            headers: getAuthHeader(),
+                                            })
+
+                                            customers.value = res.data.data ?? []
+                                        } catch (err) {
+                                            console.error("Fetch Leads Failed:", err)
+                                            customers.value = []
+                                        } finally {
+                                            loadingCustomers.value = false
+                                        }
+                                    }
+
+
+                                       
+                                        const subjectTemplates = ref([
+                                        { value: 'INITIAL CONTACT CALL', label: 'Initial Contact - Telepon' },
+                                        { value: 'FOLLOW UP WHATSAPP', label: 'Follow Up Awal - WhatsApp' },
+                                        { value: 'NEEDS QUALIFICATION', label: 'Kualifikasi Kebutuhan - Telepon' },
+                                        { value: 'MEETING CONFIRMATION', label: 'Konfirmasi Meeting' },
+                                        { value: 'PRODUCT_PRESENTATION', label: 'Presentasi Produk' },
+                                        { value: 'PRODUCT DEMO', label: 'Demo Produk' },
+                                        { value: 'PRICE DISCUSSION', label: 'Diskusi Harga' },
+                                        { value: 'PRICE NEGOTIATION', label: 'Negosiasi Harga' },
+                                        { value: 'CLOSING DISCUSSION', label: 'Diskusi Closing' },
+                                        { value: 'CONTRACT_SENT', label: 'Pengiriman Kontrak' },
+                                        { value: 'DEAL FOLLOW UP', label: 'Follow Up Deal' },
+                                        { value: 'EMAIL CAMPAIGN', label: 'Email Campaign' }
+                                        ])
+
+
+                                          const followUpType = ref([
+                                        { value: 'CALL', label: 'Call' },
+                                        { value: 'MEETING', label: 'Meeting' },
+                                        { value: 'WHATSAPP', label: 'Whatsapp' },
+                                        { value: 'EMAIL', label: 'Email' },
+                                        { value: 'OTHER', label: 'Other' }
+                                        ])
+
+
+
+                                        const storeFollowUp = async (payload) => {
+                                            savingFollowUp.value = true
+                                            errorFollowUp.value = null
+
+                                            try {
+                                                const res = await axios.post(
+                                                '/api/follow-up/store',
+                                                payload,
+                                                { headers: getAuthHeader() }
+                                                )
+
+                                                // refresh list
+                                                await fetchFollowUp(buildUrl())
+
+                                                return res.data
+
+                                            } catch (err) {
+                                                if (err.response?.status === 422) {
+                                                errorFollowUp.value = err.response.data.errors
+                                                }
+                                                throw err
+
+                                            } finally {
+                                                savingFollowUp.value = false
+                                            }
+                                            }
+
+
+                                const updateFollowUp = async (id, payload) => {
+                                    updatingFollowUp.value = true
+                                    errorFollowUp.value = null
+
+                                    try {
+                                      await axios.put(`/api/follow-up/update/${id}`, payload, {
+                                        headers: getAuthHeader(),
+                                      })
+
+                                      await fetchFollowUp(buildUrl())
+                                    } catch (err) {
+                                      if (err.response?.status === 422) {
+                                        errorFollowUp.value = err.response.data.errors
+                                      }
+                                      throw err
+                                    } finally {
+                                      //  INI YANG SERING LUPA
+                                      updatingFollowUp.value = false
+                                    }
+                                  }
+
+
+
             return {
 
                 baseUrlApi,
@@ -252,7 +365,17 @@ export const useFollowUpsStore = defineStore("followUpStore", () => {
 
                 followUpDetail,
                 loadingDetail,
-                fetchFollowUpDetail
+                fetchFollowUpDetail,
+
+                fetchLeads,
+                fetchCustomers,
+
+                subjectTemplates,
+                followUpType,
+
+                storeFollowUp,
+                updateFollowUp
+                
                 
             }
 
