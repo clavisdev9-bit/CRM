@@ -252,16 +252,16 @@ export const useFollowUpsStore = defineStore("followUpStore", () => {
 
                                        
                                         const subjectTemplates = ref([
-                                        { value: 'INITIAL CONTACT CALL', label: 'Initial Contact - Telepon' },
-                                        { value: 'FOLLOW UP WHATSAPP', label: 'Follow Up Awal - WhatsApp' },
-                                        { value: 'NEEDS QUALIFICATION', label: 'Kualifikasi Kebutuhan - Telepon' },
-                                        { value: 'MEETING CONFIRMATION', label: 'Konfirmasi Meeting' },
-                                        { value: 'PRODUCT_PRESENTATION', label: 'Presentasi Produk' },
-                                        { value: 'PRODUCT DEMO', label: 'Demo Produk' },
-                                        { value: 'PRICE DISCUSSION', label: 'Diskusi Harga' },
-                                        { value: 'PRICE NEGOTIATION', label: 'Negosiasi Harga' },
-                                        { value: 'CLOSING DISCUSSION', label: 'Diskusi Closing' },
-                                        { value: 'CONTRACT_SENT', label: 'Pengiriman Kontrak' },
+                                        { value: 'INITIAL CONTACT CALL', label: 'Initial Contact - Phone' },
+                                        { value: 'FOLLOW UP WHATSAPP', label: 'Initial Follow Up - WhatsApp' },
+                                        { value: 'NEEDS QUALIFICATION', label: 'Qualification Needs - Phone' },
+                                        { value: 'MEETING CONFIRMATION', label: 'Meeting Confirmation' },
+                                        { value: 'PRODUCT_PRESENTATION', label: 'Product Presentation' },
+                                        { value: 'PRODUCT DEMO', label: 'Demo Product' },
+                                        { value: 'PRICE DISCUSSION', label: 'Discussion Price' },
+                                        { value: 'PRICE NEGOTIATION', label: 'Negotiation Price' },
+                                        { value: 'CLOSING DISCUSSION', label: 'Discussion Closing' },
+                                        { value: 'CONTRACT_SENT', label: 'Contract Sent' },
                                         { value: 'DEAL FOLLOW UP', label: 'Follow Up Deal' },
                                         { value: 'EMAIL CAMPAIGN', label: 'Email Campaign' }
                                         ])
@@ -271,6 +271,7 @@ export const useFollowUpsStore = defineStore("followUpStore", () => {
                                         { value: 'CALL', label: 'Call' },
                                         { value: 'MEETING', label: 'Meeting' },
                                         { value: 'WHATSAPP', label: 'Whatsapp' },
+                                        { value: 'CHAT', label: 'Chat' },
                                         { value: 'EMAIL', label: 'Email' },
                                         { value: 'OTHER', label: 'Other' }
                                         ])
@@ -305,26 +306,56 @@ export const useFollowUpsStore = defineStore("followUpStore", () => {
                                             }
 
 
-                                const updateFollowUp = async (id, payload) => {
-                                    updatingFollowUp.value = true
-                                    errorFollowUp.value = null
+                                            const updateFollowUp = async (id, payload) => {
+                                                updatingFollowUp.value = true
+                                                errorFollowUp.value = null
 
-                                    try {
-                                      await axios.put(`/api/follow-up/update/${id}`, payload, {
-                                        headers: getAuthHeader(),
-                                      })
+                                                try {
+                                                await axios.put(`/api/follow-up/update/${id}`, payload, {
+                                                    headers: getAuthHeader(),
+                                                })
 
-                                      await fetchFollowUp(buildUrl())
-                                    } catch (err) {
-                                      if (err.response?.status === 422) {
-                                        errorFollowUp.value = err.response.data.errors
-                                      }
-                                      throw err
-                                    } finally {
-                                      //  INI YANG SERING LUPA
-                                      updatingFollowUp.value = false
-                                    }
-                                  }
+                                                await fetchFollowUp(buildUrl())
+                                                } catch (err) {
+                                                if (err.response?.status === 422) {
+                                                    errorFollowUp.value = err.response.data.errors
+                                                }
+                                                throw err
+                                                } finally {
+
+                                                updatingFollowUp.value = false
+                                                }
+                                            }
+
+
+                                            const deleteFollowUp = async (id) => {
+                                                deletingFollowUp.value = true
+
+                                                try {
+                                                await axios.delete(`/api/follow-up/delete/${id}`, {
+                                                    headers: getAuthHeader(),
+                                                })
+
+                                                await fetchFollowUp(buildUrl())
+                                                Swal.fire({
+                                                    icon: 'success',
+                                                    title: 'Succeed',
+                                                    text: 'Follow Up Data successfully deleted',
+                                                    timer: 1500,
+                                                    showConfirmButton: false,
+                                                })
+
+                                                } catch (err) {
+                                                if (err.response?.status === 403) {
+                                                    Swal.fire('Access Denied', 'You do not have permission to delete the data', 'error')
+                                                } else {
+                                                    Swal.fire('Error', 'Failed to delete data', 'error')
+                                                }
+                                                throw err
+                                                } finally {
+                                                deletingFollowUp.value = false
+                                                }
+                                            }
 
 
 
@@ -374,7 +405,8 @@ export const useFollowUpsStore = defineStore("followUpStore", () => {
                 followUpType,
 
                 storeFollowUp,
-                updateFollowUp
+                updateFollowUp,
+                deleteFollowUp
                 
                 
             }

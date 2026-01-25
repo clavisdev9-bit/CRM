@@ -19,7 +19,7 @@ class FollowUpValidationRequest extends FormRequest
             'subject'        => 'required|string|max:255',
             'status' => 'nullable|in:PENDING,DONE,CANCELED',
 
-            'follow_up_date'=> 'required|date',
+            'follow_up_at'=> 'required|date',
             'follow_up_type'=> 'required|in:CALL,MEETING,WHATSAPP,EMAIL',
             'notes'         => 'nullable|string',
         ];

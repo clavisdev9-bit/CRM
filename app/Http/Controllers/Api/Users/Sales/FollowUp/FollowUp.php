@@ -335,8 +335,8 @@ public function updateFollowUp(FollowUpValidationUpdate $request,$id) {
         DB::table('follow_ups')
     ->where('id', $id)
     ->update([
-        'lead_id'        => $data['lead_id'] ?? null,      // 🔥 TAMBAH
-        'customer_id'    => $data['customer_id'] ?? null,  // 🔥 TAMBAH
+        // 'lead_id'        => $data['lead_id'] ?? null,      // 🔥 TAMBAH
+        // 'customer_id'    => $data['customer_id'] ?? null,  // 🔥 TAMBAH
         'follow_up_at'   => $data['follow_up_at'],
         'follow_up_type' => $data['follow_up_type'],
         'notes'          => $data['notes'] ?? null,

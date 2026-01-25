@@ -108,15 +108,10 @@ const getStatusBadge = (status) => {
 
 
 
-
-
-
-
-
 //start code form 
 const form = reactive({
-  lead_id: null,        // atau dari route
-  customer_id: null,
+  // lead_id: null,        // atau dari route
+  // customer_id: null,
   subject: '',
   follow_up_at: '',
   follow_up_type: '',
@@ -134,7 +129,6 @@ const fpConfig = {
 
 
 const selectedTemplate = ref('')
-
 watch(selectedTemplate, (val) => {
   if (!val) return
 
@@ -148,23 +142,6 @@ watch(selectedTemplate, (val) => {
 })
 
 
-watch(
-  () => form.lead_id,
-  (val) => {
-    if (val) {
-      form.customer_id = null
-    }
-  }
-)
-
-watch(
-  () => form.customer_id,
-  (val) => {
-    if (val) {
-      form.lead_id = null
-    }
-  }
-)
 
 const editFollowUpId = ref(null)
 const followUpInput = ref(null)
@@ -182,8 +159,8 @@ const openAddModal = () => {
   selectedTemplate.value = null // 
 
   Object.assign(form, {
-    lead_id: null,
-    customer_id: null,
+    // lead_id: null,
+    // customer_id: null,
     subject: '',
     follow_up_at: '',
     follow_up_type: '',
@@ -195,20 +172,9 @@ const openAddModal = () => {
 }
 
 
-
 const openEditModal = async (followUp) => {
   editFollowUpId.value = followUp.id
-  selectedTemplate.value = null // ⬅️ INI KUNCI UTAMA
-
-  Object.assign(form, {
-    lead_id: null,
-    customer_id: null,
-    subject: '',
-    follow_up_at: '',
-    follow_up_type: '',
-     status: '',
-    notes: '',
-  })
+  selectedTemplate.value = null
 
   if (!dataFollowUps.leads.length) {
     await dataFollowUps.fetchLeads()
@@ -221,21 +187,18 @@ const openEditModal = async (followUp) => {
   await nextTick()
 
   Object.assign(form, {
-    // lead_id: followUp.lead_id,
-    // customer_id: followUp.customer_id,
-    lead_id: followUp.lead_id ? Number(followUp.lead_id) : null,
-  customer_id: followUp.customer_id ? Number(followUp.customer_id) : null,
-    subject: followUp.subject, // ⬅️ sekarang AMAN
+    subject: followUp.subject,
     follow_up_at: followUp.follow_up_at,
     follow_up_type: followUp.follow_up_type,
     notes: followUp.notes,
     status: followUp.status,
   })
 
-
   dataFollowupForm.error = null
   dataFollowupForm.updating = true
 }
+
+
 
 
 const resetForm = () => {
@@ -333,14 +296,25 @@ const saveFollowUp = async () => {
 
 
 
+const handleDeleteFollowUp = async (id) => {
+  const confirm = await Swal.fire({
+    title: 'Sure delete the follow up?',
+    text: 'Follow up will be permanently deleted',
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    confirmButtonText: 'Yes, delete it!',
+    cancelButtonText: 'Cancelled',
+  })
 
+  if (!confirm.isConfirmed) return
 
-
-
-
-
-
-
+  try {
+    await dataFollowUps.deleteFollowUp(id)
+  } catch (e) {
+    console.error(e)
+  }
+}
 
 
 
@@ -467,17 +441,31 @@ const handleImportExcel = () => {
         </div>
       </div>
 
-      <!-- Page Body -->
-      <div class="page-body flex-grow-1">
-        <div class="container-xl">
+       <!-- LOADING PERMISSION -->
+        <div v-if="loadingPermission" class="text-center py-5">
+          <div class="spinner-border text-primary"></div>
+          <p class="text-muted mt-2">Loading access rights...</p>
+        </div>
 
+        <!-- NO ACCESS -->
+        <div
+          v-else-if="!permission?.can_view"
+          class="text-center py-5"
+        >
+          <i class="fa fa-lock fa-2x text-muted mb-2"></i>
+          <p class="fw-semibold text-muted">
+            You don't have access to view the data
+          </p>
+        </div>
+
+      <!-- Page Body -->
+      <div v-else class="page-body flex-grow-1">
+        <div class="container-xl">
           <!-- Card: Export/Import -->
          <div class="card mb-4">
-  <div class="card-header d-flex gap-2 flex-wrap align-items-center">
-    
+          <div class="card-header d-flex gap-2 flex-wrap align-items-center">
     <!-- Tombol kiri -->
     <div class="d-flex gap-2 flex-wrap">
- 
      <div class="dropdown d-inline-block me-2">
             <button
                 class="btn btn-primary btn-sm dropdown-toggle"
@@ -648,128 +636,126 @@ const handleImportExcel = () => {
             </tbody>
 
             <tbody v-else>
-        <tr
-          v-for="(fu, index) in dataFollowUps.followUpData"
-          :key="fu.id"
-        >
-          <!-- NO -->
-          <td>
-            {{
-              index + 1 +
-              dataFollowUps.pagination.per_page *
-                (dataFollowUps.pagination.current_page - 1)
-            }}.
-          </td>
-
-          <!-- TYPE -->
-          <td>
-            <span class="badge" :class="getTypeBadge(fu.follow_up_type)">
-              {{ fu.follow_up_type }}
-            </span>
-          </td>
-
-          <td>
-            <span class="text-truncate d-inline-block" style="max-width: 220px">
-              {{ fu.subject }}
-            </span>
-          </td>
-
-          <td>
-              <div class="fw-semibold">
-                {{ fu.target_name }}
-              </div>
-
-              <span
-                class="badge badge-sm mt-1"
-                :class="fu.target_source === 'LEAD'
-                  ? 'bg-secondary'
-                  : 'bg-primary'"
+              <tr
+                v-for="(fu, index) in dataFollowUps.followUpData"
+                :key="fu.id"
               >
-                {{ fu.target_source }}
+              <!-- NO -->
+              <td>
+                {{
+                  index + 1 +
+                  dataFollowUps.pagination.per_page *
+                    (dataFollowUps.pagination.current_page - 1)
+                }}.
+              </td>
+
+              <!-- TYPE -->
+              <td>
+                <span class="badge" :class="getTypeBadge(fu.follow_up_type)">
+                  {{ fu.follow_up_type }}
+                </span>
+              </td>
+
+              <td>
+                <span class="text-truncate d-inline-block" style="max-width: 220px">
+                  {{ fu.subject }}
+                </span>
+              </td>
+
+              <td>
+                  <div class="fw-semibold">
+                    {{ fu.target_name }}
+                  </div>
+
+                  <span
+                    class="badge badge-sm mt-1"
+                    :class="fu.target_source === 'LEAD'
+                      ? 'bg-secondary'
+                      : 'bg-primary'"
+                  >
+                    {{ fu.target_source }}
+                  </span>
+              </td>
+
+              <td>
+                <span class="text-truncate d-inline-block" style="max-width: 250px">
+                  {{ fu.notes?.substring(0, 10) }}{{ fu.notes?.length > 10 ? '...' : '' }}
+                </span>
+              </td>
+
+              <!-- FOLLOW UP AT -->
+              <td>{{ dataFollowUps.formatDateTime(fu.follow_up_at) }}</td>
+
+              <!-- STATUS -->
+              <td>
+              
+              <span class="badge" :class="getStatusBadge(fu.status)">
+                {{ fu.status }}
               </span>
-          </td>
+              </td>
+
+              <!-- CREATED -->
+              <td>{{ dataFollowUps.formatDate(fu.created_at) }}</td>
+
+              <!-- ACTIONS -->
+              <td>
+              <button
+                    class="btn btn-outline-primary btn-sm"
+                    @click="openDetailModal(fu.id)"
+                  >
+                    <i class="fa fa-circle-info"></i>
+                  </button>
+
+                <button
+                  v-if="!loadingPermission && permission?.can_update && fu.status !== 'DONE'"
+                  class="btn btn-outline-warning btn-sm me-1"
+                  data-bs-toggle="modal"
+                  data-bs-target="#modal-add-data"
+                  @click="openEditModal(fu)"
+                >
+                  <i class="fa fa-edit"></i>
+                </button>
 
 
-          <td>
-            <span class="text-truncate d-inline-block" style="max-width: 250px">
-              {{ fu.notes?.substring(0, 10) }}{{ fu.notes?.length > 10 ? '...' : '' }}
-            </span>
-          </td>
+
+                  <button
+                  v-if="!loadingPermission && permission?.can_delete && fu.status !== 'DONE'"
+                  class="btn btn-outline-danger btn-sm me-1"
+                  @click="handleDeleteFollowUp(fu.id)"
+                >
+                  <i class="fa fa-trash"></i>
+                </button>
 
 
 
-          <!-- FOLLOW UP AT -->
-          <td>{{ dataFollowUps.formatDateTime(fu.follow_up_at) }}</td>
 
-          <!-- STATUS -->
-          <td>
-          
-          <span class="badge" :class="getStatusBadge(fu.status)">
-            {{ fu.status }}
-          </span>
-          </td>
-
-          <!-- CREATED -->
-          <td>{{ dataFollowUps.formatDate(fu.created_at) }}</td>
-
-          <!-- ACTIONS -->
-          <td>
-           <button
-                class="btn btn-outline-primary btn-sm"
-                @click="openDetailModal(fu.id)"
-              >
-                <i class="fa fa-circle-info"></i>
-              </button>
-
-
-                    <button
-                          
-                        class="btn btn-outline-warning btn-sm me-1"
-                        data-bs-toggle="modal"
-                        data-bs-target="#modal-add-data"
-                           @click="openEditModal(fu)"
-                      >
-                        <i class="fa fa-edit"></i>
-                      </button>
-
-            <!-- DELETE -->
-            <button
-             
-              class="btn btn-outline-danger btn-sm me-1"
-              :disabled="dataFollowUps.deletingFollowUp"
-              @click="handleDeleteFollowUp(fu.id)"
-            >
-              <i class="fa fa-trash"></i>
-            </button>
-
-            <!-- DETAIL -->
-           
-          </td>
-        </tr>
-       </tbody>
+              </td>
+            </tr>
+          </tbody>
     </table>
 
             </div>
           </div>
 
           <!-- Card: Pagination -->
-          <div class="card">
+         <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
               <button class="btn btn-danger btn-sm" 
-                 :disabled="!dataFollowUps.pagination.prev_page_url || dataFollowUps.loadingFollowUp"
+                 :disabled="!dataFollowUps.pagination.prev_page_url || dataFollowUps.loadingCustomers"
                   @click="dataFollowUps.fetchFollowUp(dataFollowUps.pagination.prev_page_url)">
                 <i class="fa-solid fa-circle-chevron-left"
                 ></i> Prev
               </button>
   
-                <div class="mx-2 d-flex flex-column flex-sm-row align-items-center gap-1">
-                       <span class="badge border text-secondary px-3 py-2"> {{ dataFollowUps.followUpData.length }} data | on page {{ dataFollowUps.pagination.current_page }}</span>
+                 <div class="mx-2 d-flex flex-column flex-sm-row align-items-center gap-1">
+                    <span class="badge border text-secondary px-3 py-2"> {{ dataFollowUps.followUpData.length }} data | on page {{ dataFollowUps.pagination.current_page }}</span>
                     <span class="badge border text-secondary px-3 py-2">Total: {{ dataFollowUps.pagination.total }}</span>
                 </div>
   
                 <button class="btn btn-danger btn-sm"
-                  :disabled="!dataFollowUps.pagination.next_page_url || dataFollowUps.loadingFollowUp"
-                  @click="dataFollowUps.fetchFollowUp(dataMenu.pagination.next_page_url)" >
+                :disabled="!dataFollowUps.pagination.next_page_url || dataFollowUps.loadingCustomers"
+                  @click="dataFollowUps.fetchFollowUp(dataFollowUps.pagination.next_page_url)"
+               >
                     Next <i class="fa-solid fa-circle-chevron-right"></i>
                 </button>
             </div>
@@ -779,399 +765,395 @@ const handleImportExcel = () => {
     </div>
 
 
-        <!-- Modal: Detail Follow Up -->
        <!-- Modal: Detail Follow Up -->
-<div class="modal fade" id="followUpDetailModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
-    <div class="modal-content">
+                <div class="modal fade" id="followUpDetailModal" tabindex="-1" aria-hidden="true">
+                  <div class="modal-dialog modal-lg modal-dialog-centered modal-dialog-scrollable">
+                    <div class="modal-content">
 
-      <!-- Header -->
-      <div class="modal-header">
-        <h5 class="modal-title">
-          <i class="fa fa-circle-info me-1"></i> Detail Follow Up
-        </h5>
-        <button
-          type="button"
-          class="btn-close"
-          data-bs-dismiss="modal"
-          aria-label="Close"
-        ></button>
-      </div>
-
-      <!-- Body -->
-      <div class="modal-body">
-
-        <!-- LOADING -->
-        <div v-if="dataFollowUps.loadingDetail" class="text-center py-5">
-          <div class="spinner-border text-primary"></div>
-          <p class="mt-2 text-muted">Memuat detail follow up...</p>
-        </div>
-
-        <!-- DETAIL -->
-        <div v-else-if="dataFollowUps.followUpDetail" class="row g-3">
-
-          <!-- TYPE -->
-          <div class="col-md-6">
-            <label class="form-label">Follow Up Type</label>
-            <span
-              class="badge w-100 text-center py-2"
-              :class="getFollowUpTypeBadge(dataFollowUps.followUpDetail.follow_up_type)"
-            >
-              {{ dataFollowUps.followUpDetail.follow_up_type }}
-            </span>
-          </div>
-
-          <!-- STATUS -->
-          <div class="col-md-6">
-            <label class="form-label">Status</label>
-            <span
-              class="badge w-100 text-center py-2"
-              :class="getFollowUpStatusBadge(dataFollowUps.followUpDetail.status)"
-            >
-              {{ dataFollowUps.followUpDetail.status }}
-            </span>
-          </div>
-
-          <!-- SUBJECT -->
-          <div class="col-12">
-            <label class="form-label">Subject</label>
-            <input
-              type="text"
-              class="form-control"
-              :value="dataFollowUps.followUpDetail.subject"
-              readonly
-            />
-          </div>
-
-          <!-- NOTES -->
-          <div class="col-12">
-            <label class="form-label">Notes</label>
-            <textarea
-              class="form-control"
-              rows="4"
-              readonly
-            >{{ dataFollowUps.followUpDetail.notes }}</textarea>
-          </div>
-
-          <!-- FOLLOW UP DATE -->
-          <div class="col-lg-6">
-            <label class="form-label">Follow-up Date & Time</label>
-
-             <input
-              type="text"
-              class="form-control"
-              :value="formatDateTime(dataFollowUps.followUpDetail.follow_up_at)"
-              readonly
-            />
-          </div>
-
-
-          <!-- CREATED AT -->
-          <div class="col-md-6">
-            <label class="form-label">Created At</label>
-            <input
-              type="text"
-              class="form-control"
-              :value="formatDateTime(dataFollowUps.followUpDetail.created_at)"
-              readonly
-            />
-          </div>
-
-          <!-- LEAD -->
-          <div class="col-md-6">
-            <label class="form-label">Lead</label>
-            <input
-              type="text"
-              class="form-control"
-              :value="dataFollowUps.followUpDetail.lead_company_name ?? '-'"
-              readonly
-            />
-          </div>
-
-          <!-- CUSTOMER -->
-          <div class="col-md-6">
-            <label class="form-label">Customer</label>
-            <input
-              type="text"
-              class="form-control"
-              :value="dataFollowUps.followUpDetail.customer_company_name ?? '-'"
-              readonly
-            />
-          </div>
-
-          <!-- SALES / CREATED BY -->
-          <div class="col-12">
-            <label class="form-label">Created By (Sales)</label>
-            <input
-              type="text"
-              class="form-control"
-              :value="dataFollowUps.followUpDetail.sales_name ?? '-'"
-              readonly
-            />
-          </div>
-
-        </div>
-
-        <!-- EMPTY -->
-        <div v-else class="text-muted text-center py-5">
-          Data tidak ditemukan
-        </div>
-
-      </div>
-
-      <!-- Footer -->
-      <div class="modal-footer">
-        <button
-          type="button"
-          class="btn btn-outline-secondary"
-          data-bs-dismiss="modal"
-        >
-          Close
-        </button>
-      </div>
-
-    </div>
-  </div>
-</div>
-
-
-
-
-
-        <!-- Modal: Add Follow Up -->
-        <div class="modal modal-blur fade" id="modal-add-data" tabindex="-1">
-          <div class="modal-dialog modal-lg modal-dialog-centered">
-            <div class="modal-content">
-
-              <!-- Header -->
-              <div class="modal-header">
-               <h5 class="modal-title">
-                  {{ dataFollowupForm.updating ? 'Edit Follow-Up' : 'Add Follow-Up' }}
-                </h5>
-
-                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-              </div>
-
-            <div class="px-4 pt-3">
-                <div class="alert alert-warning" role="alert">
-                  <h4 class="alert-heading text-dark">Attention!</h4>
-                  <ul class="mb-0 text-dark">
-                    <li>Wajib memilih <strong>Lead</strong> <u>atau</u> <strong>Customer</strong></li>
-                    <li><strong>Tidak boleh</strong> memilih Lead dan Customer bersamaan</li>
-                  </ul>
-                </div>
-            </div>
-
-              <!-- Body -->
-              <div class="modal-body">
-                <div class="row g-3">
-
-                  <!-- LEAD -->
-                  <div class="col-lg-6">
-                    <label class="form-label">Lead</label>
-                    <div
-                                        class="multiselect-wrapper"
-                                        :class="{ 'is-invalid': dataFollowUps.errorFollowUp?.lead_id }"
-                                      >
-                                        <Multiselect
-                                            v-model="form.lead_id"
-                                            :options="dataFollowUps.leads"
-                                            label="company_name"
-                                            valueProp="id"
-                                            placeholder="Select Leads"
-                                            :searchable="true"
-                                            :loading="dataFollowUps.loadingLeads"
-                                            :disabled="!!form.customer_id"
-                                            :resolve-on-load="true"
-                                            :object="false"
-                                          />
-                                    </div>
-                                    <div
-                                        v-if="dataFollowUps.errorFollowUp?.lead_id"
-                                        class="invalid-feedback d-block"
-                                      >
-                                        {{ dataFollowUps.errorFollowUp.lead_id[0] }}
-                                      </div>
-                  </div>
-
-
-                  <!-- CUSTOMER -->
-                <div class="col-lg-6">
-                    <label class="form-label">Customer</label>
-                    <div
-                        class="multiselect-wrapper"
-                        :class="{ 'is-invalid': dataFollowUps.errorFollowUp?.customer_id }"
-                        >
-                        <Multiselect
-                          v-model="form.customer_id"
-                          :options="dataFollowUps.customers"
-                          label="company_name"
-                          valueProp="id"
-                          placeholder="Select Customers"
-                          :searchable="true"
-                          :loading="dataFollowUps.loadingCustomers"
-                          :disabled="!!form.lead_id"
-                          :resolve-on-load="true"
-                          :object="false"
-                        />
-                                    </div>
-                                    <div
-                                        v-if="dataFollowUps.errorFollowUp?.customer_id"
-                                        class="invalid-feedback d-block"
-                                      >
-                                        {{ dataFollowUps.errorFollowUp.customer_id[0] }}
-                                      </div>
-                  </div>
-
-
-                <div class="col-lg-6">
-                  <label class="form-label">Template Subject</label>
-                  <Multiselect
-                      v-model="selectedTemplate"
-                      :options="dataFollowUps.subjectTemplates"
-                      label="label"
-                      valueProp="value"
-                      placeholder="Select Subject Template"
-                      :searchable="true"
-                    />
-                </div>
-
-                <div class="col-lg-6">
-                <label class="form-label">Subject</label>
-                <input
-                  class="form-control"
-                  v-model="form.subject"
-                  placeholder="Subject follow up"
-                />
-                 <div
-    v-if="dataFollowUps.errorFollowUp?.subject"
-    class="invalid-feedback d-block"
-  >
-    {{ dataFollowUps.errorFollowUp.subject[0] }}
-  </div>
-               </div>
-
-
-                  <!-- DATE -->
-              <div class="col-lg-6">
-                    <label class="form-label">Follow-up Date</label>
-                     <div :class="{ 'is-invalid': dataFollowUps.errorFollowUp?.follow_up_date }"></div>
-                  <Flatpickr
-                     v-model="form.follow_up_at"
-                      :config="fpConfig"   
-                      class="form-control"
-                      placeholder="Select date & time"
-                    />
-                    
-                      <div
-    v-if="dataFollowUps.errorFollowUp?.follow_up_date"
-    class="invalid-feedback d-block"
-  >
-    {{ dataFollowUps.errorFollowUp.follow_up_date[0] }}
-  </div>
-              </div>
-
-                  <!-- TYPE -->
-                  <div class="col-lg-6">
-                      <label class="form-label">Follow Up Type</label>
-
-                      <div
-                        class="multiselect-wrapper"
-                        :class="{ 'is-invalid': dataFollowUps.errorFollowUp?.follow_up_type }"
-                      >
-                        <Multiselect
-                          v-model="form.follow_up_type"
-                          :options="dataFollowUps.followUpType"
-                          label="label"
-                          valueProp="value"
-                          placeholder="Select Follow Type"
-                          @update:modelValue="() => {
-                            if (dataFollowUps.errorFollowUp?.follow_up_type) {
-                              dataFollowUps.errorFollowUp.follow_up_type = null
-                            }
-                          }"
-                        />
+                      <!-- Header -->
+                      <div class="modal-header">
+                        <h5 class="modal-title">
+                          <i class="fa fa-circle-info me-1"></i> Detail Follow Up
+                        </h5>
+                        <button
+                          type="button"
+                          class="btn-close"
+                          data-bs-dismiss="modal"
+                          aria-label="Close"
+                        ></button>
                       </div>
 
-                      <div
-                        v-if="dataFollowUps.errorFollowUp?.follow_up_type"
-                        class="invalid-feedback d-block"
-                      >
-                        {{ dataFollowUps.errorFollowUp.follow_up_type[0] }}
+                      <!-- Body -->
+                      <div class="modal-body">
+
+                        <!-- LOADING -->
+                        <div v-if="dataFollowUps.loadingDetail" class="text-center py-5">
+                          <div class="spinner-border text-primary"></div>
+                          <p class="mt-2 text-muted">Memuat detail follow up...</p>
+                        </div>
+
+                        <!-- DETAIL -->
+                        <div v-else-if="dataFollowUps.followUpDetail" class="row g-3">
+
+                          <!-- TYPE -->
+                          <div class="col-md-6">
+                            <label class="form-label">Follow Up Type</label>
+                            <span
+                              class="badge w-100 text-center py-2"
+                              :class="getFollowUpTypeBadge(dataFollowUps.followUpDetail.follow_up_type)"
+                            >
+                              {{ dataFollowUps.followUpDetail.follow_up_type }}
+                            </span>
+                          </div>
+
+                          <!-- STATUS -->
+                          <div class="col-md-6">
+                            <label class="form-label">Status</label>
+                            <span
+                              class="badge w-100 text-center py-2"
+                              :class="getFollowUpStatusBadge(dataFollowUps.followUpDetail.status)"
+                            >
+                              {{ dataFollowUps.followUpDetail.status }}
+                            </span>
+                          </div>
+
+                          <!-- SUBJECT -->
+                          <div class="col-12">
+                            <label class="form-label">Subject</label>
+                            <input
+                              type="text"
+                              class="form-control"
+                              :value="dataFollowUps.followUpDetail.subject"
+                              readonly
+                            />
+                          </div>
+
+                          <!-- NOTES -->
+                          <div class="col-12">
+                            <label class="form-label">Notes</label>
+                            <textarea
+                              class="form-control"
+                              rows="4"
+                              readonly
+                            >{{ dataFollowUps.followUpDetail.notes }}</textarea>
+                          </div>
+
+                          <!-- FOLLOW UP DATE -->
+                          <div class="col-lg-6">
+                            <label class="form-label">Follow-up Date & Time</label>
+
+                            <input
+                              type="text"
+                              class="form-control"
+                              :value="formatDateTime(dataFollowUps.followUpDetail.follow_up_at)"
+                              readonly
+                            />
+                          </div>
+
+
+                          <!-- CREATED AT -->
+                          <div class="col-md-6">
+                            <label class="form-label">Created At</label>
+                            <input
+                              type="text"
+                              class="form-control"
+                              :value="formatDateTime(dataFollowUps.followUpDetail.created_at)"
+                              readonly
+                            />
+                          </div>
+
+                          <!-- LEAD -->
+                          <div class="col-md-6">
+                            <label class="form-label">Lead</label>
+                            <input
+                              type="text"
+                              class="form-control"
+                              :value="dataFollowUps.followUpDetail.lead_company_name ?? '-'"
+                              readonly
+                            />
+                          </div>
+
+                          <!-- CUSTOMER -->
+                          <div class="col-md-6">
+                            <label class="form-label">Customer</label>
+                            <input
+                              type="text"
+                              class="form-control"
+                              :value="dataFollowUps.followUpDetail.customer_company_name ?? '-'"
+                              readonly
+                            />
+                          </div>
+
+                          <!-- SALES / CREATED BY -->
+                          <div class="col-12">
+                            <label class="form-label">Created By (Sales)</label>
+                            <input
+                              type="text"
+                              class="form-control"
+                              :value="dataFollowUps.followUpDetail.sales_name ?? '-'"
+                              readonly
+                            />
+                          </div>
+
+                        </div>
+
+                        <!-- EMPTY -->
+                        <div v-else class="text-muted text-center py-5">
+                          Data tidak ditemukan
+                        </div>
+
+                      </div>
+
+                      <!-- Footer -->
+                      <div class="modal-footer">
+                        <button
+                          type="button"
+                          class="btn btn-outline-secondary"
+                          data-bs-dismiss="modal"
+                        >
+                          Close
+                        </button>
+                      </div>
+
+                    </div>
+                  </div>
+                </div>
+
+
+
+
+
+                  <!-- Modal: Add and edit Follow Up -->
+                    <div class="modal modal-blur fade" id="modal-add-data" tabindex="-1">
+                      <div class="modal-dialog modal-lg modal-dialog-centered">
+                        <div class="modal-content">
+
+                          <!-- Header -->
+                          <div class="modal-header">
+                          <h5 class="modal-title">
+                              {{ dataFollowupForm.updating ? 'Edit Follow-Up' : 'Add Follow-Up' }}
+                            </h5>
+
+                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                          </div>
+
+                        <div class="px-4 pt-3">
+                            <div class="alert alert-warning" role="alert">
+                              <h4 class="alert-heading text-dark">Attention!</h4>
+                              <ul class="mb-0 text-dark">
+                                <li>Wajib memilih <strong>Lead</strong> <u>atau</u> <strong>Customer</strong></li>
+                                <li><strong>Tidak boleh</strong> memilih Lead dan Customer bersamaan</li>
+                              </ul>
+                            </div>
+                        </div>
+
+                          <!-- Body -->
+                          <div class="modal-body">
+                            <div class="row g-3">
+
+                              <!-- LEAD -->
+                              <div class="col-lg-6" v-show="!editFollowUpId">
+                                <label class="form-label">Lead <small class="text-danger">**</small></label>
+                                <div
+                                                    class="multiselect-wrapper"
+                                                    :class="{ 'is-invalid': dataFollowUps.errorFollowUp?.lead_id }"
+                                                  >
+                                                    <Multiselect
+                                                        v-model="form.lead_id"
+                                                        :options="dataFollowUps.leads"
+                                                        label="company_name"
+                                                        valueProp="id"
+                                                        placeholder="Select Leads"
+                                                        :searchable="true"
+                                                        :loading="dataFollowUps.loadingLeads"
+                                                        :disabled="!!form.customer_id"
+                                                        :resolve-on-load="true"
+                                                        :object="false"
+                                                      />
+                                                </div>
+                                                <div
+                                                    v-if="dataFollowUps.errorFollowUp?.lead_id"
+                                                    class="invalid-feedback d-block"
+                                                  >
+                                                    {{ dataFollowUps.errorFollowUp.lead_id[0] }}
+                                                  </div>
+                              </div>
+
+
+                              <!-- CUSTOMER -->
+                            <div class="col-lg-6" v-show="!editFollowUpId">
+                                <label class="form-label">Customer <small class="text-danger">**</small></label>
+                                <div
+                                    class="multiselect-wrapper"
+                                    :class="{ 'is-invalid': dataFollowUps.errorFollowUp?.customer_id }"
+                                    >
+                                    <Multiselect
+                                      v-model="form.customer_id"
+                                      :options="dataFollowUps.customers"
+                                      label="company_name"
+                                      valueProp="id"
+                                      placeholder="Select Customers"
+                                      :searchable="true"
+                                      :loading="dataFollowUps.loadingCustomers"
+                                      :disabled="!!form.lead_id"
+                                      :resolve-on-load="true"
+                                      :object="false"
+                                    />
+                                   </div>
+                                    <div
+                                      v-if="dataFollowUps.errorFollowUp?.customer_id"
+                                      class="invalid-feedback d-block"
+                                      >
+                                      {{ dataFollowUps.errorFollowUp.customer_id[0] }}
+                                    </div>
+                              </div>
+
+
+                            <div class="col-lg-6">
+                              <label class="form-label">Template Subject <small class="text-danger">**</small></label>
+                              <Multiselect
+                                  v-model="selectedTemplate"
+                                  :options="dataFollowUps.subjectTemplates"
+                                  label="label"
+                                  valueProp="value"
+                                  placeholder="Select Subject Template"
+                                  :searchable="true"
+                                />
+                            </div>
+
+                            <div class="col-lg-6">
+                            <label class="form-label">Subject <small class="text-danger">**</small></label>
+                            <input
+                              class="form-control"
+                              v-model="form.subject"
+                              placeholder="Subject follow up"
+                            />
+                            <div
+                                v-if="dataFollowUps.errorFollowUp?.subject"
+                                class="invalid-feedback d-block"
+                              >
+                                {{ dataFollowUps.errorFollowUp.subject[0] }}
+                              </div>
+                            </div>
+
+
+                              <!-- DATE -->
+                          <div class="col-lg-6">
+                                <label class="form-label">Follow-up Date <small class="text-danger">**</small></label>
+                                <div :class="{ 'is-invalid': dataFollowUps.errorFollowUp?.follow_up_at }"></div>
+                              <Flatpickr
+                                  v-model="form.follow_up_at"
+                                  :config="fpConfig"   
+                                  class="form-control"
+                                  placeholder="Select date & time"
+                                />
+                                
+                                  <div
+                                      v-if="dataFollowUps.errorFollowUp?.follow_up_at"
+                                      class="invalid-feedback d-block"
+                                    >
+                                      {{ dataFollowUps.errorFollowUp.follow_up_at[0] }}
+                                    </div>
+                                  </div>
+
+                              <!-- TYPE -->
+                              <div class="col-lg-6">
+                                  <label class="form-label">Follow Up Type <small class="text-danger">**</small></label>
+
+                                  <div
+                                    class="multiselect-wrapper"
+                                    :class="{ 'is-invalid': dataFollowUps.errorFollowUp?.follow_up_type }"
+                                  >
+                                    <Multiselect
+                                      v-model="form.follow_up_type"
+                                      :options="dataFollowUps.followUpType"
+                                      label="label"
+                                      valueProp="value"
+                                      placeholder="Select Follow Type"
+                                      @update:modelValue="() => {
+                                        if (dataFollowUps.errorFollowUp?.follow_up_type) {
+                                          dataFollowUps.errorFollowUp.follow_up_type = null
+                                        }
+                                      }"
+                                    />
+                              </div>
+
+                              <div
+                                    v-if="dataFollowUps.errorFollowUp?.follow_up_type"
+                                    class="invalid-feedback d-block"
+                                  >
+                                    {{ dataFollowUps.errorFollowUp.follow_up_type[0] }}
+                                  </div>
+                                </div>
+
+                                <div class="col-lg-6" v-if="dataFollowupForm.updating">
+                               <label class="form-label">Status <small class="text-danger">**</small></label>
+
+                                <Multiselect
+                                  v-model="form.status"
+                                  :options="[
+                                    { label: 'Pending', value: 'PENDING' },
+                                    { label: 'Done', value: 'DONE' },
+                                    { label: 'Canceled', value: 'CANCELED' },
+                                  ]"
+                                  label="label"
+                                  valueProp="value"
+                                  placeholder="Select Status"
+                                />
+                              </div>
+
+                              <!-- NOTES -->
+                              <div class="col-lg-12">
+                                <label class="form-label">Notes</label>
+                                <textarea
+                                  class="form-control"
+                                  :class="{ 'is-invalid': dataFollowUps.errorFollowUp?.notes }"
+                                  rows="4"
+                                  v-model="form.notes"
+                                ></textarea>
+                                <div
+                                v-if="dataFollowUps.errorFollowUp?.notes"
+                                class="invalid-feedback d-block"
+                              >
+                                {{ dataFollowUps.errorFollowUp.notes[0] }}
+                              </div>
+                              </div>
+
+                            </div>
+                          </div>
+
+                          <!-- Footer -->
+                          <div class="modal-footer">
+                          <button
+                            class="btn btn-secondary"
+                            data-bs-dismiss="modal"
+                            :disabled="dataFollowupForm.loa"
+                          >
+                            Cancel
+                          </button>
+
+                        <button
+                            class="btn btn-primary"
+                            @click="saveFollowUp"
+                            :disabled="dataFollowupForm.loading"
+                          >
+                            <span v-if="dataFollowupForm.loading">
+                              <i class="fas fa-spinner fa-spin me-1"></i>
+                              Processing...
+                            </span>
+                            <span v-else>
+                              <i class="fas fa-save me-1"></i>
+                              {{ dataFollowupForm.updating ? 'Update' : 'Save' }}
+                            </span>
+                          </button>
+                        </div>
+                        </div>
                       </div>
                     </div>
-
-                    <div class="col-lg-6" v-if="dataFollowupForm.updating">
-                  <label class="form-label">Status</label>
-
-                  <Multiselect
-                    v-model="form.status"
-                    :options="[
-                      { label: 'Pending', value: 'PENDING' },
-                      { label: 'Done', value: 'DONE' },
-                      { label: 'Canceled', value: 'CANCELED' },
-                    ]"
-                    label="label"
-                    valueProp="value"
-                    placeholder="Select Status"
-                  />
-                </div>
-
-
-
-                  <!-- NOTES -->
-                  <div class="col-lg-12">
-                    <label class="form-label">Notes</label>
-                    <textarea
-                      class="form-control"
-                       :class="{ 'is-invalid': dataFollowUps.errorFollowUp?.notes }"
-                      rows="4"
-                      v-model="form.notes"
-                    ></textarea>
-                     <div
-                    v-if="dataFollowUps.errorFollowUp?.notes"
-                    class="invalid-feedback d-block"
-                  >
-                    {{ dataFollowUps.errorFollowUp.notes[0] }}
-                  </div>
-                  </div>
-
-                </div>
-              </div>
-
-              <!-- Footer -->
-              <div class="modal-footer">
-              <button
-                class="btn btn-secondary"
-                data-bs-dismiss="modal"
-                :disabled="dataFollowupForm.loa"
-              >
-                Cancel
-              </button>
-
-            <button
-                class="btn btn-primary"
-                @click="saveFollowUp"
-                :disabled="dataFollowupForm.loading"
-              >
-                <span v-if="dataFollowupForm.loading">
-                  <i class="fas fa-spinner fa-spin me-1"></i>
-                  Processing...
-                </span>
-                <span v-else>
-                  <i class="fas fa-save me-1"></i>
-                  {{ dataFollowupForm.updating ? 'Update' : 'Save' }}
-                </span>
-              </button>
-             </div>
-            </div>
-          </div>
-        </div>
 
 
 
 <!-- ### Modal Export Laporan --> 
-
 <div v-if="exportModalOpen" class="modal-backdrop fade show"></div>
 <div v-if="exportModalOpen" class="modal d-block" tabindex="-1">
   <div class="modal-dialog">

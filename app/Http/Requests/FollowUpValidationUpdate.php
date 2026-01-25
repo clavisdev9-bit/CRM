@@ -15,8 +15,8 @@ class FollowUpValidationUpdate extends FormRequest
     {
         return [
             // TARGET (wajib salah satu)
-            'lead_id'     => 'nullable|integer|exists:leads,id',
-            'customer_id' => 'nullable|integer|exists:customers,id',
+            // 'lead_id'     => 'nullable|integer|exists:leads,id',
+            // 'customer_id' => 'nullable|integer|exists:customers,id',
             'status' => 'nullable|in:PENDING,DONE,CANCELED',
 
             // DATA UTAMA
@@ -27,28 +27,28 @@ class FollowUpValidationUpdate extends FormRequest
         ];
     }
 
-    public function withValidator($validator)
-    {
-        $validator->after(function ($validator) {
+    // public function withValidator($validator)
+    // {
+    //     $validator->after(function ($validator) {
 
-            $lead     = $this->input('lead_id');
-            $customer = $this->input('customer_id');
+    //         $lead     = $this->input('lead_id');
+    //         $customer = $this->input('customer_id');
 
-            // ❌ dua-duanya kosong
-            if (!$lead && !$customer) {
-                $validator->errors()->add(
-                    'lead_id',
-                    'Pilih Lead atau Customer.'
-                );
-            }
+    //         // ❌ dua-duanya kosong
+    //         if (!$lead && !$customer) {
+    //             $validator->errors()->add(
+    //                 'lead_id',
+    //                 'Pilih Lead atau Customer.'
+    //             );
+    //         }
 
-            // ❌ dua-duanya diisi
-            if ($lead && $customer) {
-                $validator->errors()->add(
-                    'lead_id',
-                    'Tidak boleh memilih Lead dan Customer bersamaan.'
-                );
-            }
-        });
-    }
+    //         // ❌ dua-duanya diisi
+    //         if ($lead && $customer) {
+    //             $validator->errors()->add(
+    //                 'lead_id',
+    //                 'Tidak boleh memilih Lead dan Customer bersamaan.'
+    //             );
+    //         }
+    //     });
+    // }
 }
