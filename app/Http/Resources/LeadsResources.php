@@ -57,6 +57,7 @@ class LeadsResources extends JsonResource
             // ACTIVITY
             // =====================
             'notes' => $this->notes,
+            'address' => $this->address,
 
           'last_contacted_at' => $this->last_contacted_at
             ? Carbon::parse($this->last_contacted_at)->format('Y-m-d H:i:s')

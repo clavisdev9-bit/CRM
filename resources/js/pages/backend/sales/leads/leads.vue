@@ -166,17 +166,19 @@ const openEditLead = (lead) => {
   editLeadId.value = lead.id
   dataLeads.errorLead = null
 
-  singleLead.value = {
-    company_name: lead.company_name,
-    contact_name: lead.contact_name,
-    email: lead.email,
-    phone: lead.phone,
-    lead_source: lead.lead_source,
-    industry_id: lead.industry_id,
-    lead_category_id: lead.lead_category_id,
-    notes: lead.notes,
-    address: lead.address,
-  }
+
+  Object.assign(singleLead.value, {
+  company_name: lead.company_name,
+  contact_name: lead.contact_name,
+  email: lead.email,
+  phone: lead.phone,
+  lead_source: lead.lead_source,
+  industry_id: lead.industry_id,
+  lead_category_id: lead.lead_category_id,
+  notes: lead.notes,
+  address: lead.address ?? '',
+})
+
 
   const modal = new bootstrap.Modal(
     document.getElementById('modal-add-data')
@@ -480,12 +482,12 @@ const confirmDelete = async (id) => {
                   </tr>
                 <tr>
                 <th>No</th>
-                <th @click="dataLeads.toggleSort('company_name')">Company</th>
-                <th>Contact</th>
-                <th>Email</th>
-                <th>Phone</th>
-                <th>Source</th>
-                <th>Status</th>
+                <th @click="dataLeads.toggleSort('company_name')">Company Name</th>
+                <th>Contact Name</th>
+                <th>Email Address</th>
+                <th>Contact Phone</th>
+                <th>Lead Source</th>
+                <th>Status Lead</th>
                <th v-if="dataLeads.mode === 'assigned'">Assigned To</th>
                <th v-if="dataLeads.mode === 'assigned'">Visibility</th>
                 <th>Last Contact</th>
@@ -1182,7 +1184,7 @@ const confirmDelete = async (id) => {
                   </div>
 
                 
-                  <div class="modal-footer">
+                  <!-- <div class="modal-footer">
                     <button
                       class="btn btn-link"
                       data-bs-dismiss="modal"
@@ -1205,7 +1207,32 @@ const confirmDelete = async (id) => {
                         Save
                       </span>
                     </button>
-                  </div>
+                  </div> -->
+                  <div class="modal-footer">
+                  <button
+                    class="btn btn-link"
+                    data-bs-dismiss="modal"
+                    :disabled="dataLeads.savingLead"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    class="btn btn-primary"
+                    :disabled="dataLeads.savingLead"
+                    @click="saveLead"
+                  >
+                    <span v-if="dataLeads.savingLead">
+                      <i class="fas fa-spinner fa-spin me-1"></i>
+                      Saving...
+                    </span>
+                    <span v-else>
+                      <i class="fas fa-save me-1"></i>
+                      Save
+                    </span>
+                  </button>
+                </div>
+
                 </div>
               </div>
             </div>

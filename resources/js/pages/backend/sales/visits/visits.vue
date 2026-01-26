@@ -134,13 +134,30 @@ const handleImportExcel = () => {
                         <div class="col-12 mb-3">
                             <div class="card">
                             <div class="card-body d-flex justify-content-center gap-3">
-                                <button class="btn btn btn-primary">
-                                <i class="fa-solid fa-person-walking-dashed-line-arrow-right"></i> Lead visit
-                                </button>
+                               
+                                <router-link
+                                  to="/sales-visit-leads"
+                                  class="btn btn-primary"
+                                >
+                                   <i class="fa-solid fa-person-walking-dashed-line-arrow-right"></i> Lead Visit
+                                </router-link>
                                 
-                                <button class="btn btn-success">
-                                <i class="fa-solid fa-person-walking-dashed-line-arrow-right"></i> Costumer visit
-                                </button>
+                               
+                                 <router-link
+                                  to="/sales-visit-customers"
+                                  class="btn btn-success"
+                                >
+                                   <i class="fa-solid fa-person-walking-dashed-line-arrow-right"></i> Costumer Visit
+                                </router-link>
+
+                               <router-link
+                                  to="/sales-follow-up"
+                                  class="btn btn-danger"
+                                >
+                                  <i class="fa-solid fa-mobile-vibrate"></i> Follow Up
+                                </router-link>
+
+                                
                             </div>
                             </div>
                         </div>
@@ -159,9 +176,7 @@ const handleImportExcel = () => {
 
           <!-- Card: Export/Import -->
          <div class="card mb-4">
-</div>
-
-
+      </div>
 
           <!-- Card: Filter & Sort -->
           <div class="card mb-4">

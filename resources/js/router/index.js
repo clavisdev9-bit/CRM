@@ -28,7 +28,14 @@ import leads from '../pages/backend/sales/leads/leads.vue'
 import followUp from '../pages/backend/sales/follow_up/followUp.vue'
 import costumers from '../pages/backend/sales/customers/customers.vue'
 import visitsSales from '../pages/backend/sales/visits/visits.vue'
+import visitsSalesLeads from '../pages/backend/sales/visits/visitLeads.vue'
+import visitsSalesCustomers from '../pages/backend/sales/visits/visitCustomers.vue'
+
+
 import reportsForSales from '../pages/backend/sales/reports/reports.vue'
+
+
+
 
 //backend Manager
 import managerHome from '../pages/backend/manager/home/home.vue'
@@ -147,6 +154,18 @@ const routes = [
   {
   path: '/sales-visit',
   component: visitsSales,
+  // meta: { requiresAuth: true }   
+  },
+
+  {
+  path: '/sales-visit-leads',
+  component: visitsSalesLeads,
+  // meta: { requiresAuth: true }   
+  },
+
+  {
+  path: '/sales-visit-customers',
+  component: visitsSalesCustomers,
   // meta: { requiresAuth: true }   
   },
 
