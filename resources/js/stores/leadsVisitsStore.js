@@ -153,24 +153,51 @@ export const useDataLeadsVisitStore = defineStore("Data-Leads-Visit", () => {
     // ==============================
     // Return
     // ==============================
+    // return {
+    //     leadVisitData,
+    //     leadVisitDetail,
+    //     loadingLeadVisit,
+    //     savingLeadVisit,
+    //     updatingLeadVisit,
+    //     deletingLeadVisit,
+    //     errorLeadVisit,
+    //     searchLeadVisit,
+    //     pagination,
+    //     sort,
+    //     allowedSortColumns,
+    //     fetchLeadsVisitStore,
+    //     buildUrl,
+    //     searchWithDelay,
+    //     changePageSize,
+    //     toggleSort,
+    //     resetFilters,
+    //     formatDate,
+    //     changePageSize,
+       
+    // };
     return {
-        leadVisitData,
-        leadVisitDetail,
-        loadingLeadVisit,
-        savingLeadVisit,
-        updatingLeadVisit,
-        deletingLeadVisit,
-        errorLeadVisit,
-        searchLeadVisit,
-        pagination,
-        sort,
-        allowedSortColumns,
-        fetchLeadsVisitStore,
-        buildUrl,
-        searchWithDelay,
-        changePageSize,
-        toggleSort,
-        resetFilters,
-        formatDate,
-    };
+    leadVisitData,
+    leadVisitDetail,
+    loadingLeadVisit,
+    savingLeadVisit,
+    updatingLeadVisit,
+    deletingLeadVisit,
+    errorLeadVisit,
+
+    searchLeadVisit,
+    pagination,
+    sort,
+    allowedSortColumns,
+
+    fetchLeadsVisitStore,
+    buildUrl,
+    searchWithDelay,
+
+    changePageSize,
+    changeSorting, // ✅ INI YANG HILANG
+    toggleSort,
+    resetFilters,
+    formatDate,
+};
+
 });

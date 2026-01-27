@@ -600,7 +600,6 @@ const confirmDelete = async (id) => {
                           <i class="fa fa-edit"></i>
                       </button>
 
-
                     </td>
                   </tr>
                 </tbody>
