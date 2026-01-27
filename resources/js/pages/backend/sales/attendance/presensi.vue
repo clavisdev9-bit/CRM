@@ -77,16 +77,134 @@ const stopCamera = () => {
 }
 
 
+// wrap text untuk watermakr
+const wrapText = (ctx, text, maxWidth) => {
+  const words = text.split(' ')
+  const lines = []
+  let currentLine = ''
+
+  words.forEach(word => {
+    const testLine = currentLine + word + ' '
+    const { width } = ctx.measureText(testLine)
+
+    if (width > maxWidth && currentLine !== '') {
+      lines.push(currentLine)
+      currentLine = word + ' '
+    } else {
+      currentLine = testLine
+    }
+  })
+
+  lines.push(currentLine)
+  return lines
+}
+
+const rawCanvas = ref(null)
+const isProcessingPhoto = ref(false)
+
+
+
+// const takePhoto = async () => {
+//   if (!videoRef.value) return
+
+//   const canvas = document.createElement('canvas')
+//   canvas.width = videoRef.value.videoWidth
+//   canvas.height = videoRef.value.videoHeight
+
+//   const ctx = canvas.getContext('2d')
+//   ctx.drawImage(videoRef.value, 0, 0, canvas.width, canvas.height)
+
+//   // 🔥 SIMPAN FOTO RAW
+//   rawCanvas.value = canvas
+
+//   // 🔥 BARU AMBIL LOKASI (SESUAI RULE)
+//   await getLocation()
+
+//   // 🔥 FINALISASI FOTO
+//   finalizePhoto()
+// }
 
 const takePhoto = async () => {
   if (!videoRef.value) return
 
+  isProcessingPhoto.value = true
+
+  // 1️⃣ Capture cepat
   const canvas = document.createElement('canvas')
   canvas.width = videoRef.value.videoWidth
   canvas.height = videoRef.value.videoHeight
-  const ctx = canvas.getContext('2d')
-  ctx.drawImage(videoRef.value, 0, 0)
 
+  const ctx = canvas.getContext('2d')
+  ctx.drawImage(videoRef.value, 0, 0, canvas.width, canvas.height)
+
+  rawCanvas.value = canvas
+
+  // 2️⃣ TAMPILKAN PREVIEW SEGERA (tanpa watermark dulu)
+  const quickBlob = await new Promise(resolve =>
+    canvas.toBlob(resolve, 'image/jpeg', 0.7)
+  )
+
+  photo.value = new File(
+    [quickBlob],
+    `attendance_preview.jpg`,
+    { type: 'image/jpeg' }
+  )
+
+  // 3️⃣ JALANKAN LOKASI DI BELAKANG
+  getLocation().then(() => {
+    finalizePhoto() // replace preview dengan versi final
+    isProcessingPhoto.value = false
+  })
+}
+
+
+
+const finalizePhoto = async () => {
+  const canvas = rawCanvas.value
+  if (!canvas) return
+
+  const ctx = canvas.getContext('2d')
+
+  // =============================
+  // WATERMARK
+  // =============================
+  const padding = 20
+  const lineHeight = 26
+  const maxTextWidth = canvas.width - padding * 2
+
+  ctx.font = '16px Arial'
+
+  const addressLines = wrapText(
+    ctx,
+    `📍 ${address.value}`,
+    maxTextWidth
+  )
+
+  const timeLines = [
+    `🕒 ${currentDate.value} ${currentTime.value}`
+  ]
+
+  const allLines = [...addressLines, ...timeLines]
+  const boxHeight = allLines.length * lineHeight + padding * 2
+  const boxY = canvas.height - boxHeight
+
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.55)'
+  ctx.fillRect(0, boxY, canvas.width, boxHeight)
+
+  ctx.fillStyle = '#fff'
+  ctx.textBaseline = 'top'
+
+  allLines.forEach((line, i) => {
+    ctx.fillText(
+      line,
+      padding,
+      boxY + padding + i * lineHeight
+    )
+  })
+
+  // =============================
+  // CONVERT
+  // =============================
   const blob = await new Promise(resolve =>
     canvas.toBlob(resolve, 'image/jpeg', 0.9)
   )
@@ -96,9 +214,115 @@ const takePhoto = async () => {
     `attendance_${Date.now()}.jpg`,
     { type: 'image/jpeg' }
   )
-
-  await getLocation()
 }
+
+
+
+
+// const takePhoto = async () => {
+//   if (!videoRef.value) return
+
+//   const canvas = document.createElement('canvas')
+//   canvas.width = videoRef.value.videoWidth
+//   canvas.height = videoRef.value.videoHeight
+
+//   const ctx = canvas.getContext('2d')
+
+//   // gambar foto dari kamera
+//   ctx.drawImage(videoRef.value, 0, 0, canvas.width, canvas.height)
+
+// // =============================
+// // WATERMARK (FIX POSITION)
+// // =============================
+// const padding = 20
+// const lineHeight = 26
+// const maxTextWidth = canvas.width - padding * 2
+
+// ctx.font = '16px Arial'
+
+// // wrap alamat
+// const addressLines = wrapText(
+//   ctx,
+//   `📍 ${address.value || 'Detecting location...'}`,
+//   maxTextWidth
+// )
+
+// // waktu
+// const timeLines = [
+//   `🕒 ${currentDate.value} ${currentTime.value}`
+// ]
+
+// // gabung semua baris
+// const allLines = [...addressLines, ...timeLines]
+
+// // hitung tinggi box
+// const boxHeight = allLines.length * lineHeight + padding * 2
+
+// // posisi box (DARI BAWAH)
+// const boxY = canvas.height - boxHeight
+
+// // background
+// ctx.fillStyle = 'rgba(0, 0, 0, 0.55)'
+// ctx.fillRect(
+//   0,
+//   boxY,
+//   canvas.width,
+//   boxHeight
+// )
+
+// // text
+// ctx.fillStyle = '#ffffff'
+// ctx.textBaseline = 'top'
+
+// // 🔥 FIX DI SINI
+// allLines.forEach((line, index) => {
+//   ctx.fillText(
+//     line,
+//     padding,
+//     boxY + padding + index * lineHeight
+//   )
+// })
+
+
+  // =============================
+  // CONVERT TO FILE
+  // =============================
+//   const blob = await new Promise(resolve =>
+//     canvas.toBlob(resolve, 'image/jpeg', 0.9)
+//   )
+
+//   photo.value = new File(
+//     [blob],
+//     `attendance_${Date.now()}.jpg`,
+//     { type: 'image/jpeg' }
+//   )
+
+//   await getLocation()
+// }
+
+
+
+  //const takePhoto = async () => {
+        //if (!videoRef.value) return
+
+        //const canvas = document.createElement('canvas')
+        //canvas.width = videoRef.value.videoWidth
+       //canvas.height = videoRef.value.videoHeight
+        //const ctx = canvas.getContext('2d')
+        //ctx.drawImage(videoRef.value, 0, 0)
+
+        // const blob = await new Promise(resolve =>
+        //   canvas.toBlob(resolve, 'image/jpeg', 0.9)
+        // )
+
+  //       photo.value = new File(
+  //         [blob],
+  //         `attendance_${Date.now()}.jpg`,
+  //         { type: 'image/jpeg' }
+  //       )
+
+  //       await getLocation()
+  // }
 
 const photoPreview = computed(() => {
   return photo.value ? URL.createObjectURL(photo.value) : null
@@ -275,14 +499,25 @@ const attendanceTypeLabel = computed(() => {
 
 
 
+// const isSubmitDisabled = computed(() => {
+//   return (
+//     saving.value ||          // sedang submit
+//     !photo.value ||          // foto belum ada
+//     !latitude.value ||       // lokasi belum ada
+//     !longitude.value         // (kalau dipakai)
+//   )
+// })
+
 const isSubmitDisabled = computed(() => {
   return (
     saving.value ||          // sedang submit
+    isProcessingPhoto.value || // 🔥 foto belum final
     !photo.value ||          // foto belum ada
     !latitude.value ||       // lokasi belum ada
-    !longitude.value         // (kalau dipakai)
+    !longitude.value
   )
 })
+
 
 
 
@@ -442,9 +677,6 @@ const submitAttendance = async () => {
           </div>
         </div>
 </div>
-
-           
-
 
           </div>
         </div>
@@ -990,12 +1222,17 @@ const submitAttendance = async () => {
                 <img
                     v-if="photoPreview"
                     :src="photoPreview"
-                    class="img-fluid w-100 h-100 rounded img-thumbnail shadow-sm object-fit-cover"
+                      class="w-110 h-100 rounded img-thumbnail shadow-sm"
+                                style="object-fit: contain;" 
                     alt="Hasil Presensi"
                   />
                   <div v-else class="text-center text-muted opacity-50">
                     <i class="fa-solid fa-image-portrait fs-1 mb-2"></i>
-                    <p class="small mb-0">No photo yet</p>
+                    <!-- <p class="small mb-0">No photo yet</p> -->
+                     <div v-if="isProcessingPhoto" class="processing-overlay">
+                        <i class="fa-solid fa-spinner fa-spin"></i>
+                        Processing location...
+                      </div>
                   </div>
                 </div>
               </div>
@@ -1159,7 +1396,6 @@ const submitAttendance = async () => {
               </div>
 
 
-
                     <div class="row align-items-center mb-3">
                           <label class="col-5 col-sm-4 col-form-label">Type Attendance</label>
                           <div class="col-7 col-sm-8">
@@ -1212,14 +1448,16 @@ const submitAttendance = async () => {
         <button class="btn btn-secondary btn-link link-secondary" data-bs-dismiss="modal">
          <i class="fa-solid fa-arrow-left"></i> Cancel
         </button>
-      <button
+      
+          <button
           class="btn btn-primary ms-auto"
           :disabled="isSubmitDisabled"
           @click="submitAttendance"
-        >
-          <i class="fa fa-check me-1"></i>
+          >
+          <i class="fa-solid fa-paper-plane me-1"></i>
           {{ saving ? 'Processing...' : 'Submit Attendance' }}
-      </button>
+        </button>
+
       </div>  
     </div>
   </div>
@@ -1233,6 +1471,23 @@ const submitAttendance = async () => {
 
 
 <style scoped>
+.processing-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0,0,0,0.35);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-size: 14px;
+}
+
+
+.photo-result-lg {
+  height: 360px;   /* 👉 ubah sesuai selera: 320 / 400 */
+}
+
+
 .attendance-sneat {
   border: 1.5px solid #d9dee3;
   border-radius: 0.5rem;

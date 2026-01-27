@@ -13,6 +13,7 @@ use App\Http\Controllers\Api\Users\Attendance\Attendance;
 use App\Http\Controllers\Api\Users\Sales\Leads\Leads;
 use App\Http\Controllers\Api\Users\Sales\Costumers\Costumers;
 use App\Http\Controllers\Api\Users\Sales\FollowUp\FollowUp;
+use App\Http\Controllers\Api\Users\Sales\Visits\Visits;
 
 Route::post('/signIn', [SignAuth::class, 'signIn'])->name('api.sign.in');
 Route::post('/forgot-password-request', [SignAuth::class, 'requestResetPassword'])->name('api.forgot.password');
@@ -154,6 +155,11 @@ Route::get('/follow-up/get-sales/leads', [FollowUp::class, 'getLeadsBySales'])->
 Route::get('/follow-up/get-sales/customers', [FollowUp::class, 'getCustomersBySales'])->name('api.get.sales.customers');
 Route::put('/follow-up/update/{id}', [FollowUp::class, 'updateFollowUp'])->name('api.follow.up.update');
 Route::delete('/follow-up/delete/{id}', [FollowUp::class, 'deleteFollowUp'])->name('api.follow.up.delete');
+
+
+
+Route::get('/data-leads-visit', [Visits::class, 'VisitLeads'])->name('api.data.leads.visit');
+
 });
 
 

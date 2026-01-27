@@ -9,7 +9,10 @@ const PagesTitle = 'Data Customers Ready To Visit';
 const currentDate = ref('')
 const currentTime = ref('')
 let timer = null
+// ===== PHOTO RESULT =====
+const photoBlob = ref(null)
 
+const isLocationLoading = ref(false)
 
 // ===== CAMERA =====
 const videoRef = ref(null)
@@ -41,43 +44,127 @@ const updateDateTime = () => {
   })
 }
 
+
+
 const stopCamera = () => {
   if (stream) {
-    stream.getTracks().forEach(t => t.stop())
+    stream.getTracks().forEach(track => track.stop())
     stream = null
+  }
+
+  if (videoRef.value) {
+    videoRef.value.srcObject = null // ⬅️ WAJIB
   }
 }
 
 
+const wrapText = (ctx, text, maxWidth) => {
+  const words = text.split(' ')
+  const lines = []
+  let currentLine = ''
+
+  words.forEach(word => {
+    const testLine = currentLine + word + ' '
+    const { width } = ctx.measureText(testLine)
+
+    if (width > maxWidth && currentLine !== '') {
+      lines.push(currentLine)
+      currentLine = word + ' '
+    } else {
+      currentLine = testLine
+    }
+  })
+
+  lines.push(currentLine)
+  return lines
+}
+
+
+const isProcessingPhoto = ref(false)
+const rawCanvas = ref(null) // simpan frame mentah
+
 
 const takePhoto = async () => {
-  if (!videoRef.value) return
+  if (!videoRef.value || isProcessingPhoto.value) return
 
+  isProcessingPhoto.value = true
   updateDateTime()
 
-  // 🚀 LANGSUNG ambil frame dulu
+  // ambil frame mentah
   const canvas = document.createElement('canvas')
   canvas.width = videoRef.value.videoWidth
   canvas.height = videoRef.value.videoHeight
   const ctx = canvas.getContext('2d')
   ctx.drawImage(videoRef.value, 0, 0)
 
-  const blob = await new Promise(resolve =>
-    canvas.toBlob(resolve, 'image/jpeg', 0.9)
+  rawCanvas.value = canvas
+
+  // PREVIEW CEPAT (tanpa watermark)
+  photoBlob.value = await new Promise(resolve =>
+    canvas.toBlob(resolve, 'image/jpeg', 0.8)
   )
 
-  photo.value = new File([blob], `visit_${Date.now()}.jpg`, {
-    type: 'image/jpeg'
+  // lokasi jalan BELAKANG
+  await getLocation()
+
+  // setelah lokasi ready → FINALIZE
+  await finalizePhotoWithWatermark()
+
+  isProcessingPhoto.value = false
+}
+
+
+const finalizePhotoWithWatermark = async () => {
+  if (!rawCanvas.value) return
+
+  const canvas = rawCanvas.value
+  const ctx = canvas.getContext('2d')
+
+  const padding = 20
+  const lineHeight = 24
+  const maxTextWidth = canvas.width - padding * 2
+
+  ctx.font = '14px Arial'
+
+  const addressLines = wrapText(
+    ctx,
+    `📍 ${address.value}`,
+    maxTextWidth
+  )
+
+  const timeLines = [`🕒 ${currentDate.value} ${currentTime.value}`]
+  const allLines = [...addressLines, ...timeLines]
+
+  const boxHeight = allLines.length * lineHeight + padding * 2
+  const boxY = canvas.height - boxHeight
+
+  ctx.fillStyle = 'rgba(0,0,0,0.6)'
+  ctx.fillRect(0, boxY, canvas.width, boxHeight)
+
+  ctx.fillStyle = '#fff'
+  ctx.textBaseline = 'top'
+
+  allLines.forEach((line, i) => {
+    ctx.fillText(
+      line,
+      padding,
+      boxY + padding + i * lineHeight
+    )
   })
 
-  // ⬇️ lokasi jalan BELAKANGAN (tidak block preview)
-  getLocation()
+  // GANTI photoBlob JADI FINAL
+  photoBlob.value = await new Promise(resolve =>
+    canvas.toBlob(resolve, 'image/jpeg', 0.9)
+  )
 }
 
 
 
+
 const photoPreview = computed(() => {
-  return photo.value ? URL.createObjectURL(photo.value) : null
+  return photoBlob.value
+    ? URL.createObjectURL(photoBlob.value)
+    : null
 })
 
 
@@ -130,28 +217,57 @@ const getLocation = () => {
   })
 }
 
-// ===== LIFECYCLE =====
+const resetVisitState = () => {
+  // stop camera
+  stopCamera()
+
+  // revoke preview URL (anti memory leak)
+  if (photoBlob.value) {
+    URL.revokeObjectURL(photoPreview.value)
+  }
+
+  // clear photo
+  photoBlob.value = null
+  rawCanvas.value = null
+  isProcessingPhoto.value = false
+  isCameraReady.value = false
+
+  // clear location
+  latitude.value = null
+  longitude.value = null
+  accuracy.value = null
+  address.value = ''
+  locationName.value = ''
+  locationStatus.value = 'Waiting photo...'
+
+  // clear form
+  form.notes = ''
+  form.status = 'follow_up'
+}
+
+
+
 onMounted(() => {
   updateDateTime()
   timer = setInterval(updateDateTime, 1000)
 
-  const modalEl = document.getElementById('modal-presensi')
-  if (modalEl) {
-    modalEl.addEventListener('shown.bs.modal', () => {
-      startCamera()
-      //  TIDAK ADA getLocation DI SINI
-    })
+  const modalEl = document.getElementById('modal-input-visit')
+  if (!modalEl) return
 
-    modalEl.addEventListener('hidden.bs.modal', () => {
-      stopCamera()
-      photo.value = null
-      latitude.value = null
-      longitude.value = null
-      address.value = ''
-      locationStatus.value = 'Waiting photo...'
-    })
-  }
+  modalEl.addEventListener('shown.bs.modal', () => {
+    startCamera()
+  })
+
+  modalEl.addEventListener('hidden.bs.modal', () => {
+    resetVisitState()
+  })
 })
+
+onUnmounted(() => {
+  clearInterval(timer)
+  resetVisitState()
+})
+
 onUnmounted(() => clearInterval(timer))
 // end code frontend camera and location
 
@@ -175,43 +291,37 @@ const statusOptions = [
 
 // GANTI START CAMERA AGAR PAKAI KAMERA BELAKANG
 const startCamera = async () => {
+  if (stream) return // ⬅️ PENTING
+
   try {
     stream = await navigator.mediaDevices.getUserMedia({
-      // "environment" untuk kamera belakang, "user" untuk kamera depan
-      video: { facingMode: "environment" }, 
+      video: { facingMode: "environment" },
       audio: false
     })
+
     if (videoRef.value) {
       videoRef.value.srcObject = stream
     }
   } catch (err) {
     console.error("Camera error:", err)
-    locationStatus.value = 'Camera permission denied'
   }
 }
 
-// PERBAIKI LIFECYCLE MOUNTED
-onMounted(() => {
-  updateDateTime()
-  timer = setInterval(updateDateTime, 1000)
 
-  // Pastikan ID sesuai dengan ID di HTML modal
-  const modalEl = document.getElementById('modal-input-visit') 
-  if (modalEl) {
-    modalEl.addEventListener('shown.bs.modal', () => {
-      startCamera()
-    })
-
-    modalEl.addEventListener('hidden.bs.modal', () => {
-      stopCamera()
-      // Reset form saat modal tutup
-      photo.value = null
-      latitude.value = null
-      longitude.value = null
-      address.value = ''
-      form.notes = ''
-    })
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    resetVisitState()
   }
+})
+
+
+const isSubmitDisabled = computed(() => {
+  return (
+    isProcessingPhoto.value ||
+    !photoBlob.value ||
+    !latitude.value ||
+    !longitude.value
+  )
 })
 
 const submitVisit = () => {
@@ -405,14 +515,15 @@ const submitVisit = () => {
                   style="width: 100%; height: 100%; object-fit: cover; border-radius: 0.5rem;"
                 ></video>
             </div>
-           
+          
             <button
-                class="btn btn-primary w-100 mt-2 mb-2"
-                :disabled="!isCameraReady"
+                class="btn btn-primary w-100 mt-2"
+                :disabled="!isCameraReady || isProcessingPhoto"
                 @click="takePhoto"
-                >
-                Get Photo Proof
+              >
+                {{ isProcessingPhoto ? 'Processing...' : 'Get Photo Proof' }}
             </button>
+
           </div>
 
           
@@ -429,13 +540,9 @@ const submitVisit = () => {
                                 style="object-fit: contain;"
                             />
 
-                            <div
-                                class="position-absolute bottom-0 start-0 w-100 p-2"
-                                style="background: rgba(0,0,0,0.6); color:white; font-size:11px;"
-                            >
-                                <div>{{ currentDate }} - {{ currentTime }}</div>
-                                <div>{{ address || 'Detecting location...' }}</div>
-                            </div>
+                           
+                                
+                            
                             </template>
 
                            
@@ -515,9 +622,18 @@ const submitVisit = () => {
 
       <div class="modal-footer">
         <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button type="button" class="btn btn-success ms-auto" @click="submitVisit">
-          <i class="fa-solid fa-cloud-arrow-up me-2"></i> Save Report Leads
-        </button>
+       
+      <button
+        type="button"
+        class="btn btn-success ms-auto"
+        :disabled="isSubmitDisabled"
+        @click="submitVisit"
+      >
+        <i class="fa-solid fa-cloud-arrow-up me-2"></i>
+        Save Report Customer
+      </button>
+
+
       </div>
     </div>
   </div>
