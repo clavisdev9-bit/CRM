@@ -64,6 +64,14 @@ const statusOptions = [
   { value: 'customer', label: 'Covert To Customer', desc: 'Closing' }
 ];
 
+
+const selectedLeads = ref(null)
+
+const openVisitModal = (leads) => {
+  selectedLeads.value = leads
+}
+
+
 // ==============================
 // Date Time
 // ==============================
@@ -491,7 +499,7 @@ const formatLeadStatus = (status) => {
                       <button class="btn btn-outline-primary" 
                       data-bs-toggle="modal" 
                       data-bs-target="#modal-input-visit"
-                        @click="selectedLead = lvd">
+                      @click="openVisitModal(lvd)">
                         <i class="fa-solid fa-street-view"></i> Visit Now <i class="fa-solid fa-arrow-right"></i>
                       </button>
                     </td>
@@ -504,27 +512,7 @@ const formatLeadStatus = (status) => {
             </div>
           </div>
 
-          <!-- Card: Pagination -->
-          <!-- <div class="card mb-4">
-            <div class="card-header d-flex justify-content-between align-items-center">
-              <button class="btn btn-danger btn-sm" 
-                :disabled="!dataLeadsVisit.pagination.prev_page_url || dataLeadsVisit.loadingLeadVisit"
-                  @click="dataLeadsVisit.fetchLeadsVisitStore(dataLeadsVisit.pagination.prev_page_url)">
-                <i class="fa-solid fa-circle-chevron-left"></i> Prev
-              </button>
-
-              <div class="mx-2 d-flex flex-column flex-sm-row align-items-center gap-1">
-                <span class="badge border text-secondary px-3 py-2"> {{ dataLeadsVisit.leadVisitData.length }} data | on page {{ dataLeadsVisit.pagination.current_page }}</span>
-                    <span class="badge border text-secondary px-3 py-2">Total: {{ dataLeadsVisit.pagination.total }}</span>
-              </div>
-
-              <button class="btn btn-danger btn-sm" 
-               :disabled="!dataLeadsVisit.pagination.next_page_url || dataLeadsVisit.loadingLeadVisit"
-                  @click="dataLeadsVisit.fetchLeadsVisitStore(dataLeadsVisit.pagination.next_page_url)">
-                Next <i class="fa-solid fa-circle-chevron-right"></i>
-              </button>
-            </div>
-          </div> -->
+         
           <div class="card mb-4">
   <div class="card-header d-flex justify-content-between align-items-center">
 
@@ -565,7 +553,12 @@ const formatLeadStatus = (status) => {
       <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
           <div class="modal-header">
-            <h5 class="modal-title">Lead Visit Report   <span v-if="selectedLead"> - {{ selectedLead.company_name }}</span></h5>
+        <h5 class="modal-title">
+          Lead Visit Report
+          <div v-if="selectedLeads" class="text-muted small">
+            {{ selectedLeads.company_name }} — {{ selectedLeads.contact_name }}
+          </div>
+        </h5>
             <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
           </div>
           <div class="modal-body">
@@ -583,10 +576,18 @@ const formatLeadStatus = (status) => {
               <!-- Right: Photo Preview & Info -->
               <div class="col-12 col-lg-6">
                 <div class="card mb-2" style="height:200px;">
-                  <div class="position-relative w-100 h-100">
-                    <template v-if="photoPreview">
+                  <!-- <div class="position-relative w-100 h-100"> -->
+                    <div class="position-relative w-100 h-100" style="height:200px">
+                    <!-- <template v-if="photoPreview">
                       <img :src="photoPreview" class="w-100 h-100 rounded img-thumbnail shadow-sm" style="object-fit:contain;" />
-                    </template>
+                    </template> -->
+                     <template v-if="photoPreview" class="card-body p-0 d-flex align-items-center justify-content-center bg-light" style="height: 200px; overflow: hidden;">
+                            <img
+                                :src="photoPreview"
+                                class="w-100 h-100 rounded img-thumbnail shadow-sm"
+                                style="object-fit: contain;"
+                            />
+                            </template>
                     <div v-else class="w-100 h-100 d-flex flex-column align-items-center justify-content-center text-muted opacity-50">
                       <i class="fa-solid fa-image-portrait fs-1 mb-2 mt-2"></i>
                       <p class="small mb-0">No photo yet</p>

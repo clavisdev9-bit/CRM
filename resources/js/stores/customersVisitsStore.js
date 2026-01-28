@@ -3,23 +3,24 @@ import { defineStore } from "pinia";
 import axios from "axios";
 import Swal from "sweetalert2";
 
-export const useDataLeadsVisitStore = defineStore("Data-Leads-Visit", () => {
-    // ==============================
+export const useDataCustomerVisitStore = defineStore("Data-Customers-Visit", () => {
+
+ // ==============================
     // State
     // ==============================
-    const baseUrlApi = "/api/data-leads-visit";
+    const baseUrlApi = "/api/data-customers-visit";
 
-    const leadVisitData = ref([]);
-    const leadVisitDetail = ref(null);
+    const customersVisitData = ref([]);
+    const customersVisitDetail = ref(null);
 
-    const loadingLeadVisit = ref(false);
-    const savingLeadVisit = ref(false);
-    const updatingLeadVisit = ref(false);
-    const deletingLeadVisit = ref(false);
-    const errorLeadVisit = ref(null);
+    const loadingCustomersVisit = ref(false);
+    const savingCustomersVisit = ref(false);
+    const updatingCustomersVisit = ref(false);
+    const deletingCustomersVisit = ref(false);
+    const errorCustomersVisit = ref(null);
 
-    const searchLeadVisit = ref("");
-    let searchTimeoutLeadVisit = null;
+    const searchCustomersVisit = ref("");
+    let searchTimeoutCustomersVisit = null;
 
     const loading = ref(false);
 
@@ -47,10 +48,11 @@ export const useDataLeadsVisitStore = defineStore("Data-Leads-Visit", () => {
         return { Authorization: `Bearer ${token}` };
     };
 
-    const buildUrl = () => {
+
+     const buildUrl = () => {
         const params = new URLSearchParams();
 
-        if (searchLeadVisit.value) params.append("search", searchLeadVisit.value);
+        if (searchCustomersVisit.value) params.append("search", searchCustomersVisit.value);
         if (pagination.current_page) params.append("page", pagination.current_page);
         if (pagination.per_page) params.append("per_page", pagination.per_page);
         if (sort.column) {
@@ -73,12 +75,10 @@ export const useDataLeadsVisitStore = defineStore("Data-Leads-Visit", () => {
         });
     };
 
-    // ==============================
-    // Actions
-    // ==============================
-    const fetchLeadsVisitStore = async (url = buildUrl()) => {
 
-        loadingLeadVisit.value = true;
+    const fetchCustomersVisitStore = async (url = buildUrl()) => {
+
+        loadingCustomersVisit.value = true;
         try {
             const response = await axios.get(url, {
                 headers: getAuthHeader(),
@@ -90,7 +90,7 @@ export const useDataLeadsVisitStore = defineStore("Data-Leads-Visit", () => {
                 : result.data?.data ?? [];
 
             // Replace existing array
-            leadVisitData.value.splice(0, leadVisitData.value.length, ...dataArray);
+            customersVisitData.value.splice(0, customersVisitData.value.length, ...dataArray);
 
             // Set pagination
             const pag = result.pagination ?? result.data?.pagination;
@@ -105,28 +105,29 @@ export const useDataLeadsVisitStore = defineStore("Data-Leads-Visit", () => {
         } catch (error) {
             console.error("Gagal fetch:", error);
         } finally {
-            loadingLeadVisit.value = false;
+            loadingCustomersVisit.value = false;
         }
     };
 
-    const searchWithDelay = (val) => {
-        clearTimeout(searchTimeoutLeadVisit);
-        searchLeadVisit.value = val;
+
+      const searchWithDelay = (val) => {
+        clearTimeout(searchTimeoutCustomersVisit);
+        searchCustomersVisit.value = val;
         pagination.current_page = 1; // reset page
-        searchTimeoutLeadVisit = setTimeout(() => {
-            fetchLeadsVisitStore(buildUrl());
+        searchTimeoutCustomersVisit = setTimeout(() => {
+            fetchCustomersVisitStore(buildUrl());
         }, 500);
     };
 
     const changePageSize = (size) => {
         pagination.per_page = size;
         pagination.current_page = 1;
-        fetchLeadsVisitStore(buildUrl());
+        fetchCustomersVisitStore(buildUrl());
     };
 
     const changeSorting = () => {
         pagination.current_page = 1;
-        fetchLeadsVisitStore(buildUrl());
+        fetchCustomersVisitStore(buildUrl());
     };
 
     const toggleSort = (col) => {
@@ -143,44 +144,45 @@ export const useDataLeadsVisitStore = defineStore("Data-Leads-Visit", () => {
     };
 
     const resetFilters = () => {
-        searchLeadVisit.value = "";
+        searchCustomersVisit.value = "";
         pagination.per_page = 10;
         pagination.current_page = 1;
         sort.column = "created_at";
         sort.direction = "desc";
-        fetchLeadsVisitStore(buildUrl());
+        fetchCustomersVisitStore(buildUrl());
     };
 
     const goToPage = (url) => {
-    if (!url) return;
-    fetchLeadsVisitStore(url);
-};
+        if (!url) return;
+        fetchCustomersVisitStore(url);
+    };
 
 
     return {
-    leadVisitData,
-    leadVisitDetail,
-    loadingLeadVisit,
-    savingLeadVisit,
-    updatingLeadVisit,
-    deletingLeadVisit,
-    errorLeadVisit,
+        baseUrlApi,
+        customersVisitData,
+        customersVisitDetail,
+        loadingCustomersVisit,
+        savingCustomersVisit,
+        updatingCustomersVisit,
+        deletingCustomersVisit,
+        errorCustomersVisit,
+        searchCustomersVisit,
+        searchTimeoutCustomersVisit,
+        loading,
+        pagination,
+        sort,
+        allowedSortColumns,
+        getAuthHeader,
+        buildUrl,
+        formatDate,
+        fetchCustomersVisitStore,
+        searchWithDelay,
+        changePageSize,
+        changeSorting,
+        toggleSort,
+        resetFilters,
+        goToPage
+    }
 
-    searchLeadVisit,
-    pagination,
-    sort,
-    allowedSortColumns,
-
-    fetchLeadsVisitStore,
-    buildUrl,
-    searchWithDelay,
-
-    changePageSize,
-    changeSorting, 
-    toggleSort,
-    resetFilters,
-    formatDate,
-    goToPage
-};
-
-});
+})

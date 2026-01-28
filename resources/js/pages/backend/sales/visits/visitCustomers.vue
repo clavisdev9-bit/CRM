@@ -1,33 +1,61 @@
+
 <script setup>
-import { ref, reactive, onMounted , watch, onUnmounted, computed } from 'vue'
-import backendLayouts from "../../../../layouts/backendLayouts.vue";
-const PagesTitle = 'Data Customers Ready To Visit';
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
+import backendLayouts from "../../../../layouts/backendLayouts.vue"
+import { useDataCustomerVisitStore } from '../../../../stores/customersVisitsStore'
+import { useRoute, useRouter } from "vue-router"
+import { toasts } from "@/utils/toasts"
+
+// ======================================================
+// BASIC
+// ======================================================
+const PagesTitle = 'Data Customers Ready To Visit'
+const router = useRouter()
+const route = useRoute()
+const dataCustomerVisit = useDataCustomerVisitStore()
+
+// ======================================================
+// STATUS OPTIONS (FIX ERROR UTAMA)
+// ======================================================
+const statusOptions = [
+  { value: 'Collection / Payment Follow-up', label: 'Collection / Payment Follow-up' },
+  { value: 'Restocking / Taking Order (TO)', label: 'Restocking / Taking Order (TO)' },
+  { value: 'Routine Maintenance / Courtesy Call', label: 'Routine Maintenance / Courtesy Call' },
+  { value: 'Product Handling / Complaint', label: 'Product Handling / Complaint' },
+  { value: 'Active & Productive', label: 'Active & Productive' },
+  { value: 'Inactive / No Order', label: 'Inactive / No Order' },
+  { value: 'At Risk / Complaint', label: 'At Risk / Complaint' },
+  { value: 'Churn / Closed', label: 'Churn / Closed' }
+]
+
+const statusBadgeMap = {
+  Active: 'bg-success',
+  Dormant: 'bg-warning text-dark',
+  Inactive: 'bg-secondary',
+  Lost: 'bg-danger',
+  Blacklist: 'bg-dark'
+}
+
+const getStatusBadgeClass = (status) => {
+  if (!status) return 'bg-light text-muted'
+  return statusBadgeMap[status] || 'bg-light text-dark'
+}
 
 
-// start code frontend camera and location
-// ===== DATE TIME =====
+const selectedCustomer = ref(null)
+
+const openVisitModal = (customer) => {
+  selectedCustomer.value = customer
+}
+
+
+// ======================================================
+// DATE & TIME
+// ======================================================
 const currentDate = ref('')
 const currentTime = ref('')
 let timer = null
-// ===== PHOTO RESULT =====
-const photoBlob = ref(null)
 
-const isLocationLoading = ref(false)
-
-// ===== CAMERA =====
-const videoRef = ref(null)
-const photo = ref(null)
-let stream = null
-
-// ===== LOCATION =====
-const latitude = ref(null)
-const longitude = ref(null)
-const accuracy = ref(15)
-const locationStatus = ref('Waiting photo...')
-const address = ref('')
-const locationName = ref('')
-
-// ===== DATE TIME =====
 const updateDateTime = () => {
   const now = new Date()
   currentDate.value = now.toLocaleDateString('en-GB', {
@@ -44,53 +72,138 @@ const updateDateTime = () => {
   })
 }
 
+// ======================================================
+// CAMERA
+// ======================================================
+const videoRef = ref(null)
+let stream = null
+const isCameraReady = ref(false)
+const isProcessingPhoto = ref(false)
 
+const startCamera = async () => {
+  if (stream) return
+  try {
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: { exact: "environment" } },
+      audio: false
+    })
+  } catch {
+    stream = await navigator.mediaDevices.getUserMedia({ video: true })
+  }
+  videoRef.value.srcObject = stream
+}
 
 const stopCamera = () => {
   if (stream) {
-    stream.getTracks().forEach(track => track.stop())
+    stream.getTracks().forEach(t => t.stop())
     stream = null
   }
+  if (videoRef.value) videoRef.value.srcObject = null
+}
 
-  if (videoRef.value) {
-    videoRef.value.srcObject = null // ⬅️ WAJIB
+// ======================================================
+// PHOTO
+// ======================================================
+const photoBlob = ref(null)
+const photoPreview = ref(null)
+const rawCanvas = ref(null)
+
+watch(photoBlob, (newBlob, oldBlob) => {
+  if (photoPreview.value) URL.revokeObjectURL(photoPreview.value)
+  photoPreview.value = newBlob ? URL.createObjectURL(newBlob) : null
+})
+
+// ======================================================
+// LOCATION
+// ======================================================
+const latitude = ref(null)
+const longitude = ref(null)
+const accuracy = ref(null)
+const address = ref('')
+const locationStatus = ref('Waiting photo...')
+
+const getAddressFromLatLng = async (lat, lng) => {
+  try {
+    const res = await fetch(`/api/reverse-geocode?lat=${lat}&lon=${lng}`)
+    const data = await res.json()
+    address.value = data.display_name || 'Address not found'
+  } catch {
+    address.value = 'Unknown location'
   }
 }
 
+const getLocation = () => {
+  return new Promise(resolve => {
+    if (!navigator.geolocation) return resolve()
+    navigator.geolocation.getCurrentPosition(
+      async pos => {
+        latitude.value = pos.coords.latitude
+        longitude.value = pos.coords.longitude
+        accuracy.value = pos.coords.accuracy
+        await getAddressFromLatLng(latitude.value, longitude.value)
+        resolve()
+      },
+      () => resolve(),
+      { timeout: 20000 }
+    )
+  })
+}
 
+// ======================================================
+// WATERMARK
+// ======================================================
 const wrapText = (ctx, text, maxWidth) => {
   const words = text.split(' ')
   const lines = []
-  let currentLine = ''
-
+  let line = ''
   words.forEach(word => {
-    const testLine = currentLine + word + ' '
-    const { width } = ctx.measureText(testLine)
-
-    if (width > maxWidth && currentLine !== '') {
-      lines.push(currentLine)
-      currentLine = word + ' '
-    } else {
-      currentLine = testLine
-    }
+    const test = line + word + ' '
+    if (ctx.measureText(test).width > maxWidth && line) {
+      lines.push(line)
+      line = word + ' '
+    } else line = test
   })
-
-  lines.push(currentLine)
+  lines.push(line)
   return lines
 }
 
+const finalizePhotoWithWatermark = async () => {
+  const canvas = rawCanvas.value
+  const ctx = canvas.getContext('2d')
 
-const isProcessingPhoto = ref(false)
-const rawCanvas = ref(null) // simpan frame mentah
+  const padding = 20
+  const lineHeight = 22
+  const maxWidth = canvas.width - padding * 2
 
+  ctx.font = '14px Arial'
+  const lines = wrapText(ctx, `📍 ${address.value}`, maxWidth)
+  lines.push(`🕒 ${currentDate.value} ${currentTime.value}`)
 
+  const boxHeight = lines.length * lineHeight + padding * 2
+  const boxY = canvas.height - boxHeight
+
+  ctx.fillStyle = 'rgba(0,0,0,0.6)'
+  ctx.fillRect(0, boxY, canvas.width, boxHeight)
+
+  ctx.fillStyle = '#fff'
+  lines.forEach((l, i) => {
+    ctx.fillText(l, padding, boxY + padding + i * lineHeight)
+  })
+
+  photoBlob.value = await new Promise(r =>
+    canvas.toBlob(r, 'image/jpeg', 0.9)
+  )
+}
+
+// ======================================================
+// TAKE PHOTO
+// ======================================================
 const takePhoto = async () => {
-  if (!videoRef.value || isProcessingPhoto.value) return
-
+  if (isProcessingPhoto.value) return
   isProcessingPhoto.value = true
+
   updateDateTime()
 
-  // ambil frame mentah
   const canvas = document.createElement('canvas')
   canvas.width = videoRef.value.videoWidth
   canvas.height = videoRef.value.videoHeight
@@ -98,245 +211,77 @@ const takePhoto = async () => {
   ctx.drawImage(videoRef.value, 0, 0)
 
   rawCanvas.value = canvas
+  photoBlob.value = await new Promise(r => canvas.toBlob(r, 'image/jpeg', 0.8))
 
-  // PREVIEW CEPAT (tanpa watermark)
-  photoBlob.value = await new Promise(resolve =>
-    canvas.toBlob(resolve, 'image/jpeg', 0.8)
-  )
-
-  // lokasi jalan BELAKANG
   await getLocation()
-
-  // setelah lokasi ready → FINALIZE
   await finalizePhotoWithWatermark()
 
   isProcessingPhoto.value = false
 }
 
-
-const finalizePhotoWithWatermark = async () => {
-  if (!rawCanvas.value) return
-
-  const canvas = rawCanvas.value
-  const ctx = canvas.getContext('2d')
-
-  const padding = 20
-  const lineHeight = 24
-  const maxTextWidth = canvas.width - padding * 2
-
-  ctx.font = '14px Arial'
-
-  const addressLines = wrapText(
-    ctx,
-    `📍 ${address.value}`,
-    maxTextWidth
-  )
-
-  const timeLines = [`🕒 ${currentDate.value} ${currentTime.value}`]
-  const allLines = [...addressLines, ...timeLines]
-
-  const boxHeight = allLines.length * lineHeight + padding * 2
-  const boxY = canvas.height - boxHeight
-
-  ctx.fillStyle = 'rgba(0,0,0,0.6)'
-  ctx.fillRect(0, boxY, canvas.width, boxHeight)
-
-  ctx.fillStyle = '#fff'
-  ctx.textBaseline = 'top'
-
-  allLines.forEach((line, i) => {
-    ctx.fillText(
-      line,
-      padding,
-      boxY + padding + i * lineHeight
-    )
-  })
-
-  // GANTI photoBlob JADI FINAL
-  photoBlob.value = await new Promise(resolve =>
-    canvas.toBlob(resolve, 'image/jpeg', 0.9)
-  )
-}
-
-
-
-
-const photoPreview = computed(() => {
-  return photoBlob.value
-    ? URL.createObjectURL(photoBlob.value)
-    : null
+// ======================================================
+// FORM
+// ======================================================
+const form = reactive({
+  notes: '',
+  status: statusOptions[0].value
 })
 
+const isSubmitDisabled = computed(() =>
+  !photoBlob.value || !latitude.value || !longitude.value || isProcessingPhoto.value
+)
 
-
-const isCameraReady = ref(false)
-
-
-const getAddressFromLatLng = async (lat, lng) => {
-  try {
-    address.value = 'Detecting address...'
-    const res = await fetch(`/api/reverse-geocode?lat=${lat}&lon=${lng}`)
-    const data = await res.json()
-    address.value = data.display_name || 'Address not found'
-    locationName.value = address.value // ⬅️ INI PENTING
-  } catch {
-    address.value = 'Failed to get address'
-    locationName.value = 'Unknown location'
-  }
-}
-
-// ===== GEOLOCATION =====
-const getLocation = () => {
-  return new Promise((resolve) => {
-    if (!navigator.geolocation) {
-      locationStatus.value = 'Geolocation not supported'
-      return resolve()
-    }
-
-    locationStatus.value = 'Detecting location...'
-
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        latitude.value = pos.coords.latitude
-        longitude.value = pos.coords.longitude
-        accuracy.value = pos.coords.accuracy
-        locationStatus.value = 'Location detected'
-        await getAddressFromLatLng(latitude.value, longitude.value)
-        resolve()
-      },
-      () => {
-        locationStatus.value = 'Failed to detect location'
-        resolve()
-      },
-      {
-        enableHighAccuracy: false,
-        timeout: 20000,
-        maximumAge: 0
-      }
-    )
+const submitVisit = () => {
+  if (!photoBlob.value) return
+  console.log({
+    photo: photoBlob.value,
+    lat: latitude.value,
+    lng: longitude.value,
+    address: address.value,
+    notes: form.notes,
+    status: form.status
   })
+  toasts.success('Customer visit saved')
 }
 
+// ======================================================
+// RESET
+// ======================================================
 const resetVisitState = () => {
-  // stop camera
   stopCamera()
-
-  // revoke preview URL (anti memory leak)
-  if (photoBlob.value) {
-    URL.revokeObjectURL(photoPreview.value)
-  }
-
-  // clear photo
   photoBlob.value = null
   rawCanvas.value = null
-  isProcessingPhoto.value = false
-  isCameraReady.value = false
-
-  // clear location
-  latitude.value = null
-  longitude.value = null
-  accuracy.value = null
+  latitude.value = longitude.value = null
   address.value = ''
-  locationName.value = ''
-  locationStatus.value = 'Waiting photo...'
-
-  // clear form
   form.notes = ''
-  form.status = 'follow_up'
+  form.status = statusOptions[0].value
 }
 
-
-
-onMounted(() => {
+// ======================================================
+// LIFECYCLE
+// ======================================================
+onMounted(async () => {
   updateDateTime()
   timer = setInterval(updateDateTime, 1000)
+  await dataCustomerVisit.fetchCustomersVisitStore(
+    dataCustomerVisit.buildUrl()
+  )
 
-  const modalEl = document.getElementById('modal-input-visit')
-  if (!modalEl) return
-
-  modalEl.addEventListener('shown.bs.modal', () => {
-    startCamera()
-  })
-
-  modalEl.addEventListener('hidden.bs.modal', () => {
-    resetVisitState()
-  })
+  const modal = document.getElementById('modal-input-visit')
+  modal?.addEventListener('shown.bs.modal', startCamera)
+  modal?.addEventListener('hidden.bs.modal', resetVisitState)
 })
 
 onUnmounted(() => {
   clearInterval(timer)
   resetVisitState()
 })
-
-onUnmounted(() => clearInterval(timer))
-// end code frontend camera and location
-
-
-
-const form = reactive({
-  notes: '',
-  status: 'follow_up' // Default status
-})
-
-const statusOptions = [
-  { value: 'Collection / Payment Follow-up', label: 'Collection / Payment Follow-up', desc: 'Collection / Payment Follow-up' },
-  { value: 'Restocking / Taking Order (TO)', label: 'Restocking / Taking Order (TO)', desc: 'Restocking / Taking Order (TO)' },
-  { value: 'Routine Maintenance / Courtesy Call', label: 'Routine Maintenance / Courtesy Call', desc: 'Routine Maintenance / Courtesy Call' },
-  { value: 'Product Handling / Complaint', label: 'Product Handling / Complaint', desc: 'Product Handling / Complaint' },
-  { value: 'Active & Productive', label: 'Active & Productive', desc: 'Active & Productive' },
-  { value: 'Inactive / No Order', label: 'Inactive / No Order', desc: 'Inactive / No Order' },
-  { value: 'At Risk / Complaint', label: 'At Risk / Complaint', desc: 'At Risk / Complaint' },
-  { value: 'Churn / Closed', label: 'Churn / Closed', desc: 'Churn / Closed' }
-]
-
-// GANTI START CAMERA AGAR PAKAI KAMERA BELAKANG
-const startCamera = async () => {
-  if (stream) return // ⬅️ PENTING
-
-  try {
-    stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: "environment" },
-      audio: false
-    })
-
-    if (videoRef.value) {
-      videoRef.value.srcObject = stream
-    }
-  } catch (err) {
-    console.error("Camera error:", err)
-  }
-}
-
-
-document.addEventListener('visibilitychange', () => {
-  if (document.hidden) {
-    resetVisitState()
-  }
-})
-
-
-const isSubmitDisabled = computed(() => {
-  return (
-    isProcessingPhoto.value ||
-    !photoBlob.value ||
-    !latitude.value ||
-    !longitude.value
-  )
-})
-
-const submitVisit = () => {
-  if (!photo.value) return alert('Ambil foto kunjungan terlebih dahulu!')
-  
-  console.log('Mengirim Data:', {
-    photo: photo.value,
-    location: { lat: latitude.value, lng: longitude.value },
-    notes: form.notes,
-    status: form.status
-  })
-  alert('Data Berhasil Disimpan!')
-  // Tambahkan logika kirim ke API disini
-}
 </script>
+
+
+
+
+
 
 <template>
   <backendLayouts>
@@ -367,10 +312,6 @@ const submitVisit = () => {
       <!-- Page Body -->
       <div class="page-body flex-grow-1">
         <div class="container-xl">
-
-        
-
-
           <!-- Card: Filter & Sort -->
           <div class="card mb-4">
             <div class="card-header d-flex justify-content-between flex-wrap gap-3">
@@ -382,7 +323,8 @@ const submitVisit = () => {
                     <i class="fas fa-list-ul me-1"></i> Showing:
                     </label>
                     <select class="form-select w-auto"
-                    >
+                    v-model.number="dataCustomerVisit.pagination.per_page"
+                    @change="dataCustomerVisit.changePageSize(dataCustomerVisit.pagination.per_page)">
                     <option>10</option>
                     <option>25</option>
                     <option>50</option>
@@ -390,10 +332,12 @@ const submitVisit = () => {
                     </select>
                 </div>
 
-                <!-- Tombol add -->
-                 <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modal-add-data">
+                 <router-link
+                  to="/sales-visit"
+                  class="btn btn-secondary"
+                >
                   <i class="fa-solid fa-arrow-left"></i> Back
-                    </button>
+                </router-link>
                 </div>
 
 
@@ -401,18 +345,24 @@ const submitVisit = () => {
              <div class="d-flex flex-column gap-3 align-items-end" style="min-width:300px;">
                 <!-- Pencarian -->
                 <div class="input-group">
-                    <input type="text" class="form-control" placeholder="Searching....">
+                    <input
+                      type="text"
+                      class="form-control"
+                      placeholder="Searching...."
+                      :value="dataCustomerVisit.searchCustomersVisit"
+                      @input="dataCustomerVisit.searchWithDelay($event.target.value)"
+                    >
                     <span class="input-group-text bg-white"><i class="fa fa-search"></i></span>
                 </div>
 
                 <!-- Urutan -->
                 <div class="d-flex gap-2 align-items-center">
                     <label class="mb-0 fw-semibold">Sort:</label>
-                    <select class="form-select w-auto">
-                    <option value="fullname">By Name</option>
+                    <select class="form-select w-auto" v-model="dataCustomerVisit.sort.column" @change="dataCustomerVisit.changeSorting">
+                    <option value="company_name">By Name</option>
                     <option value="created_at">By Created Date</option>
                     </select>
-                    <select class="form-select w-auto">
+                    <select class="form-select w-auto" v-model="dataCustomerVisit.sort.direction" @change="dataCustomerVisit.changeSorting">
                     <option value="asc">Ascending</option>
                     <option value="desc">Descending</option>
                     </select>
@@ -440,30 +390,91 @@ const submitVisit = () => {
                   </tr>
                 </thead>
 
-            
+                <tbody v-if="dataCustomerVisit.loadingCustomersVisit">
+                <tr>
+                  <td colspan="8" class="text-center py-4">
+                    <div class="spinner-border text-primary"></div>
+                  </td>
+                </tr>
+              </tbody>
 
-                <tbody>
-                    <tr>
-                      <td>1</td>
-                      <td>sdsdsdsd</td>
-                      <td>dsdsdsdsd</td>
-                      <td>dsdsdsdsd</td>
-                      <td>dsdsdsdsd</td>
-                    
-                      <td>12313</td>
-                      <td>
-                       
-
-                       <button class="btn btn-outline-primary btn-sm"   
-                        data-bs-toggle="modal" data-bs-target="#modal-input-visit"
-                          >
-                            <i class="fa-solid fa-street-view"></i> Visit Now
-                        </button>
-                    
-                         
+              <!-- EMPTY DATA -->
+              <tbody v-else-if="dataCustomerVisit.customersVisitData.length === 0">
+                   <tr>
+                      <td colspan="8" class="text-center">
+                        <div class="d-flex flex-column align-items-center justify-content-center">
+                          <img
+                            src="https://cdn.dribbble.com/users/285475/screenshots/2083086/dribbble_1.gif"
+                            alt="No data found"
+                            style="max-width: 250px; height: auto;"
+                            class="mb-3"
+                          />
+                          <p class="text-danger fw-bold fst-italic">
+                            <i class="fa fa-exclamation-circle me-1"></i>
+                            Customers data not found.
+                          </p>
+                        </div>
                       </td>
                     </tr>
                 </tbody>
+
+                  <tbody v-else>
+                  <tr v-for="(lvd, index) in dataCustomerVisit.customersVisitData" :key="lvd.id">
+                    <td>{{ index + 1 + dataCustomerVisit.pagination.per_page * (dataCustomerVisit.pagination.current_page - 1) }}.</td>
+                    <td>{{ lvd.company_name }}</td>
+                    <td>{{ lvd.contact_name }}</td>
+                    <td>
+                      <!-- Desktop -->
+                      <textarea
+                        class="form-control d-none d-md-block"
+                        rows="2"
+                        readonly
+                      >{{ lvd.address }}</textarea>
+
+                      <!-- Mobile -->
+                      <div class="d-block d-md-none small text-muted text-wrap">
+                        {{ lvd.address }}
+                      </div>
+                    </td>
+                    <td>{{ lvd.phone }}</td>
+                   <td>
+                       <span
+                          class="badge rounded-pill px-3 py-2 d-inline-flex align-items-center gap-1"
+                          :class="getStatusBadgeClass(lvd.customer_status)"
+                        >
+                          <i
+                            class="fa-solid"
+                            :class="{
+                              'fa-circle-check': lvd.customer_status === 'Active',
+                              'fa-clock': lvd.customer_status === 'Dormant',
+                              'fa-pause': lvd.customer_status === 'Inactive',
+                              'fa-xmark': lvd.customer_status === 'Lost',
+                              'fa-ban': lvd.customer_status === 'Blacklist'
+                            }"
+                          ></i>
+                          {{ lvd.customer_status }}
+                        </span>
+                    </td>
+                    <td>
+                     <td>
+                      <button
+                        class="btn btn-outline-primary btn-sm"
+                        data-bs-toggle="modal"
+                        data-bs-target="#modal-input-visit"
+                        @click="openVisitModal(lvd)"
+                      >
+                        <i class="fa-solid fa-street-view"></i> Visit Now
+                      </button>
+                    </td>
+                    </td>
+                  </tr>
+                
+                </tbody>
+            
+
+                
+            
+              
               </table>
             </div>
           </div>
@@ -471,19 +482,26 @@ const submitVisit = () => {
           <!-- Card: Pagination -->
           <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
-              <button class="btn btn-danger btn-sm" 
-                 >
-                <i class="fa-solid fa-circle-chevron-left"
-                ></i> Prev
+              <button
+                class="btn btn-danger btn-sm"
+                :disabled="!dataCustomerVisit.pagination.prev_page_url || dataCustomerVisit.loadingCustomersVisit"
+                @click="dataCustomerVisit.goToPage(dataCustomerVisit.pagination.prev_page_url)"
+              >
+                <i class="fa-solid fa-circle-chevron-left"></i> Prev
               </button>
   
                 <div class="mx-2 d-flex flex-column flex-sm-row align-items-center gap-1">
-                    <span class="badge border text-secondary px-3 py-2"> 10 data | on page 19</span>
-                    <span class="badge border text-secondary px-3 py-2">Total: 19  data</span>
+                     <span class="badge border text-secondary px-3 py-2">
+                      {{ dataCustomerVisit.customersVisitData.length }} data | page {{ dataCustomerVisit.pagination.current_page }}
+                    </span>
+                    <span class="badge border text-secondary px-3 py-2">
+                      Total: {{ dataCustomerVisit.pagination.total }}
+                    </span>
                 </div>
   
                 <button class="btn btn-danger btn-sm"
-               >
+                :disabled="!dataCustomerVisit.pagination.next_page_url || dataCustomerVisit.loadingCustomersVisit"
+                 @click="dataCustomerVisit.goToPage(dataCustomerVisit.pagination.next_page_url)">
                     Next <i class="fa-solid fa-circle-chevron-right"></i>
                 </button>
             </div>
@@ -499,7 +517,12 @@ const submitVisit = () => {
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content">
       <div class="modal-header">
-        <h5 class="modal-title">Customer Visit Report</h5>
+        <h5 class="modal-title">
+          Customer Visit Report
+          <div v-if="selectedCustomer" class="text-muted small">
+            {{ selectedCustomer.company_name }} — {{ selectedCustomer.contact_name }}
+          </div>
+        </h5>
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
 
@@ -539,18 +562,10 @@ const submitVisit = () => {
                                 class="w-100 h-100 rounded img-thumbnail shadow-sm"
                                 style="object-fit: contain;"
                             />
-
-                           
-                                
-                            
                             </template>
-
-                           
                           <div
                             v-else
-                            class="w-100 h-100 d-flex flex-column align-items-center
-                                justify-content-center
-                                text-center text-muted opacity-50"
+                           class="w-100 h-100 d-flex flex-column align-items-center justify-content-center text-muted opacity-50"
                             >
                             <i class="fa-solid fa-image-portrait fs-1 mb-2 mt-2"></i>
                             <p class="small mb-0">No photo yet</p>

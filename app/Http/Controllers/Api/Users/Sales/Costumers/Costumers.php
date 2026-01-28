@@ -152,7 +152,7 @@ class Costumers extends Controller
                     'industry_id'      => $data['industry_id'] ?? null,
                     'lead_category_id' => $data['lead_category_id'] ?? null,
                     'assigned_to'      => $data['assigned_to'] ?? null,
-                    'customer_status'  => 'Converted',
+                    'customer_status'  => 'Active',
 
                     'id_user'          => $userId,
                     'created_by'       => $userId,
@@ -226,6 +226,7 @@ class Costumers extends Controller
                     'lead_category_id' => $data['lead_category_id'] ?? null,
                     // 'assigned_to'      => $data['assigned_to'] ?? null,
                     'visibility_type'  => $data['visibility_type'] ?? 'PRIVATE',
+                    'customer_status'  => $data['customer_status'] ?? 'Active',
                     'notes'            => $data['notes'] ?? null,
                     'address'          => $data['address'] ?? null,
                     'updated_at'       => now(),

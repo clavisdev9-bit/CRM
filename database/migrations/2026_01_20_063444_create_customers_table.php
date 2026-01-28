@@ -72,13 +72,12 @@ return new class extends Migration
     $table->string('lead_source', 30)->default('Website');
     $table->index('assigned_to');
     $table->index('customer_status');
-      // New
-      // Contacted
-      // Qualified
-      // Unqualified
-      // Converted
+      // Active
+      // Dormant
+      // Inactive
       // Lost
       // Blacklist
+
 
     // =========================
     // FOREIGN KEY
