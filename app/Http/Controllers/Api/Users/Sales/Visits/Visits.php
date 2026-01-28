@@ -108,6 +108,7 @@ class Visits extends Controller
 
     $perPage = (int) ($validated['per_page'] ?? 10);
     $page    = (int) ($validated['page'] ?? 1);
+    
 
     // Whitelist kolom sorting
     $allowedSort = [
@@ -117,11 +118,11 @@ class Visits extends Controller
     ];
 
     $sortByKey = $validated['sort_by'] ?? 'created_at';
-    $sortBy    = $allowedSort[$sortByKey] ?? 'l.created_at';
+$sortBy    = $allowedSort[$sortByKey] ?? 'l.created_at';
 
-    $sortDir = in_array(($validated['sort_dir'] ?? 'desc'), ['asc', 'desc'])
-        ? $validated['sort_dir']
-        : 'desc';
+$sortDirInput = $validated['sort_dir'] ?? 'desc';
+$sortDir = in_array($sortDirInput, ['asc', 'desc']) ? $sortDirInput : 'desc';
+
 
     $userId = auth()->user()->id_user;
 

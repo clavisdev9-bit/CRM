@@ -76,7 +76,8 @@ export const useDataLeadsVisitStore = defineStore("Data-Leads-Visit", () => {
     // ==============================
     // Actions
     // ==============================
-    const fetchLeadsVisitStore = async (url = baseUrlApi) => {
+    const fetchLeadsVisitStore = async (url = buildUrl()) => {
+
         loadingLeadVisit.value = true;
         try {
             const response = await axios.get(url, {
@@ -150,6 +151,12 @@ export const useDataLeadsVisitStore = defineStore("Data-Leads-Visit", () => {
         fetchLeadsVisitStore(buildUrl());
     };
 
+    const goToPage = (url) => {
+    if (!url) return;
+    fetchLeadsVisitStore(url);
+};
+
+
     // ==============================
     // Return
     // ==============================
@@ -198,6 +205,7 @@ export const useDataLeadsVisitStore = defineStore("Data-Leads-Visit", () => {
     toggleSort,
     resetFilters,
     formatDate,
+    goToPage
 };
 
 });

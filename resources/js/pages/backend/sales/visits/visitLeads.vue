@@ -315,6 +315,26 @@ watch(() => dataLeadsVisit.searchLeadVisit, dataLeadsVisit.searchWithDelay);
 document.addEventListener('visibilitychange', () => {
   if (document.hidden) resetVisitState();
 });
+
+
+
+const leadStatusBadge = (status) => {
+  switch (status) {
+    case 'New':
+      return 'bg-success';
+    case 'Contacted':
+      return 'bg-info';
+    case 'Qualified':
+        return 'bg-primary';
+  }
+};
+
+const formatLeadStatus = (status) => {
+  return status
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, char => char.toUpperCase());
+};
+
 </script>
 
 
@@ -365,9 +385,12 @@ document.addEventListener('visibilitychange', () => {
 
                 </div>
 
-                <button class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modal-add-data">
+               <router-link
+                  to="/sales-visit"
+                  class="btn btn-secondary"
+                >
                   <i class="fa-solid fa-arrow-left"></i> Back
-                </button>
+                </router-link>
               </div>
 
               <!-- Kanan: Search & Sort -->
@@ -445,15 +468,31 @@ document.addEventListener('visibilitychange', () => {
                     <td>{{ index + 1 + dataLeadsVisit.pagination.per_page * (dataLeadsVisit.pagination.current_page - 1) }}.</td>
                     <td>{{ lvd.company_name }}</td>
                     <td>{{ lvd.contact_name }}</td>
-                    <td>{{ lvd.address }}</td>
+                    <td>
+                      <!-- Desktop -->
+                      <textarea
+                        class="form-control d-none d-md-block"
+                        rows="2"
+                        readonly
+                      >{{ lvd.address }}</textarea>
+
+                      <!-- Mobile -->
+                      <div class="d-block d-md-none small text-muted text-wrap">
+                        {{ lvd.address }}
+                      </div>
+                    </td>
                     <td>{{ lvd.phone }}</td>
-                    <td>{{ lvd.lead_status }}</td>
+                   <td>
+                      <span :class="['badge', leadStatusBadge(lvd.lead_status)]">
+                        {{ formatLeadStatus(lvd.lead_status) }}
+                      </span>
+                    </td>
                     <td>
                       <button class="btn btn-outline-primary" 
                       data-bs-toggle="modal" 
                       data-bs-target="#modal-input-visit"
                         @click="selectedLead = lvd">
-                        <i class="fa-solid fa-street-view"></i> Visit Now
+                        <i class="fa-solid fa-street-view"></i> Visit Now <i class="fa-solid fa-arrow-right"></i>
                       </button>
                     </td>
                   </tr>
@@ -466,7 +505,7 @@ document.addEventListener('visibilitychange', () => {
           </div>
 
           <!-- Card: Pagination -->
-          <div class="card mb-4">
+          <!-- <div class="card mb-4">
             <div class="card-header d-flex justify-content-between align-items-center">
               <button class="btn btn-danger btn-sm" 
                 :disabled="!dataLeadsVisit.pagination.prev_page_url || dataLeadsVisit.loadingLeadVisit"
@@ -480,12 +519,43 @@ document.addEventListener('visibilitychange', () => {
               </div>
 
               <button class="btn btn-danger btn-sm" 
-               :disabled="!dataLeadsVisit.pagination.next_page_url || dataLeadsVisit.loadingMenus"
+               :disabled="!dataLeadsVisit.pagination.next_page_url || dataLeadsVisit.loadingLeadVisit"
                   @click="dataLeadsVisit.fetchLeadsVisitStore(dataLeadsVisit.pagination.next_page_url)">
                 Next <i class="fa-solid fa-circle-chevron-right"></i>
               </button>
             </div>
-          </div>
+          </div> -->
+          <div class="card mb-4">
+  <div class="card-header d-flex justify-content-between align-items-center">
+
+    <button
+      class="btn btn-danger btn-sm"
+      :disabled="!dataLeadsVisit.pagination.prev_page_url || dataLeadsVisit.loadingLeadVisit"
+      @click="dataLeadsVisit.goToPage(dataLeadsVisit.pagination.prev_page_url)"
+    >
+      <i class="fa-solid fa-circle-chevron-left"></i> Prev
+    </button>
+
+    <div class="mx-2 d-flex flex-column flex-sm-row align-items-center gap-1">
+      <span class="badge border text-secondary px-3 py-2">
+        {{ dataLeadsVisit.leadVisitData.length }} data | page {{ dataLeadsVisit.pagination.current_page }}
+      </span>
+      <span class="badge border text-secondary px-3 py-2">
+        Total: {{ dataLeadsVisit.pagination.total }}
+      </span>
+    </div>
+
+    <button
+      class="btn btn-danger btn-sm"
+      :disabled="!dataLeadsVisit.pagination.next_page_url || dataLeadsVisit.loadingLeadVisit"
+      @click="dataLeadsVisit.goToPage(dataLeadsVisit.pagination.next_page_url)"
+    >
+      Next <i class="fa-solid fa-circle-chevron-right"></i>
+    </button>
+
+  </div>
+</div>
+
         </div>
       </div>
     </div>
