@@ -160,7 +160,8 @@ Route::delete('/follow-up/delete/{id}', [FollowUp::class, 'deleteFollowUp'])->na
 
 Route::get('/data-leads-visit', [Visits::class, 'VisitLeads'])->name('api.data.leads.visit');
 Route::get('/data-customers-visit', [Visits::class, 'VisitCustomers'])->name('api.data.customers.visit');
-
+// routes/api.php
+Route::post('/visits-activity-leads', [Visits::class, 'storeLeadsVisit'])->name('api.data.store.visit');
 
 
 });

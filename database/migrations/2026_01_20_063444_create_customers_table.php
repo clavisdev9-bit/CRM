@@ -41,10 +41,10 @@ return new class extends Migration
     // =========================
     // STATUS
     // =========================
-    $table->string('customer_status', 20)->default('Active');
+    $table->string('customer_status', 50)->default('Active');
 
       // VISIBILITY
-      $table->string('visibility_type', 10)->default('PRIVATE');
+      $table->string('visibility_type', 50)->default('PRIVATE');
 
     // =========================
     // INFO
@@ -69,7 +69,7 @@ return new class extends Migration
     $table->index('lead_id');
     $table->index('lead_category_id');
     $table->index('industry_id');
-    $table->string('lead_source', 30)->default('Website');
+    $table->string('lead_source', 50)->default('Website');
     $table->index('assigned_to');
     $table->index('customer_status');
       // Active

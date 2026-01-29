@@ -61,14 +61,14 @@ return new class extends Migration
                   ->on('ms_users')
                   ->cascadeOnDelete();
 
-            $table->string('visibility_type', 10)
+            $table->string('visibility_type', 50)
                   ->default('PRIVATE');
 
             // =========================
             // STATUS & SOURCE
             // =========================
-            $table->string('lead_source', 30)->default('Website');
-            $table->string('lead_status', 20)->default('New');
+            $table->string('lead_source', 50)->default('Website');
+            $table->string('lead_status', 50)->default('New');
             // New
             // Contacted
             // Qualified

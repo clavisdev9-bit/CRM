@@ -25,7 +25,7 @@ return new class extends Migration
             $table->timestamp('follow_up_at');
 
             // STATUS
-            $table->string('status', 20)->default('PENDING');
+            $table->string('status', 50)->default('PENDING');
 
             // USER
             $table->unsignedBigInteger('assigned_to')->nullable();

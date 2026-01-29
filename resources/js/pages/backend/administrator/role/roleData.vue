@@ -1009,14 +1009,14 @@ const handleImportExcel = () => {
 
 
       <!-- Footer -->
-      <div class="modal-footer">
+      <!-- <div class="modal-footer">
         <button class="btn btn-outline-secondary" data-bs-dismiss="modal">
           Close
         </button>
         <button class="btn btn-primary" @click="saveAccessMenu">
           Save Access
         </button>
-      </div>
+      </div> -->
 
     </div>
   </div>

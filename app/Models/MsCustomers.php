@@ -26,6 +26,7 @@ class MsCustomers extends Model
     'contact_name',
     'email',
     'phone',
+    'id_user',        
 
     'assigned_to',
     'created_by',

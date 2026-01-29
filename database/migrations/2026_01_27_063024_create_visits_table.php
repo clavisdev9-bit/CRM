@@ -62,7 +62,7 @@ return new class extends Migration
             // =========================
             // VISIT RESULT
             // =========================
-            $table->string('visit_result', 20)
+            $table->string('visit_result', 50)
                   ->comment('Result of visit');
 
             /*
@@ -131,11 +131,11 @@ return new class extends Migration
             ALTER TABLE visits
             ADD CONSTRAINT chk_visits_result
             CHECK (visit_result IN (
-                'PROSPECTIVE',
-                'CONSIDERATION',
-                'POTENTIAL',
-                'CONVERTED',
-                'FAILED'
+                'prospective_customers',
+                'consideration_stage',
+                'potential_customers',
+                'convert_to_customer',
+                'failed'
             ))
         ");
     }

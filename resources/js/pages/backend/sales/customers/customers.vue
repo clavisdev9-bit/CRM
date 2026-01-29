@@ -509,7 +509,7 @@ const handleImportExcel = () => {
                     <th>Contact Name</th>
                     <th>Email</th>
                     <th>Phone</th>
-                    <th>Progress</th>
+                    <th>Status Now</th>
                     <th>Converted</th>
                     <th style="width:10%;">Actions</th>
                   </tr>

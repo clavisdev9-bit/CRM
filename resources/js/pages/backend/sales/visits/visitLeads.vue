@@ -61,7 +61,7 @@ const statusOptions = [
   { value: 'consideration_stage', label: 'Consideration Stage', desc: 'consideration stage' },
   { value: 'prospective_customers', label: 'Prospective Customers', desc: 'Prospective Customers' },
   { value: 'failed', label: 'Failed', desc: 'Failed OR Rejected' },
-  { value: 'customer', label: 'Covert To Customer', desc: 'Closing' }
+  { value: 'convert_to_customer', label: 'Covert To Customer', desc: 'Closing' }
 ];
 
 
