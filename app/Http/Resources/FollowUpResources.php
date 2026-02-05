@@ -17,6 +17,7 @@ class FollowUpResources extends JsonResource
             'subject'        => $this->subject,
             'notes'          => $this->notes,
             'status'         => $this->status,
+            'follow_up_code'         => $this->follow_up_code,
 
             /* ===== TARGET FIX ===== */
             'target_name' =>
@@ -31,6 +32,7 @@ class FollowUpResources extends JsonResource
 
             /* ===== OPTIONAL DETAIL ===== */
             'lead_company_name'     => $this->lead_company_name,
+            'lead_status'     => $this->lead_status,
             'customer_company_name' => $this->customer_company_name,
 
             // 'follow_up_at' => optional($this->follow_up_at)->toDateTimeString(),

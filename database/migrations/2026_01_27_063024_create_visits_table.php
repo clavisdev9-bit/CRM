@@ -63,8 +63,8 @@ return new class extends Migration
             // VISIT RESULT
             // =========================
             $table->string('visit_result', 50)
-                  ->comment('Result of visit');
-
+                        ->nullable()
+                        ->comment('Result of visit');
             /*
               PROSPECTIVE
               CONSIDERATION
@@ -72,6 +72,11 @@ return new class extends Migration
               CONVERTED
               FAILED
             */
+
+              $table->string('visit_status', 20)
+                  ->default('ONGOING')
+                  ->comment('ONGOING, CHECKED_IN, DONE, CANCELED');
+
 
             $table->text('customer_response')->nullable();
 
@@ -127,17 +132,31 @@ return new class extends Migration
         ");
 
         // valid visit result
-        DB::statement("
+       // CHECK visit result
+            DB::statement("
             ALTER TABLE visits
             ADD CONSTRAINT chk_visits_result
-            CHECK (visit_result IN (
-                'prospective_customers',
-                'consideration_stage',
-                'potential_customers',
-                'convert_to_customer',
-                'failed'
-            ))
-        ");
+            CHECK (
+                  visit_result IS NULL OR visit_result IN (
+                        'prospective_customers',
+                        'consideration_stage',
+                        'potential_customers',
+                        'convert_to_customer',
+                        'failed'
+                  )
+            )
+            ");
+
+
+            DB::statement("
+            ALTER TABLE visits
+            ADD CONSTRAINT chk_visits_status
+            CHECK (
+                  visit_status IN ('ONGOING', 'CHECKED_IN', 'DONE', 'CANCELED')
+            )
+            ");
+
+
     }
 
     public function down(): void

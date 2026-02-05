@@ -4,10 +4,12 @@ import axios from "axios";
 import Swal from "sweetalert2";
 
 export const useDataLeadsVisitStore = defineStore("Data-Leads-Visit", () => {
-    // ==============================
-    // State
-    // ==============================
+    // ==========================================
+    // STATE
+    // ==========================================
     const baseUrlApi = "/api/data-leads-visit";
+
+    
 
     const leadVisitData = ref([]);
     const leadVisitDetail = ref(null);
@@ -22,6 +24,15 @@ export const useDataLeadsVisitStore = defineStore("Data-Leads-Visit", () => {
     let searchTimeoutLeadVisit = null;
 
     const loading = ref(false);
+    const errors = ref({});
+
+
+    // untuk state visit start 
+    // VISIT STATE
+        const activeVisitId = ref(null)
+        const activeLeadId = ref(null)
+        const activeVisitStatus = ref(null)
+
 
     const pagination = reactive({
         current_page: 1,
@@ -39,9 +50,9 @@ export const useDataLeadsVisitStore = defineStore("Data-Leads-Visit", () => {
 
     const allowedSortColumns = ["company_name", "created_at"];
 
-    // ==============================
-    // Helpers
-    // ==============================
+    // ==========================================
+    // HELPERS
+    // ==========================================
     const getAuthHeader = () => {
         const token = localStorage.getItem("auth_token");
         return { Authorization: `Bearer ${token}` };
@@ -73,11 +84,10 @@ export const useDataLeadsVisitStore = defineStore("Data-Leads-Visit", () => {
         });
     };
 
-    // ==============================
-    // Actions
-    // ==============================
+    // ==========================================
+    // ACTIONS
+    // ==========================================
     const fetchLeadsVisitStore = async (url = buildUrl()) => {
-
         loadingLeadVisit.value = true;
         try {
             const response = await axios.get(url, {
@@ -152,35 +162,77 @@ export const useDataLeadsVisitStore = defineStore("Data-Leads-Visit", () => {
     };
 
     const goToPage = (url) => {
-    if (!url) return;
-    fetchLeadsVisitStore(url);
-};
+        if (!url) return;
+        fetchLeadsVisitStore(url);
+    };
+
+
+
+    const startVisit = async (leadId) => {
+  try {
+    savingLeadVisit.value = true
+
+    const response = await axios.post(
+      `/api/leads/${leadId}/start`,
+      {},
+      { headers: getAuthHeader() }
+    )
+
+    const visit = response.data.data
+
+    // simpan visit aktif
+    activeVisitId.value = visit.id
+    activeLeadId.value = visit.lead_id
+    activeVisitStatus.value = visit.visit_status
+
+    Swal.fire({
+      icon: "success",
+      title: "Visit dimulai",
+      text: "Silakan menuju lokasi",
+      timer: 1500,
+      showConfirmButton: false,
+    })
+  } catch (err) {
+    Swal.fire("Gagal", err.response?.data?.message ?? "Error", "error")
+  } finally {
+    savingLeadVisit.value = false
+  }
+}
+
+
+
 
 
     return {
-    leadVisitData,
-    leadVisitDetail,
-    loadingLeadVisit,
-    savingLeadVisit,
-    updatingLeadVisit,
-    deletingLeadVisit,
-    errorLeadVisit,
+        // State
+        leadVisitData,
+        leadVisitDetail,
+        loadingLeadVisit,
+        savingLeadVisit,
+        updatingLeadVisit,
+        deletingLeadVisit,
+        errorLeadVisit,
+        errors,
+        searchLeadVisit,
+        pagination,
+        sort,
+        allowedSortColumns,
 
-    searchLeadVisit,
-    pagination,
-    sort,
-    allowedSortColumns,
+        // Actions
+        fetchLeadsVisitStore,
+        buildUrl,
+        searchWithDelay,
+        changePageSize,
+        changeSorting,
+        toggleSort,
+        resetFilters,
+        formatDate,
+        goToPage,
 
-    fetchLeadsVisitStore,
-    buildUrl,
-    searchWithDelay,
-
-    changePageSize,
-    changeSorting, 
-    toggleSort,
-    resetFilters,
-    formatDate,
-    goToPage
-};
-
+        // state start visit
+        activeVisitId,
+        activeLeadId,
+        activeVisitStatus,
+        startVisit
+    };
 });

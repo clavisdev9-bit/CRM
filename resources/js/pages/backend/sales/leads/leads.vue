@@ -87,6 +87,44 @@ const notFoundConfig = {
   }
 }
 
+const normalizeStatus = (status) => {
+  return status?.toUpperCase().replaceAll(' ', '_')
+}
+
+
+
+const leadStatusConfig = {
+  CUSTOMER: {
+    class: 'bg-success',
+    icon: 'fa-solid fa-circle-check',
+  },
+  FAILED: {
+    class: 'bg-danger',
+    icon: 'fa-solid fa-circle-xmark',
+  },
+  PROSPECTIVE_CUSTOMERS: {
+    class: 'bg-info',
+    icon: 'fa-solid fa-user-plus',
+  },
+  CONSIDERATION_STAGE: {
+    class: 'bg-warning text-dark',
+    icon: 'fa-solid fa-clock',
+  },
+  POTENTIAL_CUSTOMERS: {
+    class: 'bg-primary',
+    icon: 'fa-solid fa-star',
+  },
+  PARTNER: {
+    class: 'bg-secondary',
+    icon: 'fa-solid fa-handshake',
+  },
+  OTHER: {
+    class: 'bg-dark',
+    icon: 'fa-solid fa-tag',
+  },
+}
+
+
 const formatDate = (value) => {
   if (!value) return '-'
 
@@ -545,12 +583,24 @@ const confirmDelete = async (id) => {
                     <td>{{ lead.phone }}</td>
 
                     <td>
-                      <span class="badge bg-info">{{ lead.lead_source }}</span>
+                      <span class="badge bg-secondary">{{ lead.lead_source }}</span>
                     </td>
 
+                
+
                     <td>
-                      <span class="badge bg-warning">{{ lead.lead_status }}</span>
+                      <span
+                        class="badge d-inline-flex align-items-center gap-1 px-2 py-1"
+                        :class="leadStatusConfig[normalizeStatus(lead.lead_status)]?.class || 'bg-light text-dark'"
+                      >
+                        <i
+                          :class="leadStatusConfig[normalizeStatus(lead.lead_status)]?.icon || 'fa-solid fa-circle-info'"
+                        ></i>
+                        {{ lead.lead_status }}
+                      </span>
                     </td>
+
+                    
 
                     <!-- ASSIGNED ONLY -->
                     <td v-if="dataLeads.mode === 'assigned'">
@@ -667,7 +717,7 @@ const confirmDelete = async (id) => {
                     <p><strong>Category:</strong> {{ dataLeads.leadDetail.category_name || '-' }}</p>
                     <p><strong>Created By:</strong> {{ dataLeads.leadDetail.owner_name || '-' }}</p>
                     <p><strong>Status:</strong>
-                      <span class="badge bg-warning">
+                      <span class="badge bg-secondary">
                         {{ dataLeads.leadDetail.lead_status }}
                       </span>
                     </p>

@@ -1,13 +1,14 @@
+
 <script setup>
-import { ref, reactive, onMounted, onUnmounted, watch, computed } from 'vue';
+import { ref, reactive, onMounted , watch, computed} from 'vue'
 import backendLayouts from "../../../../layouts/backendLayouts.vue";
 import { useDataLeadsVisitStore } from '../../../../stores/leadsVisitsStore';
 import { useMenuStore } from "@/stores/menuStore";
 import { toasts } from "@/utils/toasts";
 import { useRoute, useRouter } from "vue-router";
 import Swal from 'sweetalert2';
-
 const PagesTitle = 'Data Leads Ready To Visit';
+
 
 // ==============================
 // Stores
@@ -28,6 +29,48 @@ const selectedLead = ref(null)
 const permission = ref(null);
 const loadingPermission = ref(true);
 
+
+
+const leadStatusBadge = (status) => {
+  switch (status) {
+    case 'New':
+      return 'bg-success';
+    case 'Contacted':
+      return 'bg-info';
+    case 'Qualified':
+        return 'bg-primary';
+  }
+};
+
+const formatLeadStatus = (status) => {
+  return status
+    .replace(/_/g, ' ')
+    .replace(/\b\w/g, char => char.toUpperCase());
+};
+
+
+
+onMounted(async () => {
+  try {
+    if (!localStorage.getItem("auth_token")) {
+      alert("Silakan login terlebih dahulu!");
+      router.push('/login');
+      return;
+    }
+
+    await dataLeadsVisit.fetchLeadsVisitStore(dataLeadsVisit.buildUrl());
+    await menuStore.fetchMenus();
+
+    permission.value = menuStore.getPermission(route.path);
+  } catch (error) {
+    console.error(error);
+  } finally {
+    loadingPermission.value = false;
+  }
+});
+
+
+
 // ==============================
 // Camera & Location State
 // ==============================
@@ -47,29 +90,7 @@ const locationName = ref('');
 const currentDate = ref('');
 const currentTime = ref('');
 let timer = null;
-
-// ==============================
-// Form
-// ==============================
-const form = reactive({
-  notes: '',
-  status: 'follow_up'
-});
-
-const statusOptions = [
-  { value: 'potential_customers', label: 'Potential Customers', desc: 'potential customers' },
-  { value: 'consideration_stage', label: 'Consideration Stage', desc: 'consideration stage' },
-  { value: 'prospective_customers', label: 'Prospective Customers', desc: 'Prospective Customers' },
-  { value: 'failed', label: 'Failed', desc: 'Failed OR Rejected' },
-  { value: 'convert_to_customer', label: 'Covert To Customer', desc: 'Closing' }
-];
-
-
-const selectedLeads = ref(null)
-
-const openVisitModal = (leads) => {
-  selectedLeads.value = leads
-}
+const errors = ref({})
 
 
 // ==============================
@@ -257,94 +278,19 @@ const resetVisitState = () => {
   locationName.value = '';
   locationStatus.value = 'Waiting photo...';
 
-  form.notes = '';
-  form.status = 'follow_up';
 };
 
-// ==============================
-// Submit
-// ==============================
-const isSubmitDisabled = computed(() => {
-  return !photoBlob.value || !latitude.value || !longitude.value || isProcessingPhoto.value;
-});
 
-const submitVisit = () => {
-  if (!photoBlob.value) return alert('Ambil foto kunjungan terlebih dahulu!');
-  
-  console.log('Mengirim Data:', {
-    photo: photoBlob.value,
-    location: { lat: latitude.value, lng: longitude.value },
-    notes: form.notes,
-    status: form.status
-  });
-  alert('Data Berhasil Disimpan!');
-};
+const selectedLeads = ref(null)
 
-// ==============================
-// Lifecycle
-// ==============================
-onMounted(async () => {
-  updateDateTime();
-  timer = setInterval(updateDateTime, 1000);
-
-  try {
-    if (!localStorage.getItem("auth_token")) {
-      alert("Silakan login terlebih dahulu!");
-      router.push('/login');
-      return;
-    }
-
-    await dataLeadsVisit.fetchLeadsVisitStore(dataLeadsVisit.buildUrl());
-    await menuStore.fetchMenus();
-    permission.value = menuStore.getPermission(route.path);
-  } catch (error) {
-    console.error(error);
-  } finally {
-    loadingPermission.value = false;
-  }
-
-  const modalEl = document.getElementById('modal-input-visit');
-  if (modalEl) {
-    modalEl.addEventListener('shown.bs.modal', startCamera);
-    modalEl.addEventListener('hidden.bs.modal', resetVisitState);
-  }
-});
-
-onUnmounted(() => {
-  clearInterval(timer);
-  resetVisitState();
-});
-
-// ==============================
-// Watchers
-// ==============================
-watch(() => dataLeadsVisit.searchLeadVisit, dataLeadsVisit.searchWithDelay);
-
-document.addEventListener('visibilitychange', () => {
-  if (document.hidden) resetVisitState();
-});
+const openVisitModal = (leads) => {
+  selectedLeads.value = leads
+  startCamera();
+}
 
 
-
-const leadStatusBadge = (status) => {
-  switch (status) {
-    case 'New':
-      return 'bg-success';
-    case 'Contacted':
-      return 'bg-info';
-    case 'Qualified':
-        return 'bg-primary';
-  }
-};
-
-const formatLeadStatus = (status) => {
-  return status
-    .replace(/_/g, ' ')
-    .replace(/\b\w/g, char => char.toUpperCase());
-};
 
 </script>
-
 
 <template>
   <backendLayouts>
@@ -355,15 +301,18 @@ const formatLeadStatus = (status) => {
           <div class="row g-2 align-items-center">
             <div class="col">
               <div class="page-pretitle">Overview</div>
-              <h4 class="page-title">{{ PagesTitle }}</h4>
+              <h4 class="page-title"> {{ PagesTitle }}</h4>
             </div>
             <div class="col-auto ms-auto d-print-none">
+              <div class="btn-list">
+              
               <nav aria-label="breadcrumb">
-                <ol class="breadcrumb mb-0">
-                  <li class="breadcrumb-item"><a href="#">Dashboard</a></li>
-                  <li class="breadcrumb-item active" aria-current="page">{{ PagesTitle }}</li>
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="#">Dashboard</a></li>
+                    <li class="breadcrumb-item active" aria-current="page"> {{ PagesTitle }}</li>
                 </ol>
-              </nav>
+                </nav>
+              </div>
             </div>
           </div>
         </div>
@@ -372,61 +321,55 @@ const formatLeadStatus = (status) => {
       <!-- Page Body -->
       <div class="page-body flex-grow-1">
         <div class="container-xl">
-
+        
           <!-- Card: Filter & Sort -->
           <div class="card mb-4">
             <div class="card-header d-flex justify-content-between flex-wrap gap-3">
-              <!-- Kiri: Show & Back -->
-              <div class="d-flex flex-column gap-3">
+              <!-- Kiri -->
+             <div class="d-flex flex-column gap-3">
+                <!-- Dropdown Tampilkan -->
                 <div class="d-flex align-items-center gap-2">
-                  <label class="mb-0 fw-semibold"><i class="fas fa-list-ul me-1"></i> Showing:</label>
-                  <select
-                    class="form-select w-auto"
-                    v-model.number="dataLeadsVisit.pagination.per_page"
-                    @change="dataLeadsVisit.changePageSize(dataLeadsVisit.pagination.per_page)"
-                  >
-                    <option :value="10">10</option>
-                    <option :value="25">25</option>
-                    <option :value="50">50</option>
-                    <option :value="100">100</option>
-                  </select>
-
+                    <label class="mb-0 fw-semibold">
+                    <i class="fas fa-list-ul me-1"></i> Showing:
+                    </label>
+                    <select class="form-select w-auto"
+                    >
+                    <option>10</option>
+                    <option>25</option>
+                    <option>50</option>
+                    <option>100</option>
+                    </select>
+                </div>
                 </div>
 
-               <router-link
-                  to="/sales-visit"
-                  class="btn btn-secondary"
-                >
-                  <i class="fa-solid fa-arrow-left"></i> Back
-                </router-link>
-              </div>
 
-              <!-- Kanan: Search & Sort -->
-              <div class="d-flex flex-column gap-3 align-items-end" style="min-width:300px;">
+              <!-- Kanan -->
+             <div class="d-flex flex-column gap-3 align-items-end" style="min-width:300px;">
+                <!-- Pencarian -->
                 <div class="input-group">
-                  <input type="text" class="form-control" placeholder="Search..." v-model="dataLeadsVisit.searchLeadVisit">
-                  <span class="input-group-text bg-white"><i class="fa fa-search"></i></span>
+                    <input type="text" class="form-control" placeholder="Searching....">
+                    <span class="input-group-text bg-white"><i class="fa fa-search"></i></span>
                 </div>
 
+                <!-- Urutan -->
                 <div class="d-flex gap-2 align-items-center">
-                  <label class="mb-0 fw-semibold">Sort:</label>
-                  <select class="form-select w-auto" 
-                 v-model="dataLeadsVisit.sort.column" @change="dataLeadsVisit.changeSorting">
-                    <option value="company_name">By Company Name</option>
+                    <label class="mb-0 fw-semibold">Sort:</label>
+                    <select class="form-select w-auto">
+                    <option value="fullname">By Name</option>
                     <option value="created_at">By Created Date</option>
-                  </select>
-                  <select class="form-select w-auto" 
-                 v-model="dataLeadsVisit.sort.direction" @change="dataLeadsVisit.changeSorting">
+                    </select>
+                    <select class="form-select w-auto">
                     <option value="asc">Ascending</option>
                     <option value="desc">Descending</option>
-                  </select>
+                    </select>
                 </div>
-              </div>
+                </div>
             </div>
           </div>
 
           <!-- Card: Table -->
           <div class="card mb-4">
+           
             <div class="table-responsive">
               <table class="table card-table table-vcenter text-nowrap">
                 <thead>
@@ -442,18 +385,18 @@ const formatLeadStatus = (status) => {
                 </thead>
 
 
-                  <tbody v-if="dataLeadsVisit.loadingLeadVisit">
-                <tr>
-                  <td colspan="8" class="text-center py-4">
-                    <div class="spinner-border text-primary"></div>
-                  </td>
-                </tr>
-              </tbody>
+                <tbody v-if="dataLeadsVisit.loadingLeadVisit">
+                  <tr>
+                    <td colspan="7" class="text-center py-4">
+                      <div class="spinner-border text-primary"></div>
+                    </td>
+                  </tr>
+                </tbody>
 
-              <!-- EMPTY DATA -->
-              <tbody v-else-if="dataLeadsVisit.leadVisitData.length === 0">
+
+                  <tbody v-else-if="dataLeadsVisit.leadVisitData.length === 0">
                    <tr>
-                      <td colspan="8" class="text-center">
+                      <td colspan="9" class="text-center">
                         <div class="d-flex flex-column align-items-center justify-content-center">
                           <img
                             src="https://cdn.dribbble.com/users/285475/screenshots/2083086/dribbble_1.gif"
@@ -463,15 +406,16 @@ const formatLeadStatus = (status) => {
                           />
                           <p class="text-danger fw-bold fst-italic">
                             <i class="fa fa-exclamation-circle me-1"></i>
-                            Lead data not found.
+                             data not found.
                           </p>
                         </div>
                       </td>
                     </tr>
-            </tbody>
+                  </tbody>
 
 
-                <tbody v-else>
+
+                  <tbody v-else>
                   <tr v-for="(lvd, index) in dataLeadsVisit.leadVisitData" :key="lvd.id">
                     <td>{{ index + 1 + dataLeadsVisit.pagination.per_page * (dataLeadsVisit.pagination.current_page - 1) }}.</td>
                     <td>{{ lvd.company_name }}</td>
@@ -490,77 +434,103 @@ const formatLeadStatus = (status) => {
                       </div>
                     </td>
                     <td>{{ lvd.phone }}</td>
-                   <td>
+                  <td>
                       <span :class="['badge', leadStatusBadge(lvd.lead_status)]">
                         {{ formatLeadStatus(lvd.lead_status) }}
                       </span>
-                    </td>
-                    <td>
-                      <button class="btn btn-outline-primary" 
-                      data-bs-toggle="modal" 
-                      data-bs-target="#modal-input-visit"
-                      @click="openVisitModal(lvd)">
-                        <i class="fa-solid fa-street-view"></i> Visit Now <i class="fa-solid fa-arrow-right"></i>
+                  </td>
+
+                  <td>
+                      <!-- Tombol Visit Now -->
+                      <button
+                        v-if="!lvd.active_visit_id"
+                        class="btn btn-outline-primary btn-sm me-1"
+                        @click="dataLeadsVisit.startVisit(lvd.id)"
+                      >
+                        <i class="fa-solid fa-street-view"></i> Visit Now
+                      </button>
+
+                      <!-- Tombol Visit Ongoing -->
+                      <button
+                        v-else
+                        class="btn btn-outline-secondary btn-sm me-1"
+                        disabled
+                      >
+                        <i class="fa-solid fa-car-on"></i> Visit Now (Ongoing)
+                      </button>
+
+                      <!-- Tombol Check In -->
+                      <button
+                        class="btn btn-sm btn-outline-primary me-1"
+                        :disabled="!lvd.active_visit_id"   
+                        data-bs-toggle="modal" 
+                        data-bs-target="#modal-input-check-in"
+                        @click="openVisitModal(lvd)">
+                        <i class="fa-solid fa-building-circle-arrow-right"></i> Check In
+                      </button>
+
+                      <!-- Tombol Check Out -->
+                      <button
+                        class="btn btn-sm btn-outline-primary"
+                        :disabled="!lvd.active_visit_id"  
+                        data-bs-toggle="modal"
+                        data-bs-target="#modal-input-visit"
+                        @click="openVisitModal(lvd)"
+                      >
+                        <i class="fa-solid fa-building-circle-check"></i> Check Out
                       </button>
                     </td>
+
                   </tr>
-                  <tr v-if="!dataLeadsVisit.leadVisitData.length">
-                    <td colspan="7" class="text-center text-muted">No leads found</td>
-                  </tr>
+                 
                 </tbody>
+
+            
+
+               
               </table>
             </div>
           </div>
 
-         
-          <div class="card mb-4">
-  <div class="card-header d-flex justify-content-between align-items-center">
-
-    <button
-      class="btn btn-danger btn-sm"
-      :disabled="!dataLeadsVisit.pagination.prev_page_url || dataLeadsVisit.loadingLeadVisit"
-      @click="dataLeadsVisit.goToPage(dataLeadsVisit.pagination.prev_page_url)"
-    >
-      <i class="fa-solid fa-circle-chevron-left"></i> Prev
-    </button>
-
-    <div class="mx-2 d-flex flex-column flex-sm-row align-items-center gap-1">
-      <span class="badge border text-secondary px-3 py-2">
-        {{ dataLeadsVisit.leadVisitData.length }} data | page {{ dataLeadsVisit.pagination.current_page }}
-      </span>
-      <span class="badge border text-secondary px-3 py-2">
-        Total: {{ dataLeadsVisit.pagination.total }}
-      </span>
-    </div>
-
-    <button
-      class="btn btn-danger btn-sm"
-      :disabled="!dataLeadsVisit.pagination.next_page_url || dataLeadsVisit.loadingLeadVisit"
-      @click="dataLeadsVisit.goToPage(dataLeadsVisit.pagination.next_page_url)"
-    >
-      Next <i class="fa-solid fa-circle-chevron-right"></i>
-    </button>
-
-  </div>
-</div>
+          <!-- Card: Pagination -->
+          <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <button class="btn btn-danger btn-sm" 
+                 >
+                <i class="fa-solid fa-circle-chevron-left"
+                ></i> Prev
+              </button>
+  
+                <div class="mx-2 d-flex flex-column flex-sm-row align-items-center gap-1">
+                    <span class="badge border text-secondary px-3 py-2"> 10 data | on page 19</span>
+                    <span class="badge border text-secondary px-3 py-2">Total: 19  data</span>
+                </div>
+  
+                <button class="btn btn-danger btn-sm"
+               >
+                    Next <i class="fa-solid fa-circle-chevron-right"></i>
+                </button>
+            </div>
+          </div>
 
         </div>
       </div>
+
+     
     </div>
 
+
     <!-- Modal: Visit Input -->
-    <div class="modal modal-blur fade" id="modal-input-visit" tabindex="-1" aria-hidden="true">
+    <div class="modal modal-blur fade" id="modal-input-check-in" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
           <div class="modal-header">
-        <h5 class="modal-title">
-          Lead Visit Report
-          <div v-if="selectedLeads" class="text-muted small">
-            {{ selectedLeads.company_name }} — {{ selectedLeads.contact_name }}
+            <h5 class="modal-title">
+            Check In Lead
+            </h5>
+           <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close" @click="resetVisitState"></button>
           </div>
-        </h5>
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
+          <hr>
           <div class="modal-body">
             <div class="row g-3">
               <!-- Left: Camera -->
@@ -576,11 +546,7 @@ const formatLeadStatus = (status) => {
               <!-- Right: Photo Preview & Info -->
               <div class="col-12 col-lg-6">
                 <div class="card mb-2" style="height:200px;">
-                  <!-- <div class="position-relative w-100 h-100"> -->
                     <div class="position-relative w-100 h-100" style="height:200px">
-                    <!-- <template v-if="photoPreview">
-                      <img :src="photoPreview" class="w-100 h-100 rounded img-thumbnail shadow-sm" style="object-fit:contain;" />
-                    </template> -->
                      <template v-if="photoPreview" class="card-body p-0 d-flex align-items-center justify-content-center bg-light" style="height: 200px; overflow: hidden;">
                             <img
                                 :src="photoPreview"
@@ -599,7 +565,7 @@ const formatLeadStatus = (status) => {
                   <div class="d-flex align-items-center mb-2">
                     <i class="fa-regular fa-calendar-check text-primary me-2"></i>
                     <div>
-                      <div class="fw-bold" style="font-size:.7rem; color:#666;">VISIT DATE</div>
+                      <div class="fw-bold" style="font-size:.7rem; color:#666;">LEAD VISIT DATE <small class="text-danger">**</small></div>
                       <div class="small fw-semibold text-dark">{{ currentDate }} - {{ currentTime }}</div>
                     </div>
                   </div>
@@ -607,43 +573,37 @@ const formatLeadStatus = (status) => {
                   <div class="d-flex align-items-start">
                     <i class="fa-solid fa-location-dot text-danger me-2 mt-1"></i>
                     <div style="word-break:break-word;">
-                      <div class="fw-bold" style="font-size:.7rem; color:#666;">LOCATION SNAPSHOT</div>
+                      <div class="fw-bold" style="font-size:.7rem; color:#666;">LEAD LOCATION SNAPSHOT <small class="text-danger">**</small></div>
                       <div class="small text-muted" style="font-size:11px; line-height:1.3;">{{ address || 'Detecting address...' }}</div>
                     </div>
                   </div>
                 </div>
               </div>
-
-              <!-- Notes & Status -->
-              <div class="col-12">
-                <div class="mb-3">
-                  <label class="form-label">Notes on Visit Results</label>
-                  <textarea class="form-control" v-model="form.notes" rows="2" placeholder="Write a note here..."></textarea>
-                </div>
-
-                <label class="form-label fw-bold">Update Data Status:</label>
-                <div class="row g-2">
-                  <div class="col-12 col-sm-4" v-for="status in statusOptions" :key="status.value">
-                    <div class="input-group">
-                      <div class="input-group-text">
-                        <input type="radio" class="form-check-input mt-0" v-model="form.status" :value="status.value" :id="'status-' + status.value">
-                      </div>
-                      <label class="form-control bg-white cursor-pointer" :for="'status-' + status.value">{{ status.label }}</label>
-                    </div>
-                  </div>
-                </div>
               </div>
-            </div>
-          </div>
 
+
+
+
+          </div>
+          <hr>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-            <button type="button" class="btn btn-success ms-auto" :disabled="isSubmitDisabled" @click="submitVisit">
-              <i class="fa-solid fa-cloud-arrow-up me-2"></i> Save Report Lead
+            <button
+              class="btn btn-success ms-auto"><i class="fa-solid fa-cloud-arrow-up me-2"></i>
+              save
             </button>
           </div>
-        </div>
-      </div>
-    </div>
+          </div>
+          </div>
+          </div>
+          
+        
+
   </backendLayouts>
 </template>
+
+
+<style scoped>
+
+
+</style>

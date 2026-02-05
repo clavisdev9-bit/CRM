@@ -52,6 +52,8 @@ class LeadsResources extends JsonResource
             'visibility_type' => $this->visibility_type,
             'lead_source'     => $this->lead_source,
             'lead_status'     => $this->lead_status,
+            
+      
 
             // =====================
             // ACTIVITY

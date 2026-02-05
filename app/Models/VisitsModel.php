@@ -5,7 +5,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletes;
-
+use Illuminate\Support\Str;
 
 class VisitsModel extends Model
 {
@@ -84,4 +84,26 @@ public static function isDuplicate(array $data, $id = null): array
 
     return $errors;
 }
+
+
+
+
+public static function generateVisitCode()
+{
+    $prefix = 'VIS-' . now()->format('Ym') . '-';
+
+    $lastVisit = self::where('visit_code', 'like', $prefix . '%')
+        ->orderBy('visit_code', 'desc')
+        ->first();
+
+    if ($lastVisit) {
+        $lastNumber = intval(substr($lastVisit->visit_code, -5));
+        $nextNumber = str_pad($lastNumber + 1, 5, '0', STR_PAD_LEFT);
+    } else {
+        $nextNumber = '00001';
+    }
+
+    return $prefix . $nextNumber;
+}
+
 }

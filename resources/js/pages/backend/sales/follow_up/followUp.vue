@@ -317,8 +317,28 @@ const handleDeleteFollowUp = async (id) => {
 }
 
 
+const normalizeStatus = (status) => {
+  return status?.toUpperCase().replaceAll(' ', '_')
+}
 
-
+const leadStatusConfig = {
+  PROSPECTIVE_CUSTOMERS: {
+    class: 'bg-info',
+    icon: 'fa-solid fa-user-plus',
+  },
+  CONSIDERATION_STAGE: {
+    class: 'bg-warning text-dark',
+    icon: 'fa-solid fa-clock',
+  },
+  POTENTIAL_CUSTOMERS: {
+    class: 'bg-primary',
+    icon: 'fa-solid fa-star',
+  },
+  OTHER: {
+    class: 'bg-dark',
+    icon: 'fa-solid fa-tag',
+  },
+}
 
 
 
@@ -591,16 +611,19 @@ const handleImportExcel = () => {
             <thead>
               <tr>
                 <th style="width:5%">No.</th>
+                
+                <th>Code Follow Up</th>
                 <th>Type</th>
                 <th>Subject</th>
                 <th>
                     <div>FollowUp</div>
                     <div>Lead / Customer</div>
                   </th>
-                <th>Notes</th>
                 <th>Follow Up At</th>
-                <th>Status</th>
-                <th>Created</th>
+                <th>Status Follow UP</th>
+                <th>Status From Visit</th>
+                <th>Date Visit / Created</th>
+                <th>Estimated Follow Up return</th>
                 <th style="width:10%">Actions</th>
               </tr>
             </thead>
@@ -649,6 +672,11 @@ const handleImportExcel = () => {
                 }}.
               </td>
 
+              <td class="fw-bold">
+                {{ fu.follow_up_code }}
+              </td>
+
+             
               <!-- TYPE -->
               <td>
                 <span class="badge" :class="getTypeBadge(fu.follow_up_type)">
@@ -677,11 +705,7 @@ const handleImportExcel = () => {
                   </span>
               </td>
 
-              <td>
-                <span class="text-truncate d-inline-block" style="max-width: 250px">
-                  {{ fu.notes?.substring(0, 10) }}{{ fu.notes?.length > 10 ? '...' : '' }}
-                </span>
-              </td>
+             
 
               <!-- FOLLOW UP AT -->
               <td>{{ dataFollowUps.formatDateTime(fu.follow_up_at) }}</td>
@@ -694,8 +718,24 @@ const handleImportExcel = () => {
               </span>
               </td>
 
+
+              <td>
+                      <span
+                        class="badge d-inline-flex align-items-center gap-1 px-2 py-1"
+                        :class="leadStatusConfig[normalizeStatus(fu.lead_status)]?.class || 'bg-light text-dark'"
+                      >
+                        <i
+                          :class="leadStatusConfig[normalizeStatus(fu.lead_status)]?.icon || 'fa-solid fa-circle-info'"
+                        ></i>
+                        {{ fu.lead_status }}
+                      </span>
+              </td>
+
+
               <!-- CREATED -->
               <td>{{ dataFollowUps.formatDate(fu.created_at) }}</td>
+
+              <td>{{ dataFollowUps.formatDate(fu.follow_up_at) }}</td>
 
               <!-- ACTIONS -->
               <td>
@@ -840,7 +880,7 @@ const handleImportExcel = () => {
 
                           <!-- FOLLOW UP DATE -->
                           <div class="col-lg-6">
-                            <label class="form-label">Follow-up Date & Time</label>
+                            <label class="form-label">Estimated Follow-up Return</label>
 
                             <input
                               type="text"
@@ -883,18 +923,6 @@ const handleImportExcel = () => {
                               readonly
                             />
                           </div>
-
-                          <!-- SALES / CREATED BY -->
-                          <div class="col-12">
-                            <label class="form-label">Created By (Sales)</label>
-                            <input
-                              type="text"
-                              class="form-control"
-                              :value="dataFollowUps.followUpDetail.sales_name ?? '-'"
-                              readonly
-                            />
-                          </div>
-
                         </div>
 
                         <!-- EMPTY -->
@@ -937,15 +965,20 @@ const handleImportExcel = () => {
                             <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                           </div>
 
-                        <div class="px-4 pt-3">
-                            <div class="alert alert-warning" role="alert">
-                              <h4 class="alert-heading text-dark">Attention!</h4>
-                              <ul class="mb-0 text-dark">
-                                <li>Wajib memilih <strong>Lead</strong> <u>atau</u> <strong>Customer</strong></li>
-                                <li><strong>Tidak boleh</strong> memilih Lead dan Customer bersamaan</li>
-                              </ul>
-                            </div>
+                        <!-- Alert hanya muncul saat ADD -->
+                        <div
+                          class="px-4 pt-3"
+                          v-if="!dataFollowupForm.updating"
+                        >
+                          <div class="alert alert-warning" role="alert">
+                            <h4 class="alert-heading text-dark">Attention!</h4>
+                            <ul class="mb-0 text-dark">
+                              <li>Wajib memilih <strong>Lead</strong> <u>atau</u> <strong>Customer</strong></li>
+                              <li><strong>Tidak boleh</strong> memilih Lead dan Customer bersamaan</li>
+                            </ul>
+                          </div>
                         </div>
+
 
                           <!-- Body -->
                           <div class="modal-body">
@@ -1009,7 +1042,7 @@ const handleImportExcel = () => {
                               </div>
 
 
-                            <div class="col-lg-6">
+                            <div class="col-lg-6" v-show="!editFollowUpId">
                               <label class="form-label">Template Subject <small class="text-danger">**</small></label>
                               <Multiselect
                                   v-model="selectedTemplate"
@@ -1021,7 +1054,7 @@ const handleImportExcel = () => {
                                 />
                             </div>
 
-                            <div class="col-lg-6">
+                            <div class="col-lg-6"  v-show="!editFollowUpId">
                             <label class="form-label">Subject <small class="text-danger">**</small></label>
                             <input
                               class="form-control"
@@ -1039,7 +1072,7 @@ const handleImportExcel = () => {
 
                               <!-- DATE -->
                           <div class="col-lg-6">
-                                <label class="form-label">Follow-up Date <small class="text-danger">**</small></label>
+                                <label class="form-label">Follow-up Date Estimate Return<small class="text-danger">**</small></label>
                                 <div :class="{ 'is-invalid': dataFollowUps.errorFollowUp?.follow_up_at }"></div>
                               <Flatpickr
                                   v-model="form.follow_up_at"
@@ -1057,9 +1090,8 @@ const handleImportExcel = () => {
                                   </div>
 
                               <!-- TYPE -->
-                              <div class="col-lg-6">
+                              <div class="col-lg-6"  v-show="!editFollowUpId">
                                   <label class="form-label">Follow Up Type <small class="text-danger">**</small></label>
-
                                   <div
                                     class="multiselect-wrapper"
                                     :class="{ 'is-invalid': dataFollowUps.errorFollowUp?.follow_up_type }"
@@ -1086,7 +1118,7 @@ const handleImportExcel = () => {
                                   </div>
                                 </div>
 
-                                <div class="col-lg-6" v-if="dataFollowupForm.updating">
+                                <div class="col-lg-6" >
                                <label class="form-label">Status <small class="text-danger">**</small></label>
 
                                 <Multiselect

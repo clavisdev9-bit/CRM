@@ -12,30 +12,52 @@ return new class extends Migration
         Schema::create('follow_ups', function (Blueprint $table) {
             $table->bigIncrements('id');
 
+            // =====================
+            // IDENTIFIER (PUBLIC)
+            // =====================
+            $table->string('follow_up_code', 30)
+                  ->unique(); // 👈 kode unik, berdiri sendiri
+
+            // =====================
             // RELATION
+            // =====================
             $table->unsignedBigInteger('lead_id')->nullable();
             $table->unsignedBigInteger('customer_id')->nullable();
 
+            // =====================
             // FOLLOW UP DETAIL
+            // =====================
             $table->string('follow_up_type', 20);
             $table->string('subject')->nullable();
             $table->text('notes')->nullable();
 
+            // =====================
             // SCHEDULE
+            // =====================
             $table->timestamp('follow_up_at');
 
-            // STATUS
+            // =====================
+            // STATUS & RESULT
+            // =====================
             $table->string('status', 50)->default('PENDING');
+            $table->string('result', 50)->nullable();
+            $table->timestamp('completed_at')->nullable();
 
+            // =====================
             // USER
+            // =====================
             $table->unsignedBigInteger('assigned_to')->nullable();
             $table->unsignedBigInteger('created_by');
 
+            // =====================
             // AUDIT
+            // =====================
             $table->timestamps();
             $table->softDeletes();
 
+            // =====================
             // FOREIGN KEY
+            // =====================
             $table->foreign('lead_id')
                 ->references('id')->on('leads')
                 ->onDelete('cascade');
@@ -50,11 +72,15 @@ return new class extends Migration
             $table->foreign('created_by')
                 ->references('id_user')->on('ms_users');
 
+            // =====================
             // INDEX
+            // =====================
+            $table->index('follow_up_code'); 
             $table->index('lead_id');
             $table->index('customer_id');
             $table->index('follow_up_at');
             $table->index('status');
+            $table->index('result');
             $table->index('assigned_to');
         });
 
@@ -92,6 +118,20 @@ return new class extends Migration
                 'DONE',
                 'CANCELLED'
             ))
+        ");
+
+        DB::statement("
+            ALTER TABLE follow_ups
+            ADD CONSTRAINT chk_followups_result
+            CHECK (
+                result IS NULL OR result IN (
+                    'NO_RESPONSE',
+                    'STILL_CONSIDERING',
+                    'INTERESTED',
+                    'NOT_INTERESTED',
+                    'DEAL'
+                )
+            )
         ");
     }
 

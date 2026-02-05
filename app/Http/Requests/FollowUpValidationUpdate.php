@@ -20,9 +20,9 @@ class FollowUpValidationUpdate extends FormRequest
             'status' => 'nullable|in:PENDING,DONE,CANCELED',
 
             // DATA UTAMA
-            'subject'        => 'required|string|max:255',
-            'follow_up_at' => 'required|date_format:Y-m-d H:i',
-            'follow_up_type' => 'required|in:CALL,MEETING,WHATSAPP,EMAIL',
+            // 'subject'        => 'required|string|max:255',
+            'follow_up_at' => 'nullable|date_format:Y-m-d H:i',
+            // 'follow_up_type' => 'nullable|in:CALL,MEETING,WHATSAPP,EMAIL',
             'notes'          => 'nullable|string',
         ];
     }

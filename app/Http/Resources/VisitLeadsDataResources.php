@@ -54,6 +54,7 @@ class VisitLeadsDataResources extends JsonResource
             // =====================
             'notes' => $this->notes,
             'address' => $this->address,
+            'active_visit_id' => $this->active_visit_id,
 
              // =====================
             // JOIN DATA NAME

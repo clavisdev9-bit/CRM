@@ -196,7 +196,50 @@ const handleImportExcel = () => {
                     <option>100</option>
                     </select>
                 </div>
-                <!-- Tombol add -->
+                <div class="dropdown">
+                    <button 
+                      class="btn btn-secondary btn-sm dropdown-toggle" 
+                      type="button" 
+                      data-bs-toggle="dropdown" 
+                      aria-expanded="false"
+                    >
+                    <i class="fa-solid fa-filter"></i> Filter Data Visits By
+                  </button>
+                  <ul class="dropdown-menu">
+
+
+                    <li>
+                      <button 
+                        class="dropdown-item" 
+                        type="button" 
+                        
+                      >
+                        All Data
+                      </button>
+                    </li>
+
+                    <li>
+                      <button 
+                        class="dropdown-item" 
+                        type="button" 
+                      
+                      >
+                        Visit Leads
+                      </button>
+                    </li>
+                    <li>
+                      <button 
+                        class="dropdown-item" 
+                        type="button" 
+                        
+                      >
+                        Visit Customer
+                      </button>
+                    </li>
+
+                  </ul>
+                  </div>
+               
                 </div>
 
 
