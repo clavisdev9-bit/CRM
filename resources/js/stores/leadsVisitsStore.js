@@ -33,6 +33,10 @@ export const useDataLeadsVisitStore = defineStore("Data-Leads-Visit", () => {
         const activeLeadId = ref(null)
         const activeVisitStatus = ref(null)
 
+    // CHECK IN STATE
+    const checkingInVisit = ref(false)
+
+
 
     const pagination = reactive({
         current_page: 1,
@@ -169,35 +173,69 @@ export const useDataLeadsVisitStore = defineStore("Data-Leads-Visit", () => {
 
 
     const startVisit = async (leadId) => {
-  try {
-    savingLeadVisit.value = true
+        try {
+            savingLeadVisit.value = true
 
-    const response = await axios.post(
-      `/api/leads/${leadId}/start`,
-      {},
-      { headers: getAuthHeader() }
-    )
+            const response = await axios.post(
+            `/api/leads/${leadId}/start`,
+            {},
+            { headers: getAuthHeader() }
+            )
 
-    const visit = response.data.data
+            const visit = response.data.data
 
-    // simpan visit aktif
-    activeVisitId.value = visit.id
-    activeLeadId.value = visit.lead_id
-    activeVisitStatus.value = visit.visit_status
+            // simpan visit aktif
+            activeVisitId.value = visit.id
+            activeLeadId.value = visit.lead_id
+            activeVisitStatus.value = visit.visit_status
+           
+            Swal.fire({
+            icon: "success",
+            title: "Visit dimulai",
+            text: "Silakan menuju lokasi",
+            timer: 1500,
+            showConfirmButton: false,
+            })
+             await fetchLeadsVisitStore(buildUrl())
+        } catch (err) {
+            Swal.fire("Gagal", err.response?.data?.message ?? "Error", "error")
+        } finally {
+            savingLeadVisit.value = false
+        }
+    }
 
-    Swal.fire({
-      icon: "success",
-      title: "Visit dimulai",
-      text: "Silakan menuju lokasi",
-      timer: 1500,
-      showConfirmButton: false,
-    })
-  } catch (err) {
-    Swal.fire("Gagal", err.response?.data?.message ?? "Error", "error")
-  } finally {
-    savingLeadVisit.value = false
-  }
-}
+
+
+    const checkInVisit = async ({ visitId, latitude, longitude, gps_snapshot, photoBlob }) => {
+        try {
+            checkingInVisit.value = true
+            errors.value = {}
+
+            const formData = new FormData()
+            formData.append('latitude', latitude)
+            formData.append('longitude', longitude)
+            formData.append('gps_snapshot', gps_snapshot)
+            formData.append('photo', photoBlob)
+
+            await axios.post(
+            `/api/visits/${visitId}/check-in`,
+            formData,
+            {
+                headers: {
+                ...getAuthHeader(),
+                'Content-Type': 'multipart/form-data'
+                }
+            }
+            )
+            await fetchLeadsVisitStore(buildUrl())
+            return true
+        } catch (err) {
+            errors.value = err.response?.data?.errors ?? {}
+            throw err
+        } finally {
+            checkingInVisit.value = false
+        }
+    }
 
 
 
@@ -233,6 +271,10 @@ export const useDataLeadsVisitStore = defineStore("Data-Leads-Visit", () => {
         activeVisitId,
         activeLeadId,
         activeVisitStatus,
-        startVisit
+        startVisit,
+
+        // check in
+        checkInVisit,
+        checkingInVisit
     };
 });

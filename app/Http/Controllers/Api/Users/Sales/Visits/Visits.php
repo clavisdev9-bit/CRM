@@ -159,8 +159,8 @@ class Visits extends Controller
                     'owner.fullname as owner_name',
                     'sales.fullname as assigned_name',
                     'v.id as active_visit_id',
-'v.visit_status as active_visit_status',
-'v.check_in_at as active_check_in_at',
+                    'v.visit_status as visit_status',
+                    'v.check_in_at as active_check_in_at',
 
                 ])
                 ->leftJoin('lead_categories as cat', 'cat.id', '=', 'l.lead_category_id')
@@ -170,18 +170,26 @@ class Visits extends Controller
                ->leftJoinSub(
     DB::table('visits')
         ->select('id','lead_id','visit_status','check_in_at')
-        ->where('visit_status','ONGOING'),
+        ->whereIn('visit_status', ['ONGOING', 'CHECKED_IN']),
     'v',
     'v.lead_id',
     '=',
     'l.id'
 )
 
-                ->whereIn('l.lead_status', ['New', 'Contacted', 'Qualified'])
+                // ->whereIn('l.lead_status', ['New', 'Contacted', 'Qualified'])
+                // ->where(function ($q) use ($userId) {
+                //     $q->where('l.created_by', $userId)
+                //     ->orWhere('l.assigned_to', $userId);
+                // });
                 ->where(function ($q) use ($userId) {
-                    $q->where('l.created_by', $userId)
+                    $q->where(function ($q2) use ($userId) {
+                        $q2->where('l.created_by', $userId)
+                        ->whereIn('l.lead_status', ['New', 'Contacted', 'Qualified']);
+                    })
                     ->orWhere('l.assigned_to', $userId);
                 });
+
             /**
              * SEARCH
              */
@@ -363,6 +371,7 @@ class Visits extends Controller
                 }
 
 
+
                 public function startVisit(Request $request, $leadId)
                     {
                         $user = auth()->user();
@@ -409,56 +418,54 @@ class Visits extends Controller
 
 
 
+             public function checkInVisit(Request $request, $visitId)
+            {
+                $request->validate([
+                    'latitude'      => 'required',
+                    'longitude'     => 'required',
+                    'gps_snapshot'  => 'required|string',
+                    'photo'         => 'required|image|max:4096',
+                ]);
 
-               public function checkInVisit($visitId)
-                {
-                    $salesId = auth()->user()->id_user;
+                $userId = auth()->user()->id_user;
 
-                    $visit = VisitsModel::where('id', $visitId)
-                        ->where('sales_id', $salesId)
-                        ->where('visit_status', 'ONGOING')
-                        ->firstOrFail();
+                $visit = VisitsModel::where('id', $visitId)
+                    ->where('sales_id', $userId)
+                    ->where('visit_status', 'ONGOING')
+                    ->firstOrFail();
+
+                DB::beginTransaction();
+                try {
+                    // upload photo
+                    $path = $request->file('photo')->store('visits/checkin', 'public');
 
                     $visit->update([
                         'check_in_at'  => now(),
+                        'latitude'     => $request->latitude,
+                        'longitude'    => $request->longitude,
+                        'gps_snapshot' => $request->gps_snapshot,
+                        'photo'        => $path,
                         'visit_status' => 'CHECKED_IN',
                     ]);
 
+                    DB::commit();
+
                     return response()->json([
                         'success' => true,
-                        'message' => 'Check-in berhasil',
-                        'data'    => $visit
+                        'data' => $visit
                     ]);
+                } catch (\Throwable $e) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => $e->getMessage()
+                    ], 500);
                 }
+            }
 
 
 
 
-
-                public function checkOutVisit(Request $request, $visitId)
-                    {
-                        $user = auth()->user();
-                        $salesId = $user->id_user;
-
-                        $visit = VisitsModel::where('id', $visitId)
-                            ->where('sales_id', $salesId)
-                            ->where('visit_status', 'CHECKED_IN')
-                            ->firstOrFail();
-
-                        $visit->update([
-                            'check_out_at'     => now(),
-                            'visit_result'     => $request->visit_result,
-                            'customer_response'=> $request->customer_response,
-                            'notes'            => $request->notes,
-                            'visit_status'     => 'DONE',
-                        ]);
-
-                        return response()->json([
-                            'success' => true,
-                            'message' => 'Visit selesai',
-                            'data'    => $visit
-                        ]);
-                    }
 
 
 

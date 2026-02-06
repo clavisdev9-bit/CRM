@@ -48,6 +48,7 @@ class VisitLeadsDataResources extends JsonResource
             'visibility_type' => $this->visibility_type,
             'lead_source'     => $this->lead_source,
             'lead_status'     => $this->lead_status,
+            'visit_status'     => $this->visit_status,
 
             // =====================
             // ACTIVITY

@@ -1,19 +1,21 @@
 
 <script setup>
-import { ref, reactive, onMounted , watch, computed} from 'vue'
+import { ref, reactive, onMounted , watch, computed } from 'vue'
 import backendLayouts from "../../../../layouts/backendLayouts.vue";
 import { useDataLeadsVisitStore } from '../../../../stores/leadsVisitsStore';
 import { useMenuStore } from "@/stores/menuStore";
 import { toasts } from "@/utils/toasts";
 import { useRoute, useRouter } from "vue-router";
 import Swal from 'sweetalert2';
-const PagesTitle = 'Data Leads Ready To Visit';
 
+
+const PagesTitle = 'Data Leads Ready To Visit';
 
 // ==============================
 // Stores
 // ==============================
 const dataLeadsVisit = useDataLeadsVisitStore();
+
 const menuStore = useMenuStore();
 
 // ==============================
@@ -30,7 +32,7 @@ const permission = ref(null);
 const loadingPermission = ref(true);
 
 
-
+// start code helper untuk data
 const leadStatusBadge = (status) => {
   switch (status) {
     case 'New':
@@ -47,9 +49,10 @@ const formatLeadStatus = (status) => {
     .replace(/_/g, ' ')
     .replace(/\b\w/g, char => char.toUpperCase());
 };
+// end code helper untuk data
 
 
-
+// start code for get data
 onMounted(async () => {
   try {
     if (!localStorage.getItem("auth_token")) {
@@ -68,9 +71,19 @@ onMounted(async () => {
     loadingPermission.value = false;
   }
 });
+// end code for get data
 
 
 
+// start code for check In
+const selectedLeadscheckIn = ref(null)
+const openVisitModalCheckIn = (leads) => {
+  selectedLeadscheckIn.value = leads
+  startCamera();
+
+  console.log('this is modal for check in');
+  
+}
 // ==============================
 // Camera & Location State
 // ==============================
@@ -91,7 +104,6 @@ const currentDate = ref('');
 const currentTime = ref('');
 let timer = null;
 const errors = ref({})
-
 
 // ==============================
 // Date Time
@@ -116,7 +128,6 @@ const updateDateTime = () => {
 // Camera
 // ==============================
 let stream = null;
-
 const startCamera = async () => {
   if (stream) return;
   try {
@@ -281,14 +292,81 @@ const resetVisitState = () => {
 };
 
 
-const selectedLeads = ref(null)
 
-const openVisitModal = (leads) => {
-  selectedLeads.value = leads
-  startCamera();
+const submitCheckIn = async () => {
+  if (!selectedLeadscheckIn.value) return
+
+  try {
+    await dataLeadsVisit.checkInVisit({
+      visitId: selectedLeadscheckIn.value.active_visit_id,
+      latitude: latitude.value,
+      longitude: longitude.value,
+      gps_snapshot: address.value,
+      photoBlob: photoBlob.value
+    })
+
+    resetVisitState()
+
+    // ✅ CLOSE MODAL (STYLE KAMU)
+    const modal = document.getElementById("modal-input-check-in")
+    const instance =
+      bootstrap.Modal.getInstance(modal) ||
+      new bootstrap.Modal(modal)
+
+    instance.hide()
+
+    // ✅ ALERT SETELAH MODAL BENAR-BENAR TUTUP
+    modal.addEventListener(
+      "hidden.bs.modal",
+      () => {
+        Swal.fire({
+          icon: "success",
+          title: "Check In Berhasil",
+          text: "Lokasi & foto berhasil disimpan",
+          timer: 1500,
+          showConfirmButton: false
+        })
+      },
+      { once: true }
+    )
+  } catch (err) {
+    Swal.fire(
+      "Check In Gagal",
+      err.response?.data?.message ?? "Terjadi kesalahan",
+      "error"
+    )
+  }
 }
 
 
+// end code for check In
+
+
+
+
+
+
+
+// start code for check out
+const selectedLeadscheckOut = ref(null)
+const openVisitModalCheckOut = (leads) => {
+  selectedLeadscheckOut.value = leads
+
+  console.log('this is modal for check out');
+  
+}
+
+const form = reactive({
+  notes: '',
+  status: 'follow_up'
+});
+const statusOptions = [
+  { value: 'potential_customers', label: 'Potential Customers', desc: 'potential customers' },
+  { value: 'consideration_stage', label: 'Consideration Stage', desc: 'consideration stage' },
+  { value: 'prospective_customers', label: 'Prospective Customers', desc: 'Prospective Customers' },
+  { value: 'failed', label: 'Failed', desc: 'Failed OR Rejected' },
+  { value: 'convert_to_customer', label: 'Covert To Customer', desc: 'Closing' }
+];
 
 </script>
 
@@ -440,47 +518,48 @@ const openVisitModal = (leads) => {
                       </span>
                   </td>
 
+              
                   <td>
-                      <!-- Tombol Visit Now -->
                       <button
-                        v-if="!lvd.active_visit_id"
-                        class="btn btn-outline-primary btn-sm me-1"
-                        @click="dataLeadsVisit.startVisit(lvd.id)"
-                      >
-                        <i class="fa-solid fa-street-view"></i> Visit Now
-                      </button>
+                      v-if="!lvd.active_visit_id"
+                      class="btn btn-outline-primary btn-sm me-1"
+                      @click="dataLeadsVisit.startVisit(lvd.id)"
+                    >
+                      <i class="fa-solid fa-street-view"></i> Visit Now
+                    </button>
 
-                      <!-- Tombol Visit Ongoing -->
-                      <button
-                        v-else
-                        class="btn btn-outline-secondary btn-sm me-1"
-                        disabled
-                      >
-                        <i class="fa-solid fa-car-on"></i> Visit Now (Ongoing)
-                      </button>
+                    <button
+                      v-else
+                      class="btn btn-outline-secondary btn-sm me-1"
+                      disabled
+                    >
+                      <i class="fa-solid fa-car-on"></i> Visit Ongoing
+                    </button>
 
-                      <!-- Tombol Check In -->
-                      <button
-                        class="btn btn-sm btn-outline-primary me-1"
-                        :disabled="!lvd.active_visit_id"   
-                        data-bs-toggle="modal" 
-                        data-bs-target="#modal-input-check-in"
-                        @click="openVisitModal(lvd)">
-                        <i class="fa-solid fa-building-circle-arrow-right"></i> Check In
-                      </button>
 
-                      <!-- Tombol Check Out -->
-                      <button
-                        class="btn btn-sm btn-outline-primary"
-                        :disabled="!lvd.active_visit_id"  
-                        data-bs-toggle="modal"
-                        data-bs-target="#modal-input-visit"
-                        @click="openVisitModal(lvd)"
-                      >
-                        <i class="fa-solid fa-building-circle-check"></i> Check Out
-                      </button>
+
+                    <button
+                      class="btn btn-sm btn-outline-primary me-1"
+                      :disabled="lvd.visit_status !== 'ONGOING'"
+                      data-bs-toggle="modal"
+                      data-bs-target="#modal-input-check-in"
+                      @click="openVisitModalCheckIn(lvd)"
+                    >
+                      <i class="fa-solid fa-building-circle-arrow-right"></i> Check In
+                    </button>
+
+                    <button
+                      class="btn btn-sm btn-outline-success"
+                      :disabled="lvd.visit_status !== 'CHECKED_IN'"
+                      data-bs-toggle="modal"
+                      data-bs-target="#modal-input-check-out"
+                      @click="openVisitModalCheckOut(lvd)"
+                    >
+                      <i class="fa-solid fa-building-circle-check"></i> Check Out
+                    </button>
                     </td>
 
+                   
                   </tr>
                  
                 </tbody>
@@ -512,15 +591,13 @@ const openVisitModal = (leads) => {
                 </button>
             </div>
           </div>
-
         </div>
       </div>
-
-     
     </div>
 
 
-    <!-- Modal: Visit Input -->
+    
+    <!-- Modal: Visit Input check  IN -->
     <div class="modal modal-blur fade" id="modal-input-check-in" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
@@ -580,22 +657,110 @@ const openVisitModal = (leads) => {
                 </div>
               </div>
               </div>
-
-
-
-
           </div>
           <hr>
           <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-            <button
+            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" @click="resetVisitState">Cancel</button>
+            <!-- <button
               class="btn btn-success ms-auto"><i class="fa-solid fa-cloud-arrow-up me-2"></i>
               save
-            </button>
+            </button> -->
+            <button
+  class="btn btn-success ms-auto"
+  :disabled="!photoBlob"
+  @click="submitCheckIn"
+>
+  <i class="fa-solid fa-cloud-arrow-up me-2"></i>
+  save
+</button>
+
           </div>
           </div>
           </div>
           </div>
+
+
+
+
+
+        <!-- Modal: Visit Input check OUT -->
+        <div class="modal modal-blur fade" id="modal-input-check-out" tabindex="-1" aria-hidden="true">
+          <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title">
+                Check In OUT
+                </h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <hr>
+              <div class="modal-body">
+                <div class="row g-3">
+                
+
+                  
+                  <!-- Notes & Status -->
+                  <div class="col-12">
+                    <div class="mb-3">
+                      <label class="form-label fw-bold">Notes on Visit Results <small class="text-danger">**</small></label>
+                      <textarea class="form-control"
+                      v-model="form.notes" rows="5"
+                      placeholder="Write a note here..."
+                      :class="{ 'is-invalid': errors?.notes }"
+                        ></textarea>
+                    <div v-if="errors?.notes" class="invalid-feedback d-block">
+                        {{ errors.notes[0] }}
+                      </div>
+                    </div>
+                    </div>
+
+
+                    <label class="form-label fw-bold">Update Data Status (Response Lead Customer) <small class="text-danger">**</small></label>
+                      <div
+                        class="row g-2 border rounded p-2"
+                        :class="{ 'border-danger': errors?.customer_response }"
+                      >
+                        <div
+                          class="col-12 col-sm-4"
+                          v-for="status in statusOptions"
+                          :key="status.value"
+                        >
+                          <div class="input-group">
+                            <div class="input-group-text">
+                              <input
+                                type="radio"
+                                class="form-check-input mt-0"
+                                v-model="form.status"
+                                :value="status.value"
+                                :id="'status-' + status.value"
+                              >
+                            </div>
+                            <label
+                              class="form-control bg-white cursor-pointer"
+                              :for="'status-' + status.value"
+                            >
+                              {{ status.label }}
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                      <!-- ✅ ERROR DI BAWAH GROUP -->
+                      <div v-if="errors?.customer_response" class="invalid-feedback d-block mt-1">
+                        {{ errors.customer_response[0] }}
+                      </div>
+                  </div>
+              </div>
+              <hr>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" >Cancel</button>
+                <button
+                  class="btn btn-success ms-auto"><i class="fa-solid fa-cloud-arrow-up me-2"></i>
+                  save
+                </button>
+              </div>
+              </div>
+              </div>
+              </div>
           
         
 
