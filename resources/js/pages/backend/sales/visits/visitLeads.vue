@@ -337,8 +337,6 @@ const submitCheckIn = async () => {
     )
   }
 }
-
-
 // end code for check In
 
 
@@ -346,27 +344,117 @@ const submitCheckIn = async () => {
 
 
 
-
-// start code for check out
+// ==============================
+// CHECK OUT STATE
+// ==============================
 const selectedLeadscheckOut = ref(null)
-const openVisitModalCheckOut = (leads) => {
-  selectedLeadscheckOut.value = leads
-
-  console.log('this is modal for check out');
-  
-}
 
 const form = reactive({
   notes: '',
-  status: 'follow_up'
-});
+  status: '' // customer_response
+})
+
 const statusOptions = [
-  { value: 'potential_customers', label: 'Potential Customers', desc: 'potential customers' },
-  { value: 'consideration_stage', label: 'Consideration Stage', desc: 'consideration stage' },
-  { value: 'prospective_customers', label: 'Prospective Customers', desc: 'Prospective Customers' },
-  { value: 'failed', label: 'Failed', desc: 'Failed OR Rejected' },
-  { value: 'convert_to_customer', label: 'Covert To Customer', desc: 'Closing' }
-];
+  { value: 'potential_customers', label: 'Potential Customers' },
+  { value: 'consideration_stage', label: 'Consideration Stage' },
+  { value: 'prospective_customers', label: 'Prospective Customers' },
+  { value: 'failed', label: 'Failed' },
+  { value: 'convert_to_customer', label: 'Convert To Customer' }
+]
+
+// ==============================
+// OPEN MODAL
+// ==============================
+const openVisitModalCheckOut = (leads) => {
+  selectedLeadscheckOut.value = leads
+  form.notes = ''
+  form.status = ''
+  errors.value = {}
+
+  const modalEl = document.getElementById('modal-input-check-out')
+  const instance =
+    bootstrap.Modal.getInstance(modalEl) ||
+    new bootstrap.Modal(modalEl)
+
+  instance.show()
+}
+
+// ==============================
+// SUBMIT CHECK OUT
+// ==============================
+
+const submitCheckOut = async () => {
+  if (!selectedLeadscheckOut.value) return
+
+  try {
+    errors.value = {} //  reset error dulu
+
+    await dataLeadsVisit.checkOutVisit({
+      visitId: selectedLeadscheckOut.value.active_visit_id,
+      notes: form.notes,
+      customer_response: form.status
+    })
+
+    // tutup modal
+    const modalEl = document.getElementById('modal-input-check-out')
+    const instance = bootstrap.Modal.getInstance(modalEl)
+    instance.hide()
+
+    Swal.fire({
+      icon: 'success',
+      title: 'Check Out Berhasil',
+      text: 'Visit berhasil diselesaikan',
+      timer: 1500,
+      showConfirmButton: false
+    })
+
+  } catch (err) {
+    //  AMBIL ERROR VALIDASI
+    if (err.response?.status === 422) {
+      errors.value = err.response.data.errors
+      return
+    }
+
+    //  ERROR LAIN (SERVER / LOGIC)
+    toasts.fire({
+      icon: "error",
+      title: err.response?.data?.message || "Gagal menyimpan data",
+    })
+  }
+}
+
+
+const confirmStartVisit = (lead) => {
+  Swal.fire({
+    title: 'Mulai Visit?',
+    text: 'Pastikan kamu benar-benar akan memulai visit ini.',
+    icon: 'question',
+    showCancelButton: true,
+    confirmButtonText: 'Ya, mulai',
+    cancelButtonText: 'Batal',
+    confirmButtonColor: '#0d6efd',
+    cancelButtonColor: '#6c757d',
+    reverseButtons: true
+  }).then(async (result) => {
+    if (!result.isConfirmed) return
+
+    try {
+      await dataLeadsVisit.startVisit(lead.id)
+
+      // OPTIONAL: refresh table kalau belum realtime
+      // await dataLeadsVisit.fetchLeadsVisitStore(
+      //   dataLeadsVisit.buildUrl()
+      // )
+
+    } catch (err) {
+      Swal.fire(
+        'Gagal',
+        err.response?.data?.message ?? 'Tidak bisa memulai visit',
+        'error'
+      )
+    }
+  })
+}
 
 </script>
 
@@ -520,13 +608,21 @@ const statusOptions = [
 
               
                   <td>
-                      <button
+                      <!-- <button
                       v-if="!lvd.active_visit_id"
                       class="btn btn-outline-primary btn-sm me-1"
                       @click="dataLeadsVisit.startVisit(lvd.id)"
                     >
                       <i class="fa-solid fa-street-view"></i> Visit Now
-                    </button>
+                    </button> -->
+                    <button
+  v-if="!lvd.active_visit_id"
+  class="btn btn-outline-primary btn-sm me-1"
+  @click="confirmStartVisit(lvd)"
+>
+  <i class="fa-solid fa-street-view"></i> Visit Now
+</button>
+
 
                     <button
                       v-else
@@ -535,7 +631,6 @@ const statusOptions = [
                     >
                       <i class="fa-solid fa-car-on"></i> Visit Ongoing
                     </button>
-
 
 
                     <button
@@ -661,19 +756,26 @@ const statusOptions = [
           <hr>
           <div class="modal-footer">
             <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" @click="resetVisitState">Cancel</button>
-            <!-- <button
-              class="btn btn-success ms-auto"><i class="fa-solid fa-cloud-arrow-up me-2"></i>
-              save
-            </button> -->
-            <button
-  class="btn btn-success ms-auto"
-  :disabled="!photoBlob"
-  @click="submitCheckIn"
->
-  <i class="fa-solid fa-cloud-arrow-up me-2"></i>
-  save
-</button>
+           
+          <button
+            class="btn btn-success ms-auto"
+            :disabled="!photoBlob || dataLeadsVisit.checkingInVisit"
+            @click="submitCheckIn"
+          >
+            <span
+              v-if="dataLeadsVisit.checkingInVisit"
+              class="spinner-border spinner-border-sm me-2"
+              role="status"
+              aria-hidden="true"
+            ></span>
 
+            <i
+              v-else
+              class="fa-solid fa-cloud-arrow-up me-2"
+            ></i>
+
+            {{ dataLeadsVisit.checkingInVisit ? 'Saving...' : 'Save' }}
+          </button>
           </div>
           </div>
           </div>
@@ -754,9 +856,18 @@ const statusOptions = [
               <div class="modal-footer">
                 <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" >Cancel</button>
                 <button
-                  class="btn btn-success ms-auto"><i class="fa-solid fa-cloud-arrow-up me-2"></i>
-                  save
+                  class="btn btn-success ms-auto"
+                  :disabled="dataLeadsVisit.checkingOutVisit"
+                  @click="submitCheckOut"
+                >
+                  <span
+                    v-if="dataLeadsVisit.checkingOutVisit"
+                    class="spinner-border spinner-border-sm me-2"
+                  ></span>
+                  <i class="fa-solid fa-cloud-arrow-up me-2"></i>
+                  Save
                 </button>
+
               </div>
               </div>
               </div>

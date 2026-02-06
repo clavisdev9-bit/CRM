@@ -25,6 +25,7 @@ export const useDataLeadsVisitStore = defineStore("Data-Leads-Visit", () => {
 
     const loading = ref(false);
     const errors = ref({});
+    
 
 
     // untuk state visit start 
@@ -35,6 +36,9 @@ export const useDataLeadsVisitStore = defineStore("Data-Leads-Visit", () => {
 
     // CHECK IN STATE
     const checkingInVisit = ref(false)
+
+    // CHECK IN STATE
+    const checkingOutVisit = ref(false)
 
 
 
@@ -239,6 +243,38 @@ export const useDataLeadsVisitStore = defineStore("Data-Leads-Visit", () => {
 
 
 
+    const checkOutVisit = async ({ visitId, notes, customer_response }) => {
+        try {
+            checkingOutVisit.value = true
+            errors.value = {}
+
+            const formData = new FormData()
+            formData.append('notes', notes)
+            formData.append('customer_response', customer_response)
+
+            await axios.post(
+            `/api/visits/${visitId}/check-out`,
+            formData,
+            {
+                headers: {
+                ...getAuthHeader(),
+                'Content-Type': 'multipart/form-data'
+                }
+            }
+            )
+            await fetchLeadsVisitStore(buildUrl())
+            return true
+        } catch (err) {
+            errors.value = err.response?.data?.errors ?? {}
+            throw err
+        } finally {
+            checkingOutVisit.value = false
+        }
+    }
+
+
+
+
 
 
     return {
@@ -275,6 +311,10 @@ export const useDataLeadsVisitStore = defineStore("Data-Leads-Visit", () => {
 
         // check in
         checkInVisit,
-        checkingInVisit
+        checkingInVisit,
+
+        //check out
+        checkOutVisit,
+        checkingOutVisit
     };
 });
