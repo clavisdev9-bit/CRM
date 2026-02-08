@@ -23,6 +23,7 @@ use App\Http\Requests\VisitValidationIndex;
 
 
 
+
 class Visits extends Controller
 {
         protected $VisitsModel;
@@ -42,71 +43,86 @@ class Visits extends Controller
 
 
     // code for get data visit leads and customer
+public function getVisitLead(VisitValidationIndex $request)
+{
+    $validated = $request->validated();
+    $perPage = $validated['per_page'] ?? 10;
+    $userId  = auth()->user()->id_user;
 
-    public function getVisit(VisitValidationIndex $request) {
-                $validated = $request->validated();
-                $search   = $validated['search'] ?? null;
-                $perPage  = $validated['per_page'] ?? 10;
-                $sortBy   = $validated['sort_by'] ?? 'c.created_at';
-                $sortDir  = $validated['sort_dir'] ?? 'desc';
+    $query = DB::table('visits as v')
+        ->select([
+            'v.id',
+            'v.lead_id',
+            'v.visit_code',
+            'v.sales_id',
+            'l.company_name',
+            'u.fullname as sales_name',
+            'v.visit_at',
+            'v.check_in_at',
+            // ⏱️ SELISIH MENIT
+             // visit → check in
+                    DB::raw("
+                        CASE 
+                            WHEN v.check_in_at IS NOT NULL
+                            THEN TO_CHAR(v.check_in_at - v.visit_at, 'HH24:MI:SS')
+                            ELSE NULL
+                        END as time_from_visit_to_check_in
+                    "),
 
-                $userId = auth()->user()->id_user;
+                    // check in → check out
+                    DB::raw("
+                        CASE
+                            WHEN v.check_in_at IS NOT NULL AND v.check_out_at IS NOT NULL
+                            THEN TO_CHAR(v.check_out_at - v.check_in_at, 'HH24:MI:SS')
+                            ELSE NULL
+                        END as time_from_check_in_to_check_out
+                    "),
 
-                $query = DB::table('visits as v')
-                    ->select([
-                        'v.*',
-                       
-
-                        // RELATION LEAD
-                        'l.company_name as lead_company_name',
-                        'l.lead_source',
-                        'l.lead_status',
-
-                        // MASTER
-                        'cat.name as category_name',
-                        'ind.name as industry_name',
-
-                        // USER
-                        'owner.fullname as owner_name',
-                        'sales.fullname as assigned_name',
-                    ])
-                    ->leftJoin('leads as l', 'l.id', '=', 'c.lead_id')
-                    ->leftJoin('lead_categories as cat', 'cat.id', '=', 'c.lead_category_id')
-                    ->leftJoin('lead_industries as ind', 'ind.id', '=', 'c.industry_id')
-                    ->leftJoin('ms_users as owner', 'owner.id_user', '=', 'c.created_by')
-                    ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'c.assigned_to')
-
-                    // FILTER hanya data yang dibuat oleh user/sales login
-                    ->where(function($q) use ($userId) {
-                                $q->where('c.created_by', $userId)
-                                ->orWhere('c.assigned_to', $userId);
-                            });
-
-                // SEARCH
-                if ($search) {
-                    $query->where(function ($q) use ($search) {
-                        $q->where('c.company_name', 'ILIKE', "%{$search}%")
-                        ->orWhere('c.contact_name', 'ILIKE', "%{$search}%")
-                        ->orWhere('c.email', 'ILIKE', "%{$search}%")
-                        ->orWhere('c.customer_code', 'ILIKE', "%{$search}%");
-                    });
-                }
-
-                // SORT
-                $query->orderBy($sortBy, $sortDir);
-
-                $results = $query->paginate($perPage);
-
-                return ApiResponse::paginate(
-                    VisitsResourcesCollection::make($results),
-                    $results->isEmpty()
-                        ? 'Data customer not found'
-                        : 'Success'
-                );
-    }
+                    // TOTAL (visit → check out)
+                    DB::raw("
+                        CASE
+                            WHEN v.check_in_at IS NOT NULL AND v.check_out_at IS NOT NULL
+                            THEN TO_CHAR(v.check_out_at - v.visit_at, 'HH24:MI:SS')
+                            ELSE NULL
+                        END as total_time_result
+                    "),
 
 
+            'v.check_out_at',
+            'v.latitude',
+            'v.longitude',
+            'v.gps_snapshot',
+            'v.photo',
+            'v.notes',
+            'v.visit_result',
+            'v.visit_status',
+            'v.customer_response',
+            'v.created_by',
+            'v.created_at',
+            'v.updated_at',
+        ])
+        ->leftJoin('leads as l', 'l.id', '=', 'v.lead_id')
+        ->leftJoin('ms_users as u', 'u.id_user', '=', 'v.sales_id')
+        ->whereNotNull('v.lead_id')
+        ->where(function ($q) use ($userId) {
+            $q->where('v.created_by', $userId)
+              ->orWhere('v.sales_id', $userId);
+        })
+        ->orderBy('v.visit_at', 'desc');
 
+    $results = $query->paginate($perPage);
+
+    return ApiResponse::paginate(
+        VisitsResourcesCollection::make($results),
+        $results->isEmpty()
+            ? 'Data visit lead tidak ditemukan'
+            : 'Success'
+    );
+}
+
+
+
+   
     //  code for get master data visit leads
     public function VisitLeads(VisitLeadsDataIndex $request)
         {
@@ -466,127 +482,127 @@ class Visits extends Controller
 
 
 
-public function checkOutVisit(Request $request, $visitId)
-{
-    $request->validate([
-        'notes'             => 'required|string',
-        'visit_result'      => 'nullable|string',
-        'customer_response' => 'required|in:potential_customers,consideration_stage,prospective_customers,failed,convert_to_customer',
-    ]);
-
-    DB::transaction(function () use ($request, $visitId) {
-
-        // =========================
-        // 1. GET VISIT (LOCK)
-        // =========================
-        $visit = VisitsModel::lockForUpdate()
-            ->where('id', $visitId)
-            ->where('visit_status', 'CHECKED_IN')
-            ->firstOrFail();
-
-        // =========================
-        // 2. GET LEAD (LOCK)
-        // =========================
-        $lead = MsLeadsModel::lockForUpdate()
-            ->findOrFail($visit->lead_id);
-
-        // =========================
-        // 3. UPDATE VISIT (CHECK OUT)
-        // =========================
-        $visit->update([
-            'check_out_at'      => now(),
-            'notes'             => $request->notes,
-            'visit_result'      => $request->visit_result,
-            'customer_response' => $request->customer_response,
-            'visit_status'      => 'DONE',
-        ]);
-
-        // =========================
-        // 4. PROCESS CUSTOMER RESPONSE
-        // =========================
-        switch ($request->customer_response) {
-
-            // -------------------------
-            // A. FOLLOW UP
-            // -------------------------
-            case 'potential_customers':
-            case 'consideration_stage':
-            case 'prospective_customers':
-
-                $followUpCode = $this->generateFollowUpCode();
-
-                $lead->update([
-                    'lead_status'       => $request->customer_response,
-                    'last_contacted_at' => now(),
+            public function checkOutVisit(Request $request, $visitId)
+            {
+                $request->validate([
+                    'notes'             => 'required|string',
+                    'visit_result'      => 'nullable|string',
+                    'customer_response' => 'required|in:potential_customers,consideration_stage,prospective_customers,failed,convert_to_customer',
                 ]);
 
-                MsFollowUp::create([
-                    'lead_id'        => $lead->id,
-                    'visit_id'       => $visit->id,
-                    'follow_up_code' => $followUpCode,
-                    'follow_up_at'   => now()->addDays(3),
-                    'subject'        => 'Result Visit',
-                    'notes'          => $request->notes,
-                    'follow_up_type' => 'VISIT',
-                    'created_by'     => auth()->id(),
-                ]);
-                break;
+                DB::transaction(function () use ($request, $visitId) {
 
-            // -------------------------
-            // B. FAILED
-            // -------------------------
-            case 'failed':
+                    // =========================
+                    // 1. GET VISIT (LOCK)
+                    // =========================
+                    $visit = VisitsModel::lockForUpdate()
+                        ->where('id', $visitId)
+                        ->where('visit_status', 'CHECKED_IN')
+                        ->firstOrFail();
 
-                $lead->update([
-                    'lead_status'       => 'failed',
-                    'last_contacted_at' => now(),
-                ]);
-                break;
+                    // =========================
+                    // 2. GET LEAD (LOCK)
+                    // =========================
+                    $lead = MsLeadsModel::lockForUpdate()
+                        ->findOrFail($visit->lead_id);
 
-            // -------------------------
-            // C. CONVERT TO CUSTOMER
-            // -------------------------
-            case 'convert_to_customer':
+                    // =========================
+                    // 3. UPDATE VISIT (CHECK OUT)
+                    // =========================
+                    $visit->update([
+                        'check_out_at'      => now(),
+                        'notes'             => $request->notes,
+                        'visit_result'      => $request->visit_result,
+                        'customer_response' => $request->customer_response,
+                        'visit_status'      => 'DONE',
+                    ]);
 
-                $customerCode = $this->generateCustomerCode();
+                    // =========================
+                    // 4. PROCESS CUSTOMER RESPONSE
+                    // =========================
+                    switch ($request->customer_response) {
 
-                $customer = MsCustomers::create([
-                    'lead_id'          => $lead->id,
-                    'lead_category_id' => $lead->lead_category_id,
-                    'industry_id'      => $lead->industry_id,
-                    'customer_code'    => $customerCode,
-                    'company_name'     => $lead->company_name,
-                    'contact_name'     => $lead->contact_name,
-                    'email'            => $lead->email,
-                    'phone'            => $lead->phone,
-                    'id_user'          => $lead->id_user ?? auth()->id(),
-                    'assigned_to'      => $lead->assigned_to,
-                    'created_by'       => auth()->id(),
-                    'address'          => $lead->address,
-                    'notes'            => $lead->notes,
-                    'converted_at'     => now(),
-                    'customer_status'  => 'Active',
-                ]);
+                        // -------------------------
+                        // A. FOLLOW UP
+                        // -------------------------
+                        case 'potential_customers':
+                        case 'consideration_stage':
+                        case 'prospective_customers':
 
-                // update lead
-                $lead->update([
-                    'lead_status'  => 'customer',
-                    'converted_at' => now(),
-                    'last_contacted_at' => now(),
-                ]);
+                            $followUpCode = $this->generateFollowUpCode();
 
-                // fix check constraint (visit tidak boleh punya lead + customer)
-                $visit->update([
-                    'customer_id' => $customer->id,
-                    'lead_id'     => null
-                ]);
-                break;
-        }
-    });
+                            $lead->update([
+                                'lead_status'       => $request->customer_response,
+                                'last_contacted_at' => now(),
+                            ]);
 
-    return response()->json([
-        'message' => 'Check out visit berhasil disimpan'
-    ], 200);
-}
+                            MsFollowUp::create([
+                                'lead_id'        => $lead->id,
+                                'visit_id'       => $visit->id,
+                                'follow_up_code' => $followUpCode,
+                                'follow_up_at'   => now()->addDays(3),
+                                'subject'        => 'Result Visit',
+                                'notes'          => $request->notes,
+                                'follow_up_type' => 'VISIT',
+                                'created_by'     => auth()->id(),
+                            ]);
+                            break;
+
+                        // -------------------------
+                        // B. FAILED
+                        // -------------------------
+                        case 'failed':
+
+                            $lead->update([
+                                'lead_status'       => 'failed',
+                                'last_contacted_at' => now(),
+                            ]);
+                            break;
+
+                        // -------------------------
+                        // C. CONVERT TO CUSTOMER
+                        // -------------------------
+                        case 'convert_to_customer':
+
+                            $customerCode = $this->generateCustomerCode();
+
+                            $customer = MsCustomers::create([
+                                'lead_id'          => $lead->id,
+                                'lead_category_id' => $lead->lead_category_id,
+                                'industry_id'      => $lead->industry_id,
+                                'customer_code'    => $customerCode,
+                                'company_name'     => $lead->company_name,
+                                'contact_name'     => $lead->contact_name,
+                                'email'            => $lead->email,
+                                'phone'            => $lead->phone,
+                                'id_user'          => $lead->id_user ?? auth()->id(),
+                                'assigned_to'      => $lead->assigned_to,
+                                'created_by'       => auth()->id(),
+                                'address'          => $lead->address,
+                                'notes'            => $lead->notes,
+                                'converted_at'     => now(),
+                                'customer_status'  => 'Active',
+                            ]);
+
+                            // update lead
+                            $lead->update([
+                                'lead_status'  => 'customer',
+                                'converted_at' => now(),
+                                'last_contacted_at' => now(),
+                            ]);
+
+                            // fix check constraint (visit tidak boleh punya lead + customer)
+                            $visit->update([
+                                'customer_id' => $customer->id,
+                                'lead_id'     => null
+                            ]);
+                            break;
+                    }
+                });
+
+                return response()->json([
+                    'message' => 'Check out visit berhasil disimpan'
+                ], 200);
+            }
 
         }

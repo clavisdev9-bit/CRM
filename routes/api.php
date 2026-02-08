@@ -158,13 +158,12 @@ Route::delete('/follow-up/delete/{id}', [FollowUp::class, 'deleteFollowUp'])->na
 
 
 
-Route::get('/data-visits', [Visits::class, 'getVisit'])->name('api.data.visit');
+Route::get('/data-visits-leads', [Visits::class, 'getVisitLead'])->name('api.data.leads.visit');
+
 Route::get('/data-leads-visit', [Visits::class, 'VisitLeads'])->name('api.data.leads.visit');
 Route::get('/data-customers-visit', [Visits::class, 'VisitCustomers'])->name('api.data.customers.visit');
 
 Route::post('/leads/{lead}/start', [Visits::class, 'startVisit']);
-// Route::post('/leads/{lead}/start', [Visits::class, 'startVisit']);
-
 // Check In (PAKAI VISIT ID)
 Route::post('/visits/{visit}/check-in', [Visits::class, 'checkInVisit']);
 // Check Out (PAKAI VISIT ID)

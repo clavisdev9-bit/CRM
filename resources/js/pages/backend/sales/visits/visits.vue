@@ -208,7 +208,7 @@ const handleImportExcel = () => {
                   <ul class="dropdown-menu">
 
 
-                    <li>
+                    <!-- <li>
                       <button 
                         class="dropdown-item" 
                         type="button" 
@@ -216,7 +216,7 @@ const handleImportExcel = () => {
                       >
                         All Data
                       </button>
-                    </li>
+                    </li> -->
 
                     <li>
                       <button 
@@ -270,46 +270,46 @@ const handleImportExcel = () => {
           <!-- Card: Table -->
           <div class="card mb-4">
             <div class="card-header">
-              <h7 class="card-title">Your Data Visit</h7>
+              <h7 class="card-title">Your Data Visit (Type)</h7>
             </div>
             <div class="table-responsive">
               <table class="table card-table table-vcenter text-nowrap">
                 <thead>
                   <tr>
                     <th style="width: 5%;">No.</th>
-                    <th>Name</th>
-                    <th>Description</th>
-                    <th>Created</th>
-                    <th style="width: 8%;">Actions</th>
+                    <th>visit code</th>
+                    <th>company <br>
+                      <small class="text-muted">name</small></th>
+                    <th>visit <br>
+                       <small class="text-muted">time</small>
+                    </th>
+                    <th>
+                      Check in<br>
+                       <small class="text-muted">time</small>
+                    </th>
+                    <th>
+                      Check out<br>
+                       <small class="text-muted">time</small>
+                    </th>
+                    <th>
+                      Total time<br>
+                      <small class="text-muted">from visit to check in</small>
+                    </th>
+                    <th>
+                      Total time<br>
+                      <small class="text-muted">from check in to check out</small>
+                    </th>
+                    <th>
+                      Total<br>
+                      <small class="text-muted">your time</small>
+                    </th>
+                    <th style="width: 8%;">Details</th>
                   </tr>
                 </thead>
 
             
 
-                <tbody>
-                    <tr>
-                      <td>1</td>
-                      <td>sdsdsdsd</td>
-                      <td>dsdsdsdsd</td>
-                    
-                      <td>12313</td>
-                      <td>
-                        <button class="btn btn-outline-primary btn-sm me-2">
-                         <i class="fa fa-edit"></i> 
-                       </button>
-
-                        <button class="btn btn-outline-primary btn-sm me-2">
-                            <i class="fa fa-trash"></i> 
-                        </button>
-
-                         <button class="btn btn-outline-primary btn-sm"  data-bs-toggle="modal"
-                            data-bs-target="#userDetailModal"
-                          >
-                            <i class="fa fa-eye"></i> 
-                        </button>
-                      </td>
-                    </tr>
-                </tbody>
+                
               </table>
             </div>
           </div>

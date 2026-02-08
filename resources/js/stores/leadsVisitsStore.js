@@ -195,8 +195,8 @@ export const useDataLeadsVisitStore = defineStore("Data-Leads-Visit", () => {
            
             Swal.fire({
             icon: "success",
-            title: "Visit dimulai",
-            text: "Silakan menuju lokasi",
+            title: "Visit Start",
+            text: "Please go to the location",
             timer: 1500,
             showConfirmButton: false,
             })

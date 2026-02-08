@@ -321,8 +321,8 @@ const submitCheckIn = async () => {
       () => {
         Swal.fire({
           icon: "success",
-          title: "Check In Berhasil",
-          text: "Lokasi & foto berhasil disimpan",
+          title: "Check In Successful",
+          text: "Location & photo saved successfully",
           timer: 1500,
           showConfirmButton: false
         })
@@ -331,15 +331,13 @@ const submitCheckIn = async () => {
     )
   } catch (err) {
     Swal.fire(
-      "Check In Gagal",
-      err.response?.data?.message ?? "Terjadi kesalahan",
+      "Check In Failed",
+      err.response?.data?.message ?? "There is an error",
       "error"
     )
   }
 }
 // end code for check In
-
-
 
 
 
@@ -402,8 +400,8 @@ const submitCheckOut = async () => {
 
     Swal.fire({
       icon: 'success',
-      title: 'Check Out Berhasil',
-      text: 'Visit berhasil diselesaikan',
+      title: 'Check Out Successful',
+      text: 'Visit completed successfully',
       timer: 1500,
       showConfirmButton: false
     })
@@ -418,7 +416,7 @@ const submitCheckOut = async () => {
     //  ERROR LAIN (SERVER / LOGIC)
     toasts.fire({
       icon: "error",
-      title: err.response?.data?.message || "Gagal menyimpan data",
+      title: err.response?.data?.message || "Failed to save data",
     })
   }
 }
@@ -426,12 +424,12 @@ const submitCheckOut = async () => {
 
 const confirmStartVisit = (lead) => {
   Swal.fire({
-    title: 'Mulai Visit?',
-    text: 'Pastikan kamu benar-benar akan memulai visit ini.',
+    title: 'Start Visiting?',
+    text: 'Make sure you are really going to start this visit.',
     icon: 'question',
     showCancelButton: true,
-    confirmButtonText: 'Ya, mulai',
-    cancelButtonText: 'Batal',
+    confirmButtonText: 'Yes, start',
+    cancelButtonText: 'Cancel',
     confirmButtonColor: '#0d6efd',
     cancelButtonColor: '#6c757d',
     reverseButtons: true
@@ -440,22 +438,21 @@ const confirmStartVisit = (lead) => {
 
     try {
       await dataLeadsVisit.startVisit(lead.id)
-
-      // OPTIONAL: refresh table kalau belum realtime
-      // await dataLeadsVisit.fetchLeadsVisitStore(
-      //   dataLeadsVisit.buildUrl()
-      // )
-
     } catch (err) {
       Swal.fire(
-        'Gagal',
-        err.response?.data?.message ?? 'Tidak bisa memulai visit',
+        'Failed',
+        err.response?.data?.message ?? 'Cannot start visit',
         'error'
       )
     }
   })
 }
 
+
+// ==============================
+// Watchers
+// ==============================
+watch(() => dataLeadsVisit.searchLeadVisit, dataLeadsVisit.searchWithDelay);
 </script>
 
 <template>
@@ -499,6 +496,8 @@ const confirmStartVisit = (lead) => {
                     <i class="fas fa-list-ul me-1"></i> Showing:
                     </label>
                     <select class="form-select w-auto"
+                    v-model.number="dataLeadsVisit.pagination.per_page"
+                    @change="dataLeadsVisit.changePageSize(dataLeadsVisit.pagination.per_page)"
                     >
                     <option>10</option>
                     <option>25</option>
@@ -513,18 +512,18 @@ const confirmStartVisit = (lead) => {
              <div class="d-flex flex-column gap-3 align-items-end" style="min-width:300px;">
                 <!-- Pencarian -->
                 <div class="input-group">
-                    <input type="text" class="form-control" placeholder="Searching....">
+                    <input type="text" class="form-control" placeholder="Searching...." v-model="dataLeadsVisit.searchLeadVisit">
                     <span class="input-group-text bg-white"><i class="fa fa-search"></i></span>
                 </div>
 
                 <!-- Urutan -->
                 <div class="d-flex gap-2 align-items-center">
                     <label class="mb-0 fw-semibold">Sort:</label>
-                    <select class="form-select w-auto">
-                    <option value="fullname">By Name</option>
+                    <select class="form-select w-auto"  v-model="dataLeadsVisit.sort.column" @change="dataLeadsVisit.changeSorting">
+                    <option value="company_name">By Company Name</option>
                     <option value="created_at">By Created Date</option>
                     </select>
-                    <select class="form-select w-auto">
+                    <select class="form-select w-auto" v-model="dataLeadsVisit.sort.direction" @change="dataLeadsVisit.changeSorting">
                     <option value="asc">Ascending</option>
                     <option value="desc">Descending</option>
                     </select>
@@ -607,52 +606,60 @@ const confirmStartVisit = (lead) => {
                   </td>
 
               
-                  <td>
-                      <!-- <button
-                      v-if="!lvd.active_visit_id"
-                      class="btn btn-outline-primary btn-sm me-1"
-                      @click="dataLeadsVisit.startVisit(lvd.id)"
-                    >
-                      <i class="fa-solid fa-street-view"></i> Visit Now
-                    </button> -->
-                    <button
-  v-if="!lvd.active_visit_id"
-  class="btn btn-outline-primary btn-sm me-1"
-  @click="confirmStartVisit(lvd)"
->
-  <i class="fa-solid fa-street-view"></i> Visit Now
-</button>
+              
 
 
-                    <button
-                      v-else
-                      class="btn btn-outline-secondary btn-sm me-1"
-                      disabled
-                    >
-                      <i class="fa-solid fa-car-on"></i> Visit Ongoing
-                    </button>
+                    <td>
+  <!-- VISIT NOW -->
+  <button
+    v-if="!lvd.active_visit_id"
+    class="btn btn-outline-primary btn-sm me-1"
+    @click="confirmStartVisit(lvd)"
+  >
+    <i class="fa-solid fa-street-view"></i> Visit Now
+  </button>
 
+  <!-- ONGOING (BELUM CHECK IN) -->
+  <button
+    v-else-if="lvd.visit_status === 'ONGOING'"
+    class="btn btn-outline-secondary btn-sm me-1"
+    disabled
+  >
+    <i class="fa-solid fa-car-on"></i> Visit Ongoing
+  </button>
 
-                    <button
-                      class="btn btn-sm btn-outline-primary me-1"
-                      :disabled="lvd.visit_status !== 'ONGOING'"
-                      data-bs-toggle="modal"
-                      data-bs-target="#modal-input-check-in"
-                      @click="openVisitModalCheckIn(lvd)"
-                    >
-                      <i class="fa-solid fa-building-circle-arrow-right"></i> Check In
-                    </button>
+  <!-- SEDANG CHECK IN -->
+  <button
+    v-else-if="lvd.visit_status === 'CHECKED_IN'"
+    class="btn btn-outline-warning btn-sm me-1"
+    disabled
+  >
+    <i class="fa-solid fa-location-dot"></i> Currently Checking In
+  </button>
 
-                    <button
-                      class="btn btn-sm btn-outline-success"
-                      :disabled="lvd.visit_status !== 'CHECKED_IN'"
-                      data-bs-toggle="modal"
-                      data-bs-target="#modal-input-check-out"
-                      @click="openVisitModalCheckOut(lvd)"
-                    >
-                      <i class="fa-solid fa-building-circle-check"></i> Check Out
-                    </button>
-                    </td>
+  <!-- CHECK IN -->
+  <button
+    class="btn btn-sm btn-outline-primary me-1"
+    :disabled="lvd.visit_status !== 'ONGOING'"
+    data-bs-toggle="modal"
+    data-bs-target="#modal-input-check-in"
+    @click="openVisitModalCheckIn(lvd)"
+  >
+    <i class="fa-solid fa-building-circle-arrow-right"></i> Check In
+  </button>
+
+  <!-- CHECK OUT -->
+  <button
+    class="btn btn-sm btn-outline-success"
+    :disabled="lvd.visit_status !== 'CHECKED_IN'"
+    data-bs-toggle="modal"
+    data-bs-target="#modal-input-check-out"
+    @click="openVisitModalCheckOut(lvd)"
+  >
+    <i class="fa-solid fa-building-circle-check"></i> Check Out
+  </button>
+</td>
+
 
                    
                   </tr>
@@ -670,17 +677,23 @@ const confirmStartVisit = (lead) => {
           <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
               <button class="btn btn-danger btn-sm" 
+              :disabled="!dataLeadsVisit.pagination.prev_page_url || dataLeadsVisit.loadingLeadVisit"
+                @click="dataLeadsVisit.goToPage(dataLeadsVisit.pagination.prev_page_url)"
                  >
                 <i class="fa-solid fa-circle-chevron-left"
                 ></i> Prev
               </button>
   
                 <div class="mx-2 d-flex flex-column flex-sm-row align-items-center gap-1">
-                    <span class="badge border text-secondary px-3 py-2"> 10 data | on page 19</span>
-                    <span class="badge border text-secondary px-3 py-2">Total: 19  data</span>
+                    <span class="badge border text-secondary px-3 py-2">
+                      {{ dataLeadsVisit.leadVisitData.length }} data | page {{ dataLeadsVisit.pagination.current_page }}
+                    </span>
+                    <span class="badge border text-secondary px-3 py-2">Total: {{ dataLeadsVisit.pagination.total }}</span>
                 </div>
   
                 <button class="btn btn-danger btn-sm"
+                :disabled="!dataLeadsVisit.pagination.next_page_url || dataLeadsVisit.loadingLeadVisit"
+                @click="dataLeadsVisit.goToPage(dataLeadsVisit.pagination.next_page_url)"
                >
                     Next <i class="fa-solid fa-circle-chevron-right"></i>
                 </button>
