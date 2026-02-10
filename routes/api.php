@@ -159,20 +159,25 @@ Route::delete('/follow-up/delete/{id}', [FollowUp::class, 'deleteFollowUp'])->na
 
 
 Route::get('/data-visits-leads', [Visits::class, 'getVisitLead'])->name('api.data.leads.visit');
-
 Route::get('/data-leads-visit', [Visits::class, 'VisitLeads'])->name('api.data.leads.visit');
 Route::get('/data-customers-visit', [Visits::class, 'VisitCustomers'])->name('api.data.customers.visit');
-
+// start visit (PAKAI LEADS ID)
 Route::post('/leads/{lead}/start', [Visits::class, 'startVisit']);
 // Check In (PAKAI VISIT ID)
 Route::post('/visits/{visit}/check-in', [Visits::class, 'checkInVisit']);
 // Check Out (PAKAI VISIT ID)
 Route::post('/visits/{visit}/check-out', [Visits::class, 'checkOutVisit']);
 
+
 });
 
+// untuk data map external
+Route::get('/data-visits-map', [Visits::class, 'getVisitTargetMap'])->name('api.data.visits.map');
+// untuk data visit all data 
+Route::get('/data-visits-all-data', [Visits::class, 'getVisitLeadAllData'])->name('api.data.visits.all');
 
 
+// UNTUK GEO LOCATION
 Route::get('/reverse-geocode', [Location::class, 'reverse']);
 
 

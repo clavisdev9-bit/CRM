@@ -8,7 +8,7 @@ use Illuminate\Http\Exceptions\HttpResponseException;
 
 class VisitValidationIndex extends FormRequest
 {
-    protected array $allowedSortFields = ['visit_code','created_at'];
+    protected array $allowedSortFields = ['company_name','visit_code','created_at'];
     public function authorize(): bool
     {
         return true;

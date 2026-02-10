@@ -1,101 +1,122 @@
 <script setup>
-import { ref, reactive, onMounted , watch} from 'vue'
+import { ref, reactive, onMounted , watch, computed } from 'vue'
 import backendLayouts from "../../../../layouts/backendLayouts.vue";
+import { useVisitDataStore } from '../../../../stores/visitDataStore';
+import { useMenuStore } from "@/stores/menuStore";
+import { useRoute, useRouter } from "vue-router";
+import Multiselect from "@vueform/multiselect";
+import { toasts } from "@/utils/toasts";
+import Swal from 'sweetalert2';
 const PagesTitle = 'Data Visits Sales';
 
+const dataVisit = useVisitDataStore()
+const menuStore = useMenuStore()
+const route = useRoute()
+const router = useRouter()
+
+const permission = ref(null)
+const loadingPermission = ref(true)
+
+onMounted(async () => {
+  try {
+  if (!localStorage.getItem("auth_token")) {
+  // router.push('/login')
+  const result = await Swal.fire({
+    icon: 'warning',
+    title: 'Not logged in yet',
+    text: 'You must be logged in to access this page.',
+    showCancelButton: true,
+    confirmButtonText: 'Login',
+    cancelButtonText: 'Cancel'
+  })
+  if (result.isConfirmed) {
+    router.push('/login')
+  } else {
+    router.push('/')
+  }
+  return
+}
+    //  DEFAULT LOAD MASTER LEADS
+    await dataVisit.fetchVisit("leadsVisit")
+
+    await menuStore.fetchMenus()
+    permission.value = menuStore.getPermission(route.path)
+
+  } catch (error) {
+    console.error(error)
+  } finally {
+    loadingPermission.value = false
+  }
+})
 
 
 
+const notFoundType = computed(() => {
+  if (dataVisit.mode === 'customer') {
+    return 'customer'
+  }
+  if (dataVisit.searchLeads?.length > 0) {
+    return 'search'
+  }
+  return 'empty'
+})
 
-// code export excel
-const exportModalOpen = ref(false)
-const exportType = ref('month') // 'month', 'date', 'year'
-const selectedMonth = ref(new Date().getMonth() + 1)
-const selectedYear = ref(new Date().getFullYear())
-const startDate = ref('')
-const endDate = ref('')
 
-const years = ref([])
-const generateYears = () => {
-  const currentYear = new Date().getFullYear();
-  for (let i = currentYear; i >= 2000; i--) {
-    years.value.push(i);
+const notFoundConfig = {
+  assigned: {
+    image: 'https://cdn.dribbble.com/users/285475/screenshots/2083086/dribbble_1.gif',
+    title: 'Data Not Found',
+    message: '!'
+  },
+  search: {
+    image: 'https://cdn.dribbble.com/users/285475/screenshots/2083086/dribbble_1.gif',
+    title: 'Data Not Found (Data Tidak Ditemukan)',
+    message: 'Try changing your search keywords.)'
+  },
+  empty: {
+    image: 'https://cdn.dribbble.com/users/285475/screenshots/2083086/dribbble_1.gif',
+    title: 'Data Not Found',
+    message: '!'
   }
 }
 
-const openExportModal = () => {
-     generateYears();
-    exportModalOpen.value = true
-}
+const formatVisitResult = (value) => {
+  if (!value) return '-';
 
-// // code export pdf
-const exportModalOpenPdf = ref(false)
-const exportTypePdf = ref('month') // 'month', 'date', 'year'
-const selectedMonthPdf = ref(new Date().getMonth() + 1)
-const selectedYearPdf = ref(new Date().getFullYear())
-const startDatePdf = ref('')
-const endDatePdf = ref('')
+  return value
+    .replaceAll('_', ' ')
+    .replace(/\b\w/g, char => char.toUpperCase());
+};
 
-const yearsPdf = ref([])
-const generateYearsPdf = () => {
-  yearsPdf.value = []
-  const currentYear = new Date().getFullYear()
-  for (let i = currentYear; i >= 2000; i--) {
-    yearsPdf.value.push(i)
-  }
-}
-
-const openExportModalPdf = () => {
-  generateYearsPdf()
-  exportModalOpenPdf.value = true
-}
-
-// import csv
-const importCsvModalOpen = ref(false)
-const selectedCsvFile = ref(null)
-
-const openImportCsvModal = () => {
-  importCsvModalOpen.value = true
-}
-
-// Event ketika file dipilih
-const handleCsvFile = (event) => {
-  selectedCsvFile.value = event.target.files[0]
-}
-
-// Tombol upload (sementara hanya alert)
-const handleImportCsv = () => {
-  if (!selectedCsvFile.value) {
-    alert("Silakan pilih file CSV terlebih dahulu")
-    return
-  }
-  alert(`Mengupload file: ${selectedCsvFile.value.name}`)
-  importCsvModalOpen.value = false
-}
+const visitResultMeta = {
+  failed: {
+    icon: 'fa-circle-xmark',
+    class: 'text-danger',
+    label: 'Failed',
+  },
+  convert_to_customer: {
+    icon: 'fa-circle-check',
+    class: 'text-success',
+    label: 'Converted To Customer',
+  },
+  potential_customers: {
+    icon: 'fa-user-plus',
+    class: 'text-info',
+    label: 'Potential Customers',
+  },
+  consideration_stage: {
+    icon: 'fa-clock',
+    class: 'text-warning',
+    label: 'Consideration Stage',
+  },
+  prospective_customers: {
+    icon: 'fa-user-clock',
+    class: 'text-primary',
+    label: 'Prospective Customers',
+  },
+};
 
 
-// import excel
-const importExcelModalOpen = ref(false)
-const selectedExcelFile = ref(null)
-
-const openImportExcelModal = () => {
-  importExcelModalOpen.value = true
-}
-
-// Event ketika file dipilih
-const handleExcelFile = (event) => {
-  selectedExcelFile.value = event.target.files[0]
-}
-
-// Tombol upload (sementara hanya alert)
-const handleImportExcel = () => {
-  if (!selectedExcelFile.value) {
-    alert("Silakan pilih file Excel terlebih dahulu")
-    return
-  }
-  alert(`Mengupload file: ${selectedExcelFile.value.name}`)
-  importExcelModalOpen.value = false
-}
 </script>
 
 <template>
@@ -189,6 +210,8 @@ const handleImportExcel = () => {
                     <i class="fas fa-list-ul me-1"></i> Showing:
                     </label>
                     <select class="form-select w-auto"
+                      v-model="dataVisit.pagination.per_page"
+                      @change="dataVisit.changePageSize()"
                     >
                     <option>10</option>
                     <option>25</option>
@@ -206,17 +229,6 @@ const handleImportExcel = () => {
                     <i class="fa-solid fa-filter"></i> Filter Data Visits By
                   </button>
                   <ul class="dropdown-menu">
-
-
-                    <!-- <li>
-                      <button 
-                        class="dropdown-item" 
-                        type="button" 
-                        
-                      >
-                        All Data
-                      </button>
-                    </li> -->
 
                     <li>
                       <button 
@@ -236,7 +248,6 @@ const handleImportExcel = () => {
                         Visit Customer
                       </button>
                     </li>
-
                   </ul>
                   </div>
                
@@ -247,21 +258,29 @@ const handleImportExcel = () => {
              <div class="d-flex flex-column gap-3 align-items-end" style="min-width:300px;">
                 <!-- Pencarian -->
                 <div class="input-group">
-                    <input type="text" class="form-control" placeholder="Searching....">
+                    <input type="text" class="form-control" placeholder="Searching...." @input="e => dataVisit.searchWithDelay(e.target.value)">
                     <span class="input-group-text bg-white"><i class="fa fa-search"></i></span>
                 </div>
-
                 <!-- Urutan -->
-                <div class="d-flex gap-2 align-items-center">
-                    <label class="mb-0 fw-semibold">Sort:</label>
-                    <select class="form-select w-auto">
-                    <option value="fullname">By Name</option>
+               <div class="d-flex gap-2 align-items-center">
+                  <label class="mb-0 fw-semibold">Sort:</label>
+                  <select
+                    class="form-select w-auto"
+                    v-model="dataVisit.sort.column"
+                    @change="dataVisit.changeSorting()"
+                  >
+                    <option value="company_name">By Company Name</option>
                     <option value="created_at">By Created Date</option>
-                    </select>
-                    <select class="form-select w-auto">
+                  </select>
+
+                  <select
+                    class="form-select w-auto"
+                    v-model="dataVisit.sort.direction"
+                    @change="dataVisit.changeSorting()"
+                  >
                     <option value="asc">Ascending</option>
                     <option value="desc">Descending</option>
-                    </select>
+                  </select>
                 </div>
                 </div>
             </div>
@@ -269,47 +288,230 @@ const handleImportExcel = () => {
 
           <!-- Card: Table -->
           <div class="card mb-4">
-            <div class="card-header">
-              <h7 class="card-title">Your Data Visit (Type)</h7>
-            </div>
             <div class="table-responsive">
               <table class="table card-table table-vcenter text-nowrap">
                 <thead>
+                   <tr>
+                   <th :colspan="dataVisit.mode === 'customer' ? 11 : 11"
+                        class="bg-light fw-bold text-primary">
+                      <i class="fa fa-table me-2"></i>
+                      {{ dataVisit.mode === 'customer'
+                          ? 'Data Visit Customer'
+                          : 'Data Visit Leads'
+                      }}
+                    </th>
+                  </tr>
+              
                   <tr>
                     <th style="width: 5%;">No.</th>
+                    <th>results of the visit</th>
                     <th>visit code</th>
                     <th>company <br>
-                      <small class="text-muted">name</small></th>
+                      <small class="text-warning">name</small></th>
                     <th>visit <br>
-                       <small class="text-muted">time</small>
+                       <small class="text-warning">time</small>
                     </th>
                     <th>
                       Check in<br>
-                       <small class="text-muted">time</small>
+                       <small class="text-warning">time</small>
                     </th>
                     <th>
                       Check out<br>
-                       <small class="text-muted">time</small>
+                       <small class=" text-warning">time</small>
                     </th>
                     <th>
                       Total time<br>
-                      <small class="text-muted">from visit to check in</small>
+                      <small class="text-warning">from visit to check in</small>
                     </th>
                     <th>
                       Total time<br>
-                      <small class="text-muted">from check in to check out</small>
+                      <small class="text-warning">from check in to check out</small>
                     </th>
                     <th>
                       Total<br>
-                      <small class="text-muted">your time</small>
+                      <small class="text-warning">your time</small>
                     </th>
                     <th style="width: 8%;">Details</th>
                   </tr>
                 </thead>
 
-            
 
-                
+                  <tbody v-if="dataVisit.loading">
+                    <tr>
+                      <td 
+                          class="text-center" colspan="10">
+                        <div class="spinner-border text-primary"></div>
+                      </td>
+                    </tr>
+                  </tbody>
+
+
+                  <tbody v-else-if="dataVisit.visit.length === 0">
+                <tr>
+                  <td
+                    class="text-center text-muted" colspan="11"
+                   >
+                    <div class="d-flex flex-column align-items-center justify-content-center">
+                      <img
+                        :src="notFoundConfig[notFoundType].image"
+                        alt="No data"
+                         style="max-width: 250px; height: auto;"
+                        class="mb-3"
+                      />
+
+                      <h6 class="fw-bold text-dark">
+                        {{ notFoundConfig[notFoundType].title }}
+                      </h6>
+                      
+
+                      <p class="fst-italic text-secondary mb-0">
+                        {{ notFoundConfig[notFoundType].message }}
+                      </p>
+                    </div>
+                  </td>
+                </tr>
+              </tbody>
+
+                  <tbody v-else>
+                  <tr v-for="(visit, index) in dataVisit.visit" :key="visit.id">
+                    <td>{{ (dataVisit.pagination.current_page - 1) * dataVisit.pagination.per_page + index + 1 }}</td>
+                    <!-- <td>
+                      <i
+                        class="fa-solid me-1"
+                        :class="visit.visit_type === 'CUSTOMER'
+                          ? 'fa-user-check text-success'
+                          : 'fa-user-clock text-primary'"
+                      ></i>
+
+                      <strong>
+                        {{ visit.visit_type === 'CUSTOMER' ? 'Customer' : 'Lead' }}
+                      </strong>
+                      –
+                      <span class="text-muted">
+                        {{ formatVisitResult(visit.visit_result) }}
+                      </span>
+                    </td> -->
+                   <td>
+  <!-- TYPE -->
+  <span
+    class="badge me-2"
+    :class="visit.visit_type === 'CUSTOMER'
+      ? 'bg-success'
+      : 'bg-primary'"
+  >
+    {{ visit.visit_type === 'CUSTOMER' ? 'Customer' : 'Lead' }}
+  </span>
+
+  <!-- RESULT -->
+  <span
+    v-if="visitResultMeta[visit.visit_result]"
+    class="fw-semibold"
+    :class="visitResultMeta[visit.visit_result].class"
+  >
+    <i
+      class="fa-solid me-1"
+      :class="visitResultMeta[visit.visit_result].icon"
+    ></i>
+    {{ visitResultMeta[visit.visit_result].label }}
+  </span>
+
+  <span v-else class="text-muted">
+    -
+  </span>
+</td>
+
+
+                    <td><strong>{{ visit.visit_code }}</strong></td>
+                    <td>{{ visit.company_name }}</td>
+                   <td>
+                      <span
+                        v-if="visit.visit_at"
+                        class="badge bg-warning text-dark"
+                      >
+                        {{ dataVisit.formatDateTime(visit.visit_at) }}
+                      </span>
+
+                      <span v-else class="badge bg-secondary">
+                        -
+                      </span>
+                    </td>
+
+                    <td>
+                      <span
+                        v-if="visit.check_in_at"
+                        class="badge bg-success text-dark"
+                      >
+                        {{ dataVisit.formatTime(visit.check_in_at) }}
+                      </span>
+
+                      <span v-else class="badge bg-secondary">
+                        Not checked in yet
+                      </span>
+                    </td>
+
+                    <td>
+                      <span
+                        v-if="visit.check_out_at"
+                        class="badge bg-primary"
+                      >
+                        {{ dataVisit.formatTime(visit.check_out_at) }}
+                      </span>
+
+                      <span v-else class="badge bg-secondary">
+                        On going / Not checked in yet
+                      </span>
+                    </td>
+
+                   <td>
+                      <span
+                        v-if="visit.time_from_visit_to_check_in && visit.time_from_visit_to_check_in !== '00:00:00'"
+                        class="badge bg-primary"
+                      >
+                        {{ dataVisit.formatDurationToText(visit.time_from_visit_to_check_in) }}
+                      </span>
+
+                      <span v-else class="badge bg-secondary">
+                       On going
+                      </span>
+                    </td>
+
+                    <td>
+                      <span
+                        v-if="visit.time_from_check_in_to_check_out && visit.check_out_at"
+                        class="badge bg-primary"
+                      >
+                        {{ dataVisit.formatDurationToText(visit.time_from_check_in_to_check_out) }}
+                      </span>
+
+                      <span v-else class="badge bg-secondary">
+                        On going
+                      </span>
+                    </td>
+
+
+                   <td>
+                      <span
+                        v-if="visit.total_time_result && visit.check_out_at"
+                        class="badge bg-success"
+                      >
+                        {{ dataVisit.formatDurationToText(visit.total_time_result) }}
+                      </span>
+
+                      <span v-else class="badge bg-secondary">
+                        On going
+                      </span>
+                    </td>
+
+
+                    <td>
+                       <button class="btn btn-outline-primary btn-sm"  data-bs-toggle="modal"
+                            data-bs-target="#userDetailModal"
+                          >
+                            <i class="fa fa-eye"></i> 
+                        </button>
+                    </td>
+                  </tr>
+                  </tbody>
               </table>
             </div>
           </div>
@@ -334,409 +536,12 @@ const handleImportExcel = () => {
                 </button>
             </div>
           </div>
-
         </div>
       </div>
-
-     
     </div>
 
 
 
-
-  <!-- Code Modal: Detail Data -->
-<div class="modal modal-blur fade" id="userDetailModal" tabindex="-1" role="dialog" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
-    <div class="modal-content">
-      
-      <!-- Header -->
-      <div class="modal-header">
-        <h5 class="modal-title">Detail Role</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-
-      <!-- Body -->
-      <div class="modal-body">
-         <div class="modal-body">                   
-          <div class="d-flex justify-content-center align-items-center" style="min-height:150px;">
-  <div class="spinner-border text-secondary" role="status">
-    <span class="visually-hidden">Loading...</span>
-  </div>
-</div>
-
-          <div >
-            <p><strong>Role:</strong> </p>
-            <p><strong>Description:</strong></p>
-          </div>
-      </div>
-      </div>
-      <!-- Footer -->
-      <div class="modal-footer">
-        <button type="button" class="btn btn-link link-secondary" data-bs-dismiss="modal">
-          Close
-        </button>
-      </div>
-    </div>
-  </div>
-</div>
-
-
-
-
-    <!-- Code Modal: Add Data -->
-<div class="modal modal-blur fade" id="modal-add-data" tabindex="-1" role="dialog" aria-hidden="true">
-  <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
-    <div class="modal-content">
-      
-      <!-- Header -->
-      <div class="modal-header">
-        <h5 class="modal-title">Tambah Data Baru</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-
-      <!-- Body -->
-      <div class="modal-body">
-         <div class="modal-body">
-                                <div class="mb-3">
-                                  <label class="form-label">Name</label>
-                                  <input type="text" class="form-control" name="example-text-input" placeholder="Your report name" />
-                                </div>
-                                <label class="form-label">Report type</label>
-                                <div class="form-selectgroup-boxes row mb-3">
-                                  <div class="col-lg-6">
-                                    <label class="form-selectgroup-item">
-                                      <input type="radio" name="report-type" value="1" class="form-selectgroup-input" checked />
-                                      <span class="form-selectgroup-label d-flex align-items-center p-3">
-                                        <span class="me-3">
-                                          <span class="form-selectgroup-check"></span>
-                                        </span>
-                                        <span class="form-selectgroup-label-content">
-                                          <span class="form-selectgroup-title strong mb-1">Simple</span>
-                                          <span class="d-block text-secondary">Provide only basic data needed for the report</span>
-                                        </span>
-                                      </span>
-                                    </label>
-                                  </div>
-                                  <div class="col-lg-6">
-                                    <label class="form-selectgroup-item">
-                                      <input type="radio" name="report-type" value="1" class="form-selectgroup-input" />
-                                      <span class="form-selectgroup-label d-flex align-items-center p-3">
-                                        <span class="me-3">
-                                          <span class="form-selectgroup-check"></span>
-                                        </span>
-                                        <span class="form-selectgroup-label-content">
-                                          <span class="form-selectgroup-title strong mb-1">Advanced</span>
-                                          <span class="d-block text-secondary"
-                                            >Insert charts and additional advanced analyses to be inserted in the report</span
-                                          >
-                                        </span>
-                                      </span>
-                                    </label>
-                                  </div>
-                                </div>
-                                <div class="row">
-                                  <div class="col-lg-8">
-                                    <div class="mb-3">
-                                      <label class="form-label">Report url</label>
-                                      <div class="input-group input-group-flat">
-                                        <span class="input-group-text"> https://tabler.io/reports/ </span>
-                                        <input type="text" class="form-control ps-0" value="report-01" autocomplete="off" />
-                                      </div>
-                                    </div>
-                                  </div>
-                                  <div class="col-lg-4">
-                                    <div class="mb-3">
-                                      <label class="form-label">Visibility</label>
-                                      <select class="form-select">
-                                        <option value="1" selected>Private</option>
-                                        <option value="2">Public</option>
-                                        <option value="3">Hidden</option>
-                                      </select>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-                              <div class="modal-body">
-                                <div class="row">
-                                  <div class="col-lg-6">
-                                    <div class="mb-3">
-                                      <label class="form-label">Client name</label>
-                                      <input type="text" class="form-control" />
-                                    </div>
-                                  </div>
-                                  <div class="col-lg-6">
-                                    <div class="mb-3">
-                                      <label class="form-label">Reporting period</label>
-                                      <input type="date" class="form-control" />
-                                    </div>
-                                  </div>
-                                  <div class="col-lg-12">
-                                    <div>
-                                      <label class="form-label">Additional information</label>
-                                      <textarea class="form-control" rows="3"></textarea>
-                                    </div>
-                                  </div>
-                                </div>
-                              </div>
-      </div>
-
-      <!-- Footer -->
-      <div class="modal-footer">
-        <button type="button" class="btn btn-link link-secondary" data-bs-dismiss="modal">
-          Batal
-        </button>
-        <button type="button" class="btn btn-primary ms-auto">
-          <i class="fas fa-save me-1"></i> Simpan
-        </button>
-      </div>
-
-    </div>
-  </div>
-</div>
-
-
-
-
-<!-- ### Modal Export Laporan --> 
-
-<div v-if="exportModalOpen" class="modal-backdrop fade show"></div>
-<div v-if="exportModalOpen" class="modal d-block" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Ekspor Laporan Invoice (excel)</h5>
-        <button type="button" class="btn-close" @click="exportModalOpen=false"></button>
-      </div>
-      <div class="modal-body">
-        <div class="mb-3">
-          <label class="form-label">Pilih Tipe Ekspor</label>
-          <div class="d-flex gap-3">
-            <div class="form-check">
-              <input class="form-check-input" type="radio" v-model="exportType" value="month" id="exportByMonth">
-              <label class="form-check-label" for="exportByMonth">Bulan</label>
-            </div>
-            <div class="form-check">
-              <input class="form-check-input" type="radio" v-model="exportType" value="date" id="exportByDate">
-              <label class="form-check-label" for="exportByDate">Tanggal</label>
-            </div>
-            <div class="form-check">
-              <input class="form-check-input" type="radio" v-model="exportType" value="year" id="exportByYear">
-              <label class="form-check-label" for="exportByYear">Tahun</label>
-            </div>
-          </div>
-        </div>
-
-        <div v-if="exportType === 'month'" class="row g-2 mb-3">
-          <div class="col">
-            <label class="form-label">Bulan</label>
-            <select v-model="selectedMonth" class="form-select">
-              <option value="1">Januari</option>
-              <option value="2">Februari</option>
-              <option value="3">Maret</option>
-              <option value="4">April</option>
-              <option value="5">Mei</option>
-              <option value="6">Juni</option>
-              <option value="7">Juli</option>
-              <option value="8">Agustus</option>
-              <option value="9">September</option>
-              <option value="10">Oktober</option>
-              <option value="11">November</option>
-              <option value="12">Desember</option>
-            </select>
-          </div>
-          <div class="col">
-            <label class="form-label">Tahun</label>
-            <select v-model="selectedYear" class="form-select">
-              <option v-for="y in years" :key="y" :value="y">{{ y }}</option>
-            </select>
-          </div>
-        </div>
-
-        <div v-if="exportType === 'date'" class="row g-2 mb-3">
-          <div class="col">
-            <label class="form-label">Tanggal Mulai</label>
-            <input type="date" v-model="startDate" class="form-control" />
-          </div>
-          <div class="col">
-            <label class="form-label">Tanggal Akhir</label>
-            <input type="date" v-model="endDate" class="form-control" />
-          </div>
-        </div>
-        
-        <div v-if="exportType === 'year'" class="mb-3">
-          <label class="form-label">Pilih Tahun</label>
-          <select v-model="selectedYear" class="form-select">
-            <option v-for="y in years" :key="y" :value="y">{{ y }}</option>
-          </select>
-        </div>
-
-      </div>
-      <div class="modal-footer">
-        <button class="btn btn-secondary" @click="exportModalOpen=false">Batal</button>
-        <button class="btn btn-primary" @click="handleExport">Ekspor</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-
-
-
-
-<!-- ### Modal Export Laporan PDF --> 
-
-<div v-if="exportModalOpenPdf" class="modal-backdrop fade show"></div>
-<div v-if="exportModalOpenPdf" class="modal d-block" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Ekspor Laporan Invoice (PDF)</h5>
-        <button type="button" class="btn-close" @click="exportModalOpenPdf=false"></button>
-      </div>
-
-      <div class="modal-body">
-        <div class="mb-3">
-          <label class="form-label">Pilih Tipe Ekspor</label>
-          <div class="d-flex gap-3">
-            <div class="form-check">
-              <input class="form-check-input" type="radio" v-model="exportTypePdf" value="month" id="exportByMonthPdf">
-              <label class="form-check-label" for="exportByMonthPdf">Bulan</label>
-            </div>
-            <div class="form-check">
-              <input class="form-check-input" type="radio" v-model="exportTypePdf" value="date" id="exportByDatePdf">
-              <label class="form-check-label" for="exportByDatePdf">Tanggal</label>
-            </div>
-            <div class="form-check">
-              <input class="form-check-input" type="radio" v-model="exportTypePdf" value="year" id="exportByYearPdf">
-              <label class="form-check-label" for="exportByYearPdf">Tahun</label>
-            </div>
-          </div>
-        </div>
-
-        <!-- Filter Bulan -->
-        <div v-if="exportTypePdf === 'month'" class="row g-2 mb-3">
-          <div class="col">
-            <label class="form-label">Bulan</label>
-            <select v-model="selectedMonthPdf" class="form-select">
-              <option value="1">Januari</option>
-              <option value="2">Februari</option>
-              <option value="3">Maret</option>
-              <option value="4">April</option>
-              <option value="5">Mei</option>
-              <option value="6">Juni</option>
-              <option value="7">Juli</option>
-              <option value="8">Agustus</option>
-              <option value="9">September</option>
-              <option value="10">Oktober</option>
-              <option value="11">November</option>
-              <option value="12">Desember</option>
-            </select>
-          </div>
-          <div class="col">
-            <label class="form-label">Tahun</label>
-            <select v-model="selectedYearPdf" class="form-select">
-              <option v-for="y in yearsPdf" :key="y" :value="y">{{ y }}</option>
-            </select>
-          </div>
-        </div>
-
-        <!-- Filter Tanggal -->
-        <div v-if="exportTypePdf === 'date'" class="row g-2 mb-3">
-          <div class="col">
-            <label class="form-label">Tanggal Mulai</label>
-            <input type="date" v-model="startDatePdf" class="form-control" />
-          </div>
-          <div class="col">
-            <label class="form-label">Tanggal Akhir</label>
-            <input type="date" v-model="endDatePdf" class="form-control" />
-          </div>
-        </div>
-
-        <!-- Filter Tahun -->
-        <div v-if="exportTypePdf === 'year'" class="mb-3">
-          <label class="form-label">Pilih Tahun</label>
-          <select v-model="selectedYearPdf" class="form-select">
-            <option v-for="y in yearsPdf" :key="y" :value="y">{{ y }}</option>
-          </select>
-        </div>
-
-        <div class="alert alert-info">
-          Klik tombol "Ekspor" untuk mendownload laporan dalam format PDF.
-        </div>
-      </div>
-
-      <div class="modal-footer">
-        <button class="btn btn-secondary" @click="exportModalOpenPdf=false">Batal</button>
-        <button class="btn btn-danger" @click="handleExportPdf">Ekspor PDF</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-
-<!-- ### Modal Import CSV --> 
-
-<div v-if="importCsvModalOpen" class="modal-backdrop fade show"></div>
-<div v-if="importCsvModalOpen" class="modal d-block" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Import Data CSV</h5>
-        <button type="button" class="btn-close" @click="importCsvModalOpen=false"></button>
-      </div>
-
-      <div class="modal-body">
-        <div class="mb-3">
-          <label class="form-label">Pilih File CSV</label>
-          <input type="file" class="form-control" accept=".csv" @change="handleCsvFile" />
-        </div>
-
-        <div class="alert alert-info">
-          Pastikan format CSV sesuai template.
-          <a href="/template.csv" target="_blank">Download Template CSV</a>
-        </div>
-      </div>
-
-      <div class="modal-footer">
-        <button class="btn btn-secondary" @click="importCsvModalOpen=false">Batal</button>
-        <button class="btn btn-primary" @click="handleImportCsv">Upload CSV</button>
-      </div>
-    </div>
-  </div>
-</div>
-
-
-
-<!-- ### Modal Import Excel --> 
-
-<div v-if="importExcelModalOpen" class="modal-backdrop fade show"></div>
-<div v-if="importExcelModalOpen" class="modal d-block" tabindex="-1">
-  <div class="modal-dialog">
-    <div class="modal-content">
-      <div class="modal-header">
-        <h5 class="modal-title">Import Data Excel</h5>
-        <button type="button" class="btn-close" @click="importExcelModalOpen=false"></button>
-      </div>
-
-      <div class="modal-body">
-        <div class="mb-3">
-          <label class="form-label">Pilih File Excel</label>
-          <input type="file" class="form-control" accept=".xlsx,.xls" @change="handleExcelFile" />
-        </div>
-
-        <div class="alert alert-info">
-          Pastikan format kolom sesuai template.
-          <a href="/template.xlsx" target="_blank">Download Template Excel</a>
-        </div>
-      </div>
-
-      <div class="modal-footer">
-        <button class="btn btn-secondary" @click="importExcelModalOpen=false">Batal</button>
-        <button class="btn btn-primary" @click="handleImportExcel">Upload Excel</button>
-      </div>
-    </div>
-  </div>
-</div>
 
   </backendLayouts>
 </template>

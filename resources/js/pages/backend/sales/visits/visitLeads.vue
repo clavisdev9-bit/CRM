@@ -291,6 +291,24 @@ const resetVisitState = () => {
 
 };
 
+const canSubmitCheckIn = computed(() => {
+  return (
+    photoBlob.value &&
+    latitude.value !== null &&
+    longitude.value !== null &&
+    !isProcessingPhoto.value
+  )
+})
+
+const cancelCheckIn = () => {
+  if (dataLeadsVisit.checkingInVisit) return // safety
+
+  resetVisitState()
+
+  const modalEl = document.getElementById('modal-input-check-in')
+  const instance = bootstrap.Modal.getOrCreateInstance(modalEl)
+  instance.hide()
+}
 
 
 const submitCheckIn = async () => {
@@ -376,6 +394,9 @@ const openVisitModalCheckOut = (leads) => {
 
   instance.show()
 }
+
+
+
 
 // ==============================
 // SUBMIT CHECK OUT
@@ -605,63 +626,57 @@ watch(() => dataLeadsVisit.searchLeadVisit, dataLeadsVisit.searchWithDelay);
                       </span>
                   </td>
 
-              
-              
-
 
                     <td>
-  <!-- VISIT NOW -->
-  <button
-    v-if="!lvd.active_visit_id"
-    class="btn btn-outline-primary btn-sm me-1"
-    @click="confirmStartVisit(lvd)"
-  >
-    <i class="fa-solid fa-street-view"></i> Visit Now
-  </button>
+                    <!-- VISIT NOW -->
+                    <button
+                      v-if="!lvd.active_visit_id"
+                      class="btn btn-primary btn-sm me-1"
+                      @click="confirmStartVisit(lvd)"
+                    >
+                      <i class="fa-solid fa-street-view"></i> Visit Now
+                    </button>
 
-  <!-- ONGOING (BELUM CHECK IN) -->
-  <button
-    v-else-if="lvd.visit_status === 'ONGOING'"
-    class="btn btn-outline-secondary btn-sm me-1"
-    disabled
-  >
-    <i class="fa-solid fa-car-on"></i> Visit Ongoing
-  </button>
+                    <!-- ONGOING (BELUM CHECK IN) -->
+                    <button
+                      v-else-if="lvd.visit_status === 'ONGOING'"
+                      class="btn btn-secondary btn-sm me-1"
+                      disabled
+                    >
+                      <i class="fa-solid fa-car-on"></i> Visit Ongoing
+                    </button>
 
-  <!-- SEDANG CHECK IN -->
-  <button
-    v-else-if="lvd.visit_status === 'CHECKED_IN'"
-    class="btn btn-outline-warning btn-sm me-1"
-    disabled
-  >
-    <i class="fa-solid fa-location-dot"></i> Currently Checking In
-  </button>
+                    <!-- SEDANG CHECK IN -->
+                    <button
+                      v-else-if="lvd.visit_status === 'CHECKED_IN'"
+                      class="btn btn-warning btn-sm me-1"
+                      disabled
+                    >
+                      <i class="fa-solid fa-location-dot"></i> Currently Checking In
+                    </button>
 
-  <!-- CHECK IN -->
-  <button
-    class="btn btn-sm btn-outline-primary me-1"
-    :disabled="lvd.visit_status !== 'ONGOING'"
-    data-bs-toggle="modal"
-    data-bs-target="#modal-input-check-in"
-    @click="openVisitModalCheckIn(lvd)"
-  >
-    <i class="fa-solid fa-building-circle-arrow-right"></i> Check In
-  </button>
+                    <!-- CHECK IN -->
+                    <button
+                      class="btn btn-sm btn-primary me-1"
+                      :disabled="lvd.visit_status !== 'ONGOING'"
+                      data-bs-toggle="modal"
+                      data-bs-target="#modal-input-check-in"
+                      @click="openVisitModalCheckIn(lvd)"
+                    >
+                      <i class="fa-solid fa-building-circle-arrow-right"></i> Check In
+                    </button>
 
-  <!-- CHECK OUT -->
-  <button
-    class="btn btn-sm btn-outline-success"
-    :disabled="lvd.visit_status !== 'CHECKED_IN'"
-    data-bs-toggle="modal"
-    data-bs-target="#modal-input-check-out"
-    @click="openVisitModalCheckOut(lvd)"
-  >
-    <i class="fa-solid fa-building-circle-check"></i> Check Out
-  </button>
-</td>
-
-
-                   
+                    <!-- CHECK OUT -->
+                    <button
+                      class="btn btn-sm btn-success"
+                      :disabled="lvd.visit_status !== 'CHECKED_IN'"
+                      data-bs-toggle="modal"
+                      data-bs-target="#modal-input-check-out"
+                      @click="openVisitModalCheckOut(lvd)"
+                    >
+                      <i class="fa-solid fa-building-circle-check"></i> Check Out
+                    </button>
+                  </td>
                   </tr>
                  
                 </tbody>
@@ -760,34 +775,67 @@ watch(() => dataLeadsVisit.searchLeadVisit, dataLeadsVisit.searchWithDelay);
                     <div style="word-break:break-word;">
                       <div class="fw-bold" style="font-size:.7rem; color:#666;">LEAD LOCATION SNAPSHOT <small class="text-danger">**</small></div>
                       <div class="small text-muted" style="font-size:11px; line-height:1.3;">{{ address || 'Detecting address...' }}</div>
+                     <div
+                        v-if="photoBlob && locationStatus !== 'Location detected'"
+                        class="text-warning small mt-2 d-flex align-items-center"
+                      >
+                        <i class="fa-solid fa-location-crosshairs me-1"></i>
+                        Waiting for location detection...
+                      </div>
+                    </div>
+                    <div
+                      v-if="photoBlob && locationStatus === 'Failed to detect location'"
+                      class="text-danger small mt-2 d-flex align-items-center"
+                    >
+                      <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                      Location not detected. Please enable GPS and try again.
                     </div>
                   </div>
+                  
                 </div>
               </div>
               </div>
           </div>
           <hr>
           <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" @click="resetVisitState">Cancel</button>
-           
-          <button
+           <button
+              type="button"
+              class="btn btn-secondary"
+              :disabled="dataLeadsVisit.checkingInVisit"
+              @click="cancelCheckIn"
+            >
+              Cancel
+            </button>
+
+           <button
             class="btn btn-success ms-auto"
-            :disabled="!photoBlob || dataLeadsVisit.checkingInVisit"
+            :disabled="!photoBlob || !latitude || !longitude || dataLeadsVisit.checkingInVisit"
             @click="submitCheckIn"
           >
+            <!-- loading -->
             <span
               v-if="dataLeadsVisit.checkingInVisit"
               class="spinner-border spinner-border-sm me-2"
-              role="status"
-              aria-hidden="true"
             ></span>
 
+            <!-- icon normal -->
             <i
               v-else
               class="fa-solid fa-cloud-arrow-up me-2"
             ></i>
 
-            {{ dataLeadsVisit.checkingInVisit ? 'Saving...' : 'Save' }}
+            <!-- text logic -->
+            <span v-if="dataLeadsVisit.checkingInVisit">
+              Saving...
+            </span>
+
+            <span v-else-if="photoBlob && (!latitude || !longitude)">
+              Waiting Location...
+            </span>
+
+            <span v-else>
+              Submit Check IN
+            </span>
           </button>
           </div>
           </div>

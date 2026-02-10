@@ -28,14 +28,14 @@
               </div>
             </footer>
 
-            <div class="buy-now">
+            <!-- <div class="buy-now">
       <a
         href=""
         target="_blank"
         class="btn btn-danger btn-buy-now"
         >Version Develope Beta 0.0.0</a
       >
-    </div>
+    </div> -->
           
 </template>
 

@@ -43,7 +43,7 @@ export const useVisitDataStore = defineStore("visitStore", () => {
 
   const allowedSortColumns = [
     "company_name",
-    "vvisit_codes",
+    "visit_codes",
     "created_at",
   ]
 
@@ -73,7 +73,7 @@ export const useVisitDataStore = defineStore("visitStore", () => {
 
    /* ================= FETCH ================= */
 
-  const fetchLeadsVisit = async (newMode = null, page = null) => {
+  const fetchVisit = async (newMode = null, page = null) => {
   loading.value = true
 
   if (newMode) {
@@ -91,7 +91,7 @@ export const useVisitDataStore = defineStore("visitStore", () => {
     })
 
     const result = res.data
-    leads.value = result.data?.data ?? []
+    visit.value = result.data?.data ?? []
 
     const pag = result.data?.pagination
     if (pag) {
@@ -105,7 +105,7 @@ export const useVisitDataStore = defineStore("visitStore", () => {
 
   } catch (err) {
     console.error("Fetch visit leads failed:", err)
-    leads.value = []
+    visit.value = []
   } finally {
     loading.value = false
   }
@@ -121,7 +121,7 @@ export const useVisitDataStore = defineStore("visitStore", () => {
     pagination.current_page = 1
 
     searchTimeout = setTimeout(() => {
-      fetchLeadsVisit()
+      fetchVisit()
     }, 500)
   }
 
@@ -138,32 +138,32 @@ export const useVisitDataStore = defineStore("visitStore", () => {
     }
 
     pagination.current_page = 1
-    fetchLeadsVisit()
+    fetchVisit()
   }
 
   /* ================= PER PAGE ================= */
   const changePageSize = () => {
     pagination.current_page = 1
-    fetchLeadsVisit()
+    fetchVisit()
   }
 
 
 
     const goToPage = (page) => {
   if (page < 1 || page > pagination.last_page) return
-  fetchLeadsVisit(null, page)
+  fetchVisit(null, page)
 }
 
 const nextPage = () => {
   if (pagination.current_page < pagination.last_page) {
-    fetchLeadsVisit(null, pagination.current_page + 1)
+    fetchVisit(null, pagination.current_page + 1)
   }
 }
 
 
 const prevPage = () => {
   if (pagination.current_page > 1) {
-    fetchLeadsVisit(null, pagination.current_page - 1)
+    fetchVisit(null, pagination.current_page - 1)
   }
 }
 
@@ -176,24 +176,58 @@ const prevPage = () => {
     pagination.current_page = 1
     sort.column = "created_at"
     sort.direction = "desc"
-    fetchLeadsVisit()
+    fetchVisit()
   }
+
+   const changeSorting = () => {
+  pagination.current_page = 1
+  fetchVisit()
+}
 
   /* ================= HELPER ================= */
-  const formatDate = (value) => {
-    if (!value) return "-"
-    const date = new Date(value)
-    return date.toLocaleDateString("id-ID", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    })
-  }
 
-  const changeSorting = () => {
-  pagination.current_page = 1
-  fetchLeadsVisit()
+const formatDateTime = (val) => {
+  if (!val) return '-'
+  const d = new Date(val)
+  return d.toLocaleString('id-ID', {
+    day: '2-digit',
+    month: 'short',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit'
+  })
 }
+
+const formatTime = (val) => {
+  if (!val) return '-'
+
+  const d = new Date(val)
+  if (isNaN(d)) return '-'
+
+  return d.toLocaleTimeString('id-ID', {
+    hour: '2-digit',
+    minute: '2-digit'
+  })
+}
+
+
+
+
+
+const formatDurationToText = (time) => {
+  if (!time || typeof time !== 'string') return '-'
+
+  const [h, m, s] = time.split(':').map(Number)
+  if ([h, m, s].some(isNaN)) return '-'
+
+  if (h > 0 && m > 0) return `${h} jam ${m} menit`
+  if (h > 0) return `${h} jam`
+  if (m > 0) return `${m} menit`
+  if (s > 0) return '< 1 menit'
+  return '-'
+}
+
+
 
 
 
@@ -212,7 +246,7 @@ const prevPage = () => {
     allowedSortColumns,
     getAuthHeader,
     buildUrl,
-    fetchLeadsVisit,
+    fetchVisit,
     searchWithDelay,
     toggleSort,
     changePageSize,
@@ -220,8 +254,10 @@ const prevPage = () => {
     nextPage,
     prevPage,
     resetFilters,
-    formatDate,
-    changeSorting
+    changeSorting,
+    formatDateTime,
+    formatTime,
+    formatDurationToText
   }
 
 
