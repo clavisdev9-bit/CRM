@@ -229,6 +229,29 @@ const formatDurationToText = (time) => {
 
 
 
+                       const detailVisitData = async (visitId) => {
+                                loading.value = true
+                                try {
+                                    const res = await axios.get(`/api/data-visits/detail/${visitId}`, {
+                                    headers: getAuthHeader(),
+                                    })
+                                    visitDetail.value = res.data.data
+                                } catch (err) {
+                                    // console.error("Gagal ambil detail Submenu:", err)
+                                    // alert("Gagal mengambil detail submenu.")
+                                     Swal.fire({
+                                      icon: "error",
+                                      title: "Failed!",
+                                      text: err.response?.data?.message || "Failed to fetch submenu details.",
+                                      confirmButtonText: "OK",
+                                    })
+                                } finally {
+                                    loading.value = false
+                                }
+                                }
+
+
+
 
 
   return {
@@ -257,7 +280,8 @@ const formatDurationToText = (time) => {
     changeSorting,
     formatDateTime,
     formatTime,
-    formatDurationToText
+    formatDurationToText,
+    detailVisitData
   }
 
 

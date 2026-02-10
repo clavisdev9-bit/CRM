@@ -159,6 +159,9 @@ Route::delete('/follow-up/delete/{id}', [FollowUp::class, 'deleteFollowUp'])->na
 
 
 Route::get('/data-visits-leads', [Visits::class, 'getVisitLead'])->name('api.data.leads.visit');
+Route::get('/data-visits/detail/{id}', [Visits::class, 'getVisitDetail'])
+    ->name('api.data.visit.detail');
+
 Route::get('/data-leads-visit', [Visits::class, 'VisitLeads'])->name('api.data.leads.visit');
 Route::get('/data-customers-visit', [Visits::class, 'VisitCustomers'])->name('api.data.customers.visit');
 // start visit (PAKAI LEADS ID)

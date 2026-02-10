@@ -116,6 +116,26 @@ const visitResultMeta = {
   },
 };
 
+const visitDetail = computed(() => dataVisit.visitDetail)
+const loadingDetail = computed(() => dataVisit.loading)
+
+
+const openDetailVisit = async (visit) => {
+  await dataVisit.detailVisitData(visit.id)
+
+  const modalEl = document.getElementById('visitDetailModal')
+  const modal =
+    bootstrap.Modal.getInstance(modalEl) ||
+    new bootstrap.Modal(modalEl)
+
+  modal.show()
+}
+
+const visitPhotoUrl = computed(() => {
+  if (!visitDetail.value?.photo) return null
+  return `/storage/${visitDetail.value.photo}`
+})
+
 
 </script>
 
@@ -236,9 +256,20 @@ const visitResultMeta = {
                         type="button" 
                       
                       >
+                        Visit All
+                      </button>
+                    </li>
+
+                    <li>
+                      <button 
+                        class="dropdown-item" 
+                        type="button" 
+                      
+                      >
                         Visit Leads
                       </button>
                     </li>
+
                     <li>
                       <button 
                         class="dropdown-item" 
@@ -304,7 +335,7 @@ const visitResultMeta = {
               
                   <tr>
                     <th style="width: 5%;">No.</th>
-                    <th>results of the visit</th>
+                    <th>type and result the visit</th>
                     <th>visit code</th>
                     <th>company <br>
                       <small class="text-warning">name</small></th>
@@ -375,50 +406,35 @@ const visitResultMeta = {
                   <tbody v-else>
                   <tr v-for="(visit, index) in dataVisit.visit" :key="visit.id">
                     <td>{{ (dataVisit.pagination.current_page - 1) * dataVisit.pagination.per_page + index + 1 }}</td>
-                    <!-- <td>
+
+                   <td>
+                    <!-- TYPE -->
+                    <span
+                      class="badge me-2"
+                      :class="visit.visit_type === 'CUSTOMER'
+                        ? 'bg-success'
+                        : 'bg-primary'"
+                    >
+                      {{ visit.visit_type === 'CUSTOMER' ? 'Customer' : 'Lead' }}
+                    </span>
+
+                    <!-- RESULT -->
+                    <span
+                      v-if="visitResultMeta[visit.visit_result]"
+                      class="fw-semibold"
+                      :class="visitResultMeta[visit.visit_result].class"
+                    >
                       <i
                         class="fa-solid me-1"
-                        :class="visit.visit_type === 'CUSTOMER'
-                          ? 'fa-user-check text-success'
-                          : 'fa-user-clock text-primary'"
+                        :class="visitResultMeta[visit.visit_result].icon"
                       ></i>
+                      {{ visitResultMeta[visit.visit_result].label }}
+                    </span>
 
-                      <strong>
-                        {{ visit.visit_type === 'CUSTOMER' ? 'Customer' : 'Lead' }}
-                      </strong>
-                      –
-                      <span class="text-muted">
-                        {{ formatVisitResult(visit.visit_result) }}
-                      </span>
-                    </td> -->
-                   <td>
-  <!-- TYPE -->
-  <span
-    class="badge me-2"
-    :class="visit.visit_type === 'CUSTOMER'
-      ? 'bg-success'
-      : 'bg-primary'"
-  >
-    {{ visit.visit_type === 'CUSTOMER' ? 'Customer' : 'Lead' }}
-  </span>
-
-  <!-- RESULT -->
-  <span
-    v-if="visitResultMeta[visit.visit_result]"
-    class="fw-semibold"
-    :class="visitResultMeta[visit.visit_result].class"
-  >
-    <i
-      class="fa-solid me-1"
-      :class="visitResultMeta[visit.visit_result].icon"
-    ></i>
-    {{ visitResultMeta[visit.visit_result].label }}
-  </span>
-
-  <span v-else class="text-muted">
-    -
-  </span>
-</td>
+                    <span v-else class="text-muted">
+                      -
+                    </span>
+                  </td>
 
 
                     <td><strong>{{ visit.visit_code }}</strong></td>
@@ -504,10 +520,13 @@ const visitResultMeta = {
 
 
                     <td>
-                       <button class="btn btn-outline-primary btn-sm"  data-bs-toggle="modal"
-                            data-bs-target="#userDetailModal"
-                          >
-                            <i class="fa fa-eye"></i> 
+                        <button
+                            class="btn btn-outline-primary btn-sm me-1"
+                            data-bs-toggle="modal"
+                            data-bs-target="#visitDetailModal"
+                              @click="openDetailVisit(visit)"
+                            >
+                            <i class="fa fa-circle-info"></i>
                         </button>
                     </td>
                   </tr>
@@ -520,18 +539,21 @@ const visitResultMeta = {
           <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
               <button class="btn btn-danger btn-sm" 
-                 >
+                 :disabled="dataVisit.pagination.current_page === 1 || dataVisit.loading"
+                  @click="dataVisit.prevPage()">
                 <i class="fa-solid fa-circle-chevron-left"
                 ></i> Prev
               </button>
   
                 <div class="mx-2 d-flex flex-column flex-sm-row align-items-center gap-1">
-                    <span class="badge border text-secondary px-3 py-2"> 10 data | on page 19</span>
-                    <span class="badge border text-secondary px-3 py-2">Total: 19  data</span>
+                    <span class="badge border text-secondary px-3 py-2">{{ dataVisit.visit.length }} data |
+                    page {{ dataVisit.pagination.current_page }}</span>
+                    <span class="badge border text-secondary px-3 py-2"> Total: {{ dataVisit.pagination.total }}</span>
                 </div>
   
                 <button class="btn btn-danger btn-sm"
-               >
+                   :disabled="dataVisit.pagination.current_page === dataVisit.pagination.last_page || dataVisit.loading"
+                  @click="dataVisit.nextPage()" >
                     Next <i class="fa-solid fa-circle-chevron-right"></i>
                 </button>
             </div>
@@ -541,6 +563,235 @@ const visitResultMeta = {
     </div>
 
 
+
+
+    
+  <!-- Code Modal: Detail Data -->
+<!-- MODAL DETAIL VISIT -->
+<div
+  class="modal modal-blur fade"
+  id="visitDetailModal"
+  tabindex="-1"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+
+      <!-- HEADER -->
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title mb-1">Detail Visit</h5>
+          <small class="text-muted">
+            {{ visitDetail?.visit_type === 'LEAD'
+              ? 'Visit to Prospective Customer (Lead)'
+              : 'Visit to Existing Customer'
+            }}
+          </small>
+        </div>
+        <button
+          type="button"
+          class="btn-close"
+          data-bs-dismiss="modal"
+        ></button>
+      </div>
+
+      <!-- BODY -->
+      <div class="modal-body" v-if="visitDetail">
+
+        <!-- VISIT TYPE BLOCK -->
+        <div
+          class="alert mb-4"
+          :class="visitDetail.visit_type === 'LEAD'
+            ? 'alert-primary'
+            : 'alert-success'"
+        >
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="fw-bold fs-5">
+                <i
+                  class="fa-solid me-2"
+                  :class="visitDetail.visit_type === 'LEAD'
+                    ? 'fa-user-plus'
+                    : 'fa-user-check'"
+                ></i>
+                {{ visitDetail.visit_type === 'LEAD'
+                  ? 'LEAD VISIT'
+                  : 'CUSTOMER VISIT'
+                }}
+              </div>
+              <small>
+                {{ visitDetail.visit_type === 'LEAD'
+                  ? 'This visit was made to a prospective customer'
+                  : 'This visit was made to an existing customer'
+                }}
+              </small>
+            </div>
+
+            <span class="badge bg-dark fs-6">
+              {{ visitDetail.visit_code }}
+            </span>
+          </div>
+
+        
+        </div>
+
+        <!-- COMPANY & SALES -->
+        <div class="row mb-3">
+          <div class="col-md-6">
+            <div class="text-muted small">
+              {{ visitDetail.visit_type === 'LEAD'
+                ? 'Lead Company'
+                : 'Customer Company'
+              }}
+            </div>
+            <div class="fw-semibold">
+              {{ visitDetail.company_name }}
+            </div>
+          </div>
+
+          <div class="col-md-6">
+            <div class="text-muted small">Sales</div>
+            <div>{{ visitDetail.sales_name }}</div>
+          </div>
+        </div>
+
+        <hr>
+
+        <!-- TIME INFO -->
+        <div class="row mb-3">
+          <div class="col-md-4">
+            <div class="text-muted small">Visit At</div>
+            <div>{{ visitDetail.visit_at }}</div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-muted small">Check In</div>
+            <div>{{ visitDetail.check_in_at ?? '-' }}</div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-muted small">Check Out</div>
+            <div>{{ visitDetail.check_out_at ?? '-' }}</div>
+          </div>
+        </div>
+
+        <!-- DURATION -->
+        <div class="row mb-3">
+          <div class="col-md-4">
+            <div class="text-muted small">Visit → Check In</div>
+            <div class="fw-semibold text-primary">
+              {{ visitDetail.time_from_visit_to_check_in ?? '-' }}
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-muted small">Check In → Check Out</div>
+            <div class="fw-semibold text-warning">
+              {{ visitDetail.time_from_check_in_to_check_out ?? '-' }}
+            </div>
+          </div>
+          <div class="col-md-4">
+            <div class="text-muted small">Total Duration</div>
+            <div class="fw-bold text-success">
+              {{ visitDetail.total_time_result ?? '-' }}
+            </div>
+          </div>
+        </div>
+
+        <hr>
+
+        <!-- STATUS & RESULT -->
+        <div class="row mb-3">
+          <div class="col-md-6">
+            <div class="text-muted small">Visit Status</div>
+            <span class="badge bg-secondary">
+              {{ visitDetail.visit_status }}
+            </span>
+          </div>
+
+          <div class="col-md-6">
+            <div class="text-muted small">
+              {{ visitDetail.visit_type === 'LEAD'
+                ? 'Lead Result'
+                : 'Customer Feedback'
+              }}
+            </div>
+            <span class="badge bg-info">
+              {{ visitDetail.visit_type === 'LEAD'
+                ? visitDetail.visit_result
+                : visitDetail.customer_response
+              }}
+            </span>
+          </div>
+        </div>
+
+        <!-- LOCATION -->
+        <div class="mb-3">
+          <div class="text-muted small">Location</div>
+          <div class="small">{{ visitDetail.gps_snapshot }}</div>
+          <div class="small text-muted">
+            Lat: {{ visitDetail.latitude }},
+            Lng: {{ visitDetail.longitude }}
+          </div>
+        </div>
+
+        <!-- NOTES -->
+        <div>
+          <div class="text-muted small">Notes</div>
+          <div class="border rounded p-2 bg-light">
+            {{ visitDetail.notes || '-' }}
+          </div>
+        </div>
+
+
+
+        <!-- PHOTO -->
+        <div class="mb-4 mt-2">
+          <div class="text-muted small mb-2">
+            Visit Photo
+          </div>
+
+          <div
+            v-if="visitPhotoUrl"
+            class="border rounded p-2 bg-light d-flex justify-content-center"
+          >
+            <img
+              :src="visitPhotoUrl"
+              class="img-fluid rounded shadow-sm"
+              style="max-height: 320px; object-fit: contain;"
+              alt="Visit Photo"
+              @error="visitPhotoUrl = null"
+            >
+          </div>
+
+          <div
+            v-else
+            class="border rounded p-4 bg-light text-center text-muted fst-italic"
+          >
+            <i class="fa-solid fa-image me-1"></i>
+            No visit photo available
+          </div>
+        </div>
+
+
+      </div>
+
+      <!-- LOADING -->
+      <div class="modal-body text-center py-5" v-else>
+        <div class="spinner-border text-primary"></div>
+      </div>
+
+      <!-- FOOTER -->
+      <div class="modal-footer">
+        <button
+          type="button"
+          class="btn btn-link link-secondary"
+          data-bs-dismiss="modal"
+        >
+          Close
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
 
 
   </backendLayouts>
