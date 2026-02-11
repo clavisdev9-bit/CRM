@@ -348,6 +348,25 @@ const confirmDelete = async (id) => {
   }
 }
 
+const canModifyLead = (lead) => {
+  return (
+    !loadingPermission.value &&
+    permission.value?.can_update &&
+    dataLeads.mode === 'all' &&
+    lead.lead_status === 'New'
+  )
+}
+
+const canDeleteLead = (lead) => {
+  return (
+    !loadingPermission.value &&
+    permission.value?.can_delete &&
+    dataLeads.mode === 'all' &&
+    lead.lead_status === 'New'
+  )
+}
+
+
 
 
 
@@ -632,23 +651,20 @@ const confirmDelete = async (id) => {
                         </button>
 
                       <button
-                        v-if="!loadingPermission && permission?.can_delete && dataLeads.mode === 'all'"
-                        class="btn btn-outline-danger btn-sm me-1"
-                        @click="confirmDelete(lead.id)"
-                      >
-                        <i class="fa fa-trash"></i>
-                      </button>
+                          v-if="canDeleteLead(lead)"
+                          class="btn btn-outline-danger btn-sm me-1"
+                          @click="confirmDelete(lead.id)"
+                        >
+                          <i class="fa fa-trash"></i>
+                        </button>
 
-                      
-
-                      <button
-                         
-                           v-if="!loadingPermission && permission?.can_update && dataLeads.mode === 'all'"
+                        <button
+                          v-if="canModifyLead(lead)"
                           class="btn btn-outline-warning btn-sm me-1"
                           @click="openEditLead(lead)"
                         >
                           <i class="fa fa-edit"></i>
-                      </button>
+                        </button>
 
                     </td>
                   </tr>
