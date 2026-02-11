@@ -103,7 +103,7 @@ const locationName = ref('');
 const currentDate = ref('');
 const currentTime = ref('');
 let timer = null;
-const errors = ref({})
+// const errors = ref({})
 
 // ==============================
 // Date Time
@@ -188,6 +188,18 @@ const getLocation = () => {
     );
   });
 };
+
+
+const isLocationReady = computed(() => {
+  return (
+    latitude.value !== null &&
+    longitude.value !== null &&
+    locationStatus.value === 'Location detected' &&
+    address.value &&
+    address.value !== 'Detecting address...'
+  )
+})
+
 
 // ==============================
 // Photo & Watermark
@@ -313,7 +325,22 @@ const cancelCheckIn = () => {
 
 const submitCheckIn = async () => {
   if (!selectedLeadscheckIn.value) return
+  errors.value = {}
 
+  if (!photoBlob.value) {
+    errors.value.photo = ['Photo evidence is required']
+    return
+  }
+
+  if (!latitude.value || !longitude.value) {
+    errors.value.latitude = ['Location not detected']
+    return
+  }
+
+  if (!address.value) {
+    errors.value.gps_snapshot = ['GPS snapshot is required']
+    return
+  }
   try {
     await dataLeadsVisit.checkInVisit({
       visitId: selectedLeadscheckIn.value.active_visit_id,
@@ -474,6 +501,8 @@ const confirmStartVisit = (lead) => {
 // Watchers
 // ==============================
 watch(() => dataLeadsVisit.searchLeadVisit, dataLeadsVisit.searchWithDelay);
+const errors = computed(() => dataLeadsVisit.errors)
+
 </script>
 
 <template>
@@ -492,7 +521,9 @@ watch(() => dataLeadsVisit.searchLeadVisit, dataLeadsVisit.searchWithDelay);
               
               <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="#">Dashboard</a></li>
+                    <li class="breadcrumb-item">
+                      <RouterLink to="/sales-visit">Sales Visit</RouterLink>
+                    </li>
                     <li class="breadcrumb-item active" aria-current="page"> {{ PagesTitle }}</li>
                 </ol>
                 </nav>
@@ -501,6 +532,8 @@ watch(() => dataLeadsVisit.searchLeadVisit, dataLeadsVisit.searchWithDelay);
           </div>
         </div>
       </div>
+
+
 
       <!-- Page Body -->
       <div class="page-body flex-grow-1">
@@ -732,6 +765,17 @@ watch(() => dataLeadsVisit.searchLeadVisit, dataLeadsVisit.searchWithDelay);
           </div>
           <hr>
           <div class="modal-body">
+
+            <!-- ERROR VALIDATION -->
+            <div v-if="Object.keys(errors).length" class="alert alert-danger mt-2">
+              <ul class="mb-0 ps-3">
+                <li v-if="errors.latitude">{{ errors.latitude[0] }}</li>
+                <li v-if="errors.longitude">{{ errors.longitude[0] }}</li>
+                <li v-if="errors.gps_snapshot">{{ errors.gps_snapshot[0] }}</li>
+                <li v-if="errors.photo">{{ errors.photo[0] }}</li>
+              </ul>
+            </div>
+
             <div class="row g-3">
               <!-- Left: Camera -->
               <div class="col-12 col-lg-6">
@@ -798,45 +842,42 @@ watch(() => dataLeadsVisit.searchLeadVisit, dataLeadsVisit.searchWithDelay);
           </div>
           <hr>
           <div class="modal-footer">
-           <button
-              type="button"
-              class="btn btn-secondary"
-              :disabled="dataLeadsVisit.checkingInVisit"
-              @click="cancelCheckIn"
+          <button
+              class="btn btn-success ms-auto"
+              :disabled="
+                !photoBlob ||
+                !isLocationReady ||
+                isProcessingPhoto ||
+                dataLeadsVisit.checkingInVisit
+              "
+              @click="submitCheckIn"
             >
-              Cancel
+              <!-- loading -->
+              <span
+                v-if="dataLeadsVisit.checkingInVisit"
+                class="spinner-border spinner-border-sm me-2"
+              ></span>
+
+              <!-- icon normal -->
+              <i
+                v-else
+                class="fa-solid fa-cloud-arrow-up me-2"
+              ></i>
+
+              <!-- text logic -->
+              <span v-if="dataLeadsVisit.checkingInVisit">
+                Saving...
+              </span>
+
+              <!-- 🔥 ganti pakai isLocationReady -->
+              <span v-else-if="photoBlob && !isLocationReady">
+                Detecting location...
+              </span>
+
+              <span v-else>
+                Submit Check-In
+              </span>
             </button>
-
-           <button
-            class="btn btn-success ms-auto"
-            :disabled="!photoBlob || !latitude || !longitude || dataLeadsVisit.checkingInVisit"
-            @click="submitCheckIn"
-          >
-            <!-- loading -->
-            <span
-              v-if="dataLeadsVisit.checkingInVisit"
-              class="spinner-border spinner-border-sm me-2"
-            ></span>
-
-            <!-- icon normal -->
-            <i
-              v-else
-              class="fa-solid fa-cloud-arrow-up me-2"
-            ></i>
-
-            <!-- text logic -->
-            <span v-if="dataLeadsVisit.checkingInVisit">
-              Saving...
-            </span>
-
-            <span v-else-if="photoBlob && (!latitude || !longitude)">
-              Waiting Location...
-            </span>
-
-            <span v-else>
-              Submit Check IN
-            </span>
-          </button>
           </div>
           </div>
           </div>

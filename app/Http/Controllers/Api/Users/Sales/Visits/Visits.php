@@ -20,6 +20,7 @@ use Illuminate\Support\Facades\Storage;
 use App\Http\Resources\VisitsResources;
 use App\Http\Resources\VisitsResourcesCollection;
 use App\Http\Requests\VisitValidationIndex;
+use App\Http\Requests\VisitValidationForExternalIndex;
 
 
 
@@ -40,178 +41,158 @@ class Visits extends Controller
         }
 
 
-//      // code for get data visit leads and customer  for Map (external)
-//  public function getVisitTargetMap(VisitValidationIndex $request)
-// {
-//     $query = DB::table('visits as v')
-//         ->select([
-//             'v.id',
-//             'v.visit_code',
-//             'v.visit_at',
-//             'v.check_in_at',
-//             'v.check_out_at',
-//             'v.latitude',
-//             'v.longitude',
-//             'v.gps_snapshot',
+        public function getVisitTargetMap(VisitValidationIndex $request)
+        {
+            $query = DB::table('visits as v')
+                ->select([
+                    'v.id',
+                    'v.visit_code',
+                    'v.visit_at',
+                    'v.check_in_at',
+                    'v.check_out_at',
+                    'v.latitude',
+                    'v.longitude',
+                    'v.gps_snapshot',
 
-//             'u.id_user as sales_id',
-//             'u.fullname as sales_name',
-//             'u.image as sales_photo',
+                    'u.id_user as sales_id',
+                    'u.fullname as sales_name',
+                    'u.image as sales_photo',
 
-//             DB::raw("'LEAD' as target_type"),
-//             'l.company_name as target_name',
+                    DB::raw("
+                        CASE
+                            WHEN u.image IS NOT NULL AND u.image != ''
+                                THEN CONCAT('" . asset('storage/users') . "/', u.image)
+                            ELSE CONCAT('" . asset('storage/users/default.png') . "')
+                        END as sales_photo_url
+                    "),
 
-//             DB::raw("
-//                 CASE
-//                     WHEN v.check_in_at IS NULL
-//                          AND v.visit_at <= NOW()
-//                         THEN 'SEDANG_VISIT'
-//                     WHEN v.check_in_at IS NOT NULL
-//                          AND v.check_out_at IS NULL
-//                         THEN 'SEDANG_CHECK_IN'
-//                     WHEN v.check_out_at IS NOT NULL
-//                         THEN 'SELESAI'
-//                     ELSE 'UNKNOWN'
-//                 END as visit_status_label
-//             "),
+                    DB::raw("'LEAD' as target_type"),
+                    'l.company_name as target_name',
 
-//             //  KONTROL MAP
-//             DB::raw("
-//                 CASE
-//                     WHEN v.latitude IS NOT NULL
-//                          AND v.longitude IS NOT NULL
-//                          AND v.check_out_at IS NULL
-//                         THEN true
-//                     ELSE false
-//                 END as show_on_map
-//             ")
-//         ])
-//         ->leftJoin('leads as l', 'l.id', '=', 'v.lead_id')
-//         ->leftJoin('ms_users as u', 'u.id_user', '=', 'v.sales_id')
+                    DB::raw("
+                        CASE
+                            WHEN v.check_in_at IS NULL
+                                AND v.visit_at <= NOW()
+                                THEN 'SEDANG_VISIT'
+                            WHEN v.check_in_at IS NOT NULL
+                                AND v.check_out_at IS NULL
+                                THEN 'SEDANG_CHECK_IN'
+                            WHEN v.check_out_at IS NOT NULL
+                                THEN 'SELESAI'
+                            ELSE 'UNKNOWN'
+                        END as visit_status_label
+                    "),
 
-//         //  sales aktif (OTW + check-in)
-//         ->where(function ($q) {
-//             $q
-//                 //  SEDANG_VISIT
-//                 ->where(function ($qq) {
-//                     $qq->whereNull('v.check_in_at')
-//                        ->where('v.visit_at', '<=', now());
-//                 })
-//                 //  SEDANG_CHECK_IN
-//                 ->orWhere(function ($qq) {
-//                     $qq->whereNotNull('v.check_in_at')
-//                        ->whereNull('v.check_out_at');
-//                 });
-//         })
-//         ->orderBy('v.visit_at', 'desc');
+                    DB::raw("
+                        CASE
+                            WHEN v.latitude IS NOT NULL
+                                AND v.longitude IS NOT NULL
+                                AND v.check_out_at IS NULL
+                                THEN true
+                            ELSE false
+                        END as show_on_map
+                    ")
+                ])
+                ->leftJoin('leads as l', 'l.id', '=', 'v.lead_id')
+                ->leftJoin('ms_users as u', 'u.id_user', '=', 'v.sales_id')
+                ->where(function ($q) {
+                    $q
+                        ->where(function ($qq) {
+                            $qq->whereNull('v.check_in_at')
+                            ->where('v.visit_at', '<=', now());
+                        })
+                        ->orWhere(function ($qq) {
+                            $qq->whereNotNull('v.check_in_at')
+                            ->whereNull('v.check_out_at');
+                        });
+                })
+                ->orderBy('v.visit_at', 'desc');
 
-//     $results = $query->get();
+            $results = $query->get();
 
-//     return ApiResponse::success(
-//         $results,
-//         $results->isEmpty()
-//             ? 'Tidak ada sales di lapangan'
-//             : 'Success'
-//     );
-// }
+            return ApiResponse::success(
+                $results,
+                $results->isEmpty()
+                    ? 'Tidak ada sales di lapangan'
+                    : 'Success'
+            );
+        }
 
-public function getVisitTargetMap(VisitValidationIndex $request)
+
+
+        // code for get data visit leads and customer  for  (external)
+       public function getVisitAllData(VisitValidationForExternalIndex $request)
 {
+    $validated = $request->validated();
+
+    $perPage = $validated['per_page'];
+    $search  = $validated['search'] ?? null;
+    $sortBy  = $validated['sort_by'];
+    $sortDir = strtolower($validated['sort_dir']);
+    $status  = $validated['visit_status'] ?? null;
+
+    /*
+    |--------------------------------------------------------------------------
+    | Mapping Sorting Column (ANTI SQL INJECTION)
+    |--------------------------------------------------------------------------
+    */
+    $sortMap = [
+        'company_name' => DB::raw("COALESCE(l.company_name, c.company_name)"),
+        'created_at'   => 'v.created_at',
+        'visit_date'   => 'v.visit_at',
+        'check_out'    => 'v.check_out_at',
+    ];
+
+    $orderColumn = $sortMap[$sortBy] ?? 'v.created_at';
+
+    /*
+    |--------------------------------------------------------------------------
+    | MAIN QUERY
+    |--------------------------------------------------------------------------
+    */
+
     $query = DB::table('visits as v')
         ->select([
+
             'v.id',
             'v.visit_code',
-            'v.visit_at',
-            'v.check_in_at',
-            'v.check_out_at',
-            'v.latitude',
-            'v.longitude',
-            'v.gps_snapshot',
+            'v.lead_id',
+            'v.customer_id',
+            'v.sales_id',
 
-            'u.id_user as sales_id',
-            'u.fullname as sales_name',
-            'u.image as sales_photo',
+            DB::raw("COALESCE(l.company_name, c.company_name) as company_name"),
 
+            // VISIT TYPE
             DB::raw("
                 CASE
-                    WHEN u.image IS NOT NULL AND u.image != ''
-                        THEN CONCAT('" . asset('storage/users') . "/', u.image)
-                    ELSE CONCAT('" . asset('storage/users/default.png') . "')
-                END as sales_photo_url
+                    WHEN v.customer_id IS NOT NULL THEN 'CUSTOMER'
+                    ELSE 'LEAD'
+                END as visit_type
             "),
 
-            DB::raw("'LEAD' as target_type"),
-            'l.company_name as target_name',
-
+            // 🔥 VISIT PROGRESS (IMPORTANT)
             DB::raw("
                 CASE
                     WHEN v.check_in_at IS NULL
-                         AND v.visit_at <= NOW()
-                        THEN 'SEDANG_VISIT'
-                    WHEN v.check_in_at IS NOT NULL
-                         AND v.check_out_at IS NULL
-                        THEN 'SEDANG_CHECK_IN'
+                        THEN 'PLANNED'
+                    WHEN v.check_in_at IS NOT NULL AND v.check_out_at IS NULL
+                        THEN 'ONGOING'
                     WHEN v.check_out_at IS NOT NULL
-                        THEN 'SELESAI'
-                    ELSE 'UNKNOWN'
-                END as visit_status_label
+                        THEN 'DONE'
+                END as visit_progress
             "),
 
-            DB::raw("
-                CASE
-                    WHEN v.latitude IS NOT NULL
-                         AND v.longitude IS NOT NULL
-                         AND v.check_out_at IS NULL
-                        THEN true
-                    ELSE false
-                END as show_on_map
-            ")
-        ])
-        ->leftJoin('leads as l', 'l.id', '=', 'v.lead_id')
-        ->leftJoin('ms_users as u', 'u.id_user', '=', 'v.sales_id')
-        ->where(function ($q) {
-            $q
-                ->where(function ($qq) {
-                    $qq->whereNull('v.check_in_at')
-                       ->where('v.visit_at', '<=', now());
-                })
-                ->orWhere(function ($qq) {
-                    $qq->whereNotNull('v.check_in_at')
-                       ->whereNull('v.check_out_at');
-                });
-        })
-        ->orderBy('v.visit_at', 'desc');
-
-    $results = $query->get();
-
-    return ApiResponse::success(
-        $results,
-        $results->isEmpty()
-            ? 'Tidak ada sales di lapangan'
-            : 'Success'
-    );
-}
-
-
-
-// code for get data visit leads and customer  for  (external)
-public function getVisitLeadAllData(VisitValidationIndex $request)
-{
-    $validated = $request->validated();
-    $perPage = $validated['per_page'] ?? 10;
-
-    $query = DB::table('visits as v')
-        ->select([
-            'v.id',
-            'v.lead_id',
-            'v.visit_code',
-            'v.sales_id',
-            'l.company_name',
             'u.fullname as sales_name',
             'v.visit_at',
             'v.check_in_at',
+            'v.check_out_at',
 
-            //  visit → check in
+            /*
+            |--------------------------------------------------------------------------
+            | DURATIONS
+            |--------------------------------------------------------------------------
+            */
+
             DB::raw("
                 CASE 
                     WHEN v.check_in_at IS NOT NULL
@@ -220,7 +201,6 @@ public function getVisitLeadAllData(VisitValidationIndex $request)
                 END as time_from_visit_to_check_in
             "),
 
-            //  check in → check out
             DB::raw("
                 CASE
                     WHEN v.check_in_at IS NOT NULL AND v.check_out_at IS NOT NULL
@@ -229,7 +209,6 @@ public function getVisitLeadAllData(VisitValidationIndex $request)
                 END as time_from_check_in_to_check_out
             "),
 
-            //  TOTAL visit → check out
             DB::raw("
                 CASE
                     WHEN v.check_in_at IS NOT NULL AND v.check_out_at IS NOT NULL
@@ -237,7 +216,7 @@ public function getVisitLeadAllData(VisitValidationIndex $request)
                     ELSE NULL
                 END as total_time_result
             "),
-            'v.check_out_at',
+
             'v.latitude',
             'v.longitude',
             'v.gps_snapshot',
@@ -249,24 +228,86 @@ public function getVisitLeadAllData(VisitValidationIndex $request)
             'v.created_by',
             'v.created_at',
             'v.updated_at',
+
+             DB::raw("
+                CASE
+                    WHEN v.check_in_at IS NULL THEN 'SEDANG VISIT'
+                    WHEN v.check_in_at IS NOT NULL AND v.check_out_at IS NULL THEN 'SEDANG CHECK IN'
+                    WHEN v.check_in_at IS NOT NULL AND v.check_out_at IS NOT NULL THEN 'SELESAI'
+                END as visit_status
+            ")
         ])
+
         ->leftJoin('leads as l', 'l.id', '=', 'v.lead_id')
+        ->leftJoin('customers as c', 'c.id', '=', 'v.customer_id')
         ->leftJoin('ms_users as u', 'u.id_user', '=', 'v.sales_id')
 
-        // ✅ HANYA DATA YANG SUDAH CHECK OUT
-        ->whereNotNull('v.check_out_at')
+        // hanya visit valid
+        ->where(function ($q) {
+            $q->whereNotNull('v.lead_id')
+              ->orWhereNotNull('v.customer_id');
+        });
 
-        ->orderBy('v.check_out_at', 'desc');
+    /*
+    |--------------------------------------------------------------------------
+    | FILTER STATUS
+    |--------------------------------------------------------------------------
+    */
+
+    $query->when($status, function ($q) use ($status) {
+
+        switch ($status) {
+
+            case 'VISIT':
+                $q->whereNull('v.check_in_at');
+                break;
+
+            case 'ONGOING':
+                $q->whereNotNull('v.check_in_at')
+                  ->whereNull('v.check_out_at');
+                break;
+
+            case 'DONE':
+                $q->whereNotNull('v.check_out_at');
+                break;
+        }
+
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | SEARCHING
+    |--------------------------------------------------------------------------
+    */
+
+    $query->when($search, function ($q) use ($search) {
+        $q->where(function ($sq) use ($search) {
+            $sq->where('l.company_name', 'ILIKE', "%{$search}%")
+               ->orWhere('c.company_name', 'ILIKE', "%{$search}%")
+               ->orWhere('v.visit_code', 'ILIKE', "%{$search}%")
+               ->orWhere('u.fullname', 'ILIKE', "%{$search}%");
+        });
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | SORTING
+    |--------------------------------------------------------------------------
+    */
+
+    $query->orderBy($orderColumn, $sortDir);
 
     $results = $query->paginate($perPage);
 
     return ApiResponse::paginate(
         VisitsResourcesCollection::make($results),
         $results->isEmpty()
-            ? 'Data visit selesai tidak ditemukan'
+            ? 'Data visit tidak ditemukan'
             : 'Success'
     );
 }
+
+
 
 
 
@@ -461,7 +502,7 @@ public function getVisitLeadAllData(VisitValidationIndex $request)
         ->leftJoin('customers as c', 'c.id', '=', 'v.customer_id')
         ->leftJoin('ms_users as u', 'u.id_user', '=', 'v.sales_id')
 
-        // 🔐 security (hanya visit milik user)
+        //  security (hanya visit milik user)
         ->where('v.id', $id)
         ->where(function ($q) use ($userId) {
             $q->where('v.created_by', $userId)
@@ -804,11 +845,32 @@ public function getVisitLeadAllData(VisitValidationIndex $request)
 
              public function checkInVisit(Request $request, $visitId)
             {
+               
                 $request->validate([
-                    'latitude'      => 'required',
-                    'longitude'     => 'required',
-                    'gps_snapshot'  => 'required|string',
-                    'photo'         => 'required|image|max:4096',
+                    'latitude' => [
+                        'required',
+                        'numeric',
+                        'between:-90,90'
+                    ],
+
+                    'longitude' => [
+                        'required',
+                        'numeric',
+                        'between:-180,180'
+                    ],
+
+                    'gps_snapshot' => [
+                        'required',
+                        'string',
+                        'max:5000' // batasi agar tidak kirim string besar
+                    ],
+
+                    'photo' => [
+                        'required',
+                        'image',
+                        'mimes:jpg,jpeg,png',
+                        'max:4096' // 4MB
+                    ],
                 ]);
 
                 $userId = auth()->user()->id_user;

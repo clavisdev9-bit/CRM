@@ -155,7 +155,7 @@ const visitPhotoUrl = computed(() => {
               
               <nav aria-label="breadcrumb">
                 <ol class="breadcrumb">
-                    <li class="breadcrumb-item"><a href="#">Dashboard</a></li>
+                    <li class="breadcrumb-item"><a href="#">Home</a></li>
                     <li class="breadcrumb-item active" aria-current="page"> {{ PagesTitle }}</li>
                 </ol>
                 </nav>
@@ -167,8 +167,27 @@ const visitPhotoUrl = computed(() => {
 
 
 
+      <!-- LOADING PERMISSION -->
+        <div v-if="loadingPermission" class="text-center py-5">
+          <div class="spinner-border text-primary"></div>
+          <p class="text-muted mt-2">Loading access rights...</p>
+        </div>
+
+        <!-- NO ACCESS -->
+        <div
+          v-else-if="!permission?.can_view"
+          class="text-center py-5"
+        >
+          <i class="fa fa-lock fa-2x text-muted mb-2"></i>
+          <p class="fw-semibold text-muted">
+            You don't have access to view the data
+          </p>
+        </div>
 
 
+
+        <div v-else>
+      
        <div class="page-body flex-grow-1">
             <div class="container-xl">
                     <div class="row">
@@ -206,19 +225,9 @@ const visitPhotoUrl = computed(() => {
             </div>
         </div>
 
-
-
-
-
-
       <!-- Page Body -->
-      <div class="page-body flex-grow-1">
+      <div  class="page-body flex-grow-1">
         <div class="container-xl">
-
-          <!-- Card: Export/Import -->
-         <div class="card mb-4">
-      </div>
-
           <!-- Card: Filter & Sort -->
           <div class="card mb-4">
             <div class="card-header d-flex justify-content-between flex-wrap gap-3">
@@ -560,6 +569,7 @@ const visitPhotoUrl = computed(() => {
           </div>
         </div>
       </div>
+    </div>
     </div>
 
 

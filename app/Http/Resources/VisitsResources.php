@@ -34,6 +34,7 @@ class VisitsResources extends JsonResource
             'gps_snapshot'  => $this->gps_snapshot,
             'notes'         => $this->notes,
             'visit_result'  => $this->visit_result,
+            'visit_status'  => $this->visit_status,
             'customer_response' => $this->customer_response,
 
             'created_by' => $this->created_by,

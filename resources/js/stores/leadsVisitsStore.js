@@ -210,6 +210,36 @@ export const useDataLeadsVisitStore = defineStore("Data-Leads-Visit", () => {
 
 
 
+    // const checkInVisit = async ({ visitId, latitude, longitude, gps_snapshot, photoBlob }) => {
+    //     try {
+    //         checkingInVisit.value = true
+    //         errors.value = {}
+
+    //         const formData = new FormData()
+    //         formData.append('latitude', latitude)
+    //         formData.append('longitude', longitude)
+    //         formData.append('gps_snapshot', gps_snapshot)
+    //         formData.append('photo', photoBlob)
+
+    //         await axios.post(
+    //         `/api/visits/${visitId}/check-in`,
+    //         formData,
+    //         {
+    //             headers: {
+    //             ...getAuthHeader(),
+    //             'Content-Type': 'multipart/form-data'
+    //             }
+    //         }
+    //         )
+    //         await fetchLeadsVisitStore(buildUrl())
+    //         return true
+    //     } catch (err) {
+    //         errors.value = err.response?.data?.errors ?? {}
+    //         throw err
+    //     } finally {
+    //         checkingInVisit.value = false
+    //     }
+    // }
     const checkInVisit = async ({ visitId, latitude, longitude, gps_snapshot, photoBlob }) => {
         try {
             checkingInVisit.value = true
@@ -221,25 +251,26 @@ export const useDataLeadsVisitStore = defineStore("Data-Leads-Visit", () => {
             formData.append('gps_snapshot', gps_snapshot)
             formData.append('photo', photoBlob)
 
-            await axios.post(
-            `/api/visits/${visitId}/check-in`,
-            formData,
-            {
-                headers: {
+            await axios.post(`/api/visits/${visitId}/check-in`, formData, {
+            headers: {
                 ...getAuthHeader(),
                 'Content-Type': 'multipart/form-data'
-                }
             }
-            )
+            })
+
             await fetchLeadsVisitStore(buildUrl())
             return true
+
         } catch (err) {
-            errors.value = err.response?.data?.errors ?? {}
+            if (err.response?.status === 422) {
+            errors.value = err.response.data.errors   // ✅ penting
+            }
             throw err
         } finally {
             checkingInVisit.value = false
         }
-    }
+        }
+
 
 
 

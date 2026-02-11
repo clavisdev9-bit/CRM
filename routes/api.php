@@ -175,9 +175,9 @@ Route::post('/visits/{visit}/check-out', [Visits::class, 'checkOutVisit']);
 });
 
 // untuk data map external
-Route::get('/data-visits-map', [Visits::class, 'getVisitTargetMap'])->name('api.data.visits.map');
+Route::get('/data-visits-leads-map', [Visits::class, 'getVisitTargetMap'])->name('api.data.visits.map');
 // untuk data visit all data 
-Route::get('/data-visits-all-data', [Visits::class, 'getVisitLeadAllData'])->name('api.data.visits.all');
+Route::get('/data-visits-all-data', [Visits::class, 'getVisitAllData'])->name('api.data.visits.all');
 
 
 // UNTUK GEO LOCATION
