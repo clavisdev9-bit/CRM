@@ -1,415 +1,218 @@
 import { ref, reactive } from "vue";
 import { defineStore } from "pinia";
 import axios from "axios";
-import Swal from 'sweetalert2'
-
+import Swal from "sweetalert2";
 
 
 export const useFollowUpsStore = defineStore("followUpStore", () => {
 
- const endpoints = {
-            leads: "/api/follow-up/get-sales/leads",
-            customers: "/api/follow-up/get-sales/customers",
-            userSales: "/api/leads/select/user-sales",
+  const endpoints = {
+    leads: "/api/follow-up-leads",
+    timeline: (id) => `/api/follow-up/${id}/timeline`,
+      leadsSelect: "/api/follow-up/get-sales/leads",
+
+  };
+
+  /* ================= STATE ================= */
+  const followUp = ref([]); // ← singular (dipakai di UI)
+  const mode = ref("leads");
+  const loading = ref(false);
+
+  const search = ref("");
+  let searchTimeout = null;
+
+  /* ================= TIMELINE ================= */
+const timeline = ref([]);
+const loadingTimeline = ref(false);
+const selectedFollowUpCode = ref(null);
+
+/* ================= LEADS SELECT ================= */
+const leadsOptions = ref([]);
+const loadingLeadsOptions = ref(false);
+let leadsSearchTimeout = null;
+
+
+
+
+  const pagination = reactive({
+    current_page: 1,
+    per_page: 10,
+    last_page: 1,
+    total: 0,
+  });
+
+  const sort = reactive({
+    column: "created_at",
+    direction: "desc",
+  });
+
+  const getAuthHeader = () => ({
+    Authorization: `Bearer ${localStorage.getItem("auth_token")}`,
+  });
+
+  const buildUrl = () => {
+    const params = new URLSearchParams();
+
+    params.append("page", pagination.current_page);
+    params.append("per_page", pagination.per_page);
+    params.append("sort_by", sort.column);
+    params.append("sort_dir", sort.direction);
+
+    if (search.value) params.append("search", search.value);
+
+    return `${endpoints[mode.value]}?${params.toString()}`;
+  };
+
+  /* ================= FETCH ================= */
+  const fetchFollowUps = async (newMode = null, page = null) => {
+    loading.value = true;
+
+    if (newMode) {
+      mode.value = newMode;
+      pagination.current_page = 1;
     }
 
-        const baseUrlApi = "/api/follow-up-masters"
-        const followUpData = ref([]);
-        const loadingFollowUp = ref(false)
-        const searchFollowUp = ref("");
-        let searchTimeoutFollowUp = null;  
+    if (page !== null) pagination.current_page = page;
 
-        const savingFollowUp = ref(false)
-        const errorFollowUp = ref(null)
-        
+    try {
+      const res = await axios.get(buildUrl(), {
+        headers: getAuthHeader(),
+      });
 
-        const updatingFollowUp = ref(false)
-        const deletingFollowUp = ref(false)
+      const result = res.data?.data;
 
-        const followUpDetail = ref(null)
-        const loadingDetail = ref(false)
+      followUp.value = result?.data ?? [];
 
-        const leads = ref([])
-        const customers = ref([])
-        const userSales = ref([])
+      if (result?.pagination) {
+        Object.assign(pagination, result.pagination);
+      }
 
-        const loadingLeads = ref(false)
-        const loadingCustomers = ref(false)
-        const loadingUserSales = ref(false)
+    } catch (err) {
+      console.error("Fetch Follow Ups Failed:", err);
+      followUp.value = [];
+    } finally {
+      loading.value = false;
+    }
+  };
 
-        const pagination = reactive({
-            current_page: 1,
-            per_page: 10,
-            prev_page_url: null,
-            next_page_url: null,
-            last_page: 1,
-            total: 0,
+  /* ================= SEARCH ================= */
+  const searchWithDelay = (val) => {
+    clearTimeout(searchTimeout);
+    search.value = val;
+    pagination.current_page = 1;
+
+    searchTimeout = setTimeout(fetchFollowUps, 500);
+  };
+
+  const changePageSize = () => {
+    pagination.current_page = 1;
+    fetchFollowUps();
+  };
+
+  const nextPage = () => {
+    if (pagination.current_page < pagination.last_page) {
+      fetchFollowUps(null, pagination.current_page + 1);
+    }
+  };
+
+  const prevPage = () => {
+    if (pagination.current_page > 1) {
+      fetchFollowUps(null, pagination.current_page - 1);
+    }
+  };
+
+
+
+    /* ================= FETCH TIMELINE ================= */
+    const fetchTimeline = async (id) => {
+      loadingTimeline.value = true;
+      timeline.value = [];
+
+      try {
+        const res = await axios.get(`/api/follow-ups/${id}/timeline`, {
+          headers: getAuthHeader(),
         });
 
-        const sort = reactive({
-            column: "created_at",
-            direction: "desc",
-        });
+        selectedFollowUpCode.value = res.data.data.follow_up_code;
+        timeline.value = res.data.data.histories ?? [];
 
-        const allowedSortColumns = ["company_name", "created_at"];
-
-        const getAuthHeader = () => {
-            const token = localStorage.getItem("auth_token");
-            return { Authorization: `Bearer ${token}` };
-        };
+      } catch (err) {
+        console.error("Fetch Timeline Failed:", err);
+        timeline.value = [];
+      } finally {
+        loadingTimeline.value = false;
+      }
+    };
 
 
-         const fetchFollowUp = async (url = "/api/follow-up-masters") => {
-                loadingFollowUp.value = true;
-                try {
-                const response = await axios.get(url, {
-                    headers: getAuthHeader(),
-                });
-
-                const result = response.data;
-                const dataArray = Array.isArray(result.data)
-                    ? result.data
-                    : result.data?.data ?? [];
-
-                followUpData.value.splice(0, followUpData.value.length, ...dataArray);
-
-                const pag = result.pagination ?? result.data?.pagination
-                                if (pag) {
-                                    pagination.current_page = pag.current_page
-                                    pagination.per_page = pag.per_page
-                                    pagination.prev_page_url = pag.prev_page_url
-                                    pagination.next_page_url = pag.next_page_url
-                                    pagination.last_page = pag.last_page
-                                    pagination.total = pag.total
-                                }
-
-                } catch (error) {
-                console.error("Gagal fetch:", error);
-                } finally {
-                loadingFollowUp.value = false;
-                }
-            };
-
-
-             const buildUrl = () => {
-                    const params = new URLSearchParams()
-                            //ini code searching
-                            if (searchFollowUp.value) {
-                            params.append('search', searchFollowUp.value)
-                            }
-
-                            if (pagination.current_page) {
-                                params.append('page', pagination.current_page)
-                              }
-
-                            if (pagination.per_page) {
-                                    params.append('per_page', pagination.per_page)
-                                }
-
-
-                                 if (sort.column) {
-                                    params.append('sort_by', sort.column)
-                                    params.append('sort_dir', sort.direction)
-                                }
-
-
-                             return `${baseUrlApi}?${params.toString()}`
-                        }
-
-
-                         const searchWithDelay = (val) => {
-                            clearTimeout(searchTimeoutFollowUp)
-                            searchFollowUp.value = val
-
-                            // Reset ke halaman 1 saat pencarian
-                            pagination.current_page = 1
-
-                            searchTimeoutFollowUp = setTimeout(() => {
-                                fetchFollowUp(buildUrl())
-                            }, 500)
-                            }
-
-
-                             const changePageSize = () => {
-                            pagination.current_page = 1
-                            fetchFollowUp(buildUrl())
-                            }
-
-                             const changeSorting = () => {
-                                    pagination.current_page = 1
-                                    fetchFollowUp(buildUrl())
-                                }
-
-
-                                  const toggleSort = (col) => {
-                                    if (!allowedSortColumns.includes(col)) return  
-
-                                    if (sort.column === col) {
-                                    sort.direction = sort.direction === 'asc' ? 'desc' : 'asc'
-                                    } else {
-                                    sort.column = col
-                                    sort.direction = 'asc'
-                                    }
-                                    changeSorting()
-                                }
-
-
-                                const resetFilters = () => {
-                                searchFollowUp.value = '' // ← ini yang ga ngefek ke v-model
-                                pagination.per_page = 10
-                                pagination.current_page = 1
-                                sort.column = 'created_at'
-                                sort.direction = 'desc'
-                                fetchFollowUp(buildUrl())
-                            }
-                            
-
-                             const formatDate = (dateStr) => {
-                                    if (!dateStr) return '-'
-                                            const date = new Date(dateStr)
-                                        if (isNaN(date.getTime())) {
-                                            return 'Belum Di Pernah update'
-                                        }
-                                        const options = {
-                                            year: 'numeric',
-                                            month: 'long',
-                                            day: '2-digit'
-                                        }
-                            return date.toLocaleDateString('id-ID', options)
-                            }
-
-                             
-                            const fetchFollowUpDetail = async (id) => {
-                                    loadingDetail.value = true
-                                    followUpDetail.value = null
-
-                                    try {
-                                    const res = await axios.get(`/api/follow-up/show/${id}`, {
-                                        headers: getAuthHeader(),
-                                    })
-                                    followUpDetail.value = res.data.data
-                                    } catch (err) {
-                                    Swal.fire({
-                                        icon: "error",
-                                        title: "Failed!",
-                                        text: err.response?.data?.message || "Failed to retrieve follow up detail.",
-                                    })
-                                    } finally {
-                                    loadingDetail.value = false
-                                    }
-                                }
-
-
-                                const formatDateTime = (datetime) => {
-                                if (!datetime) return '-'
-
-                                const date = new Date(datetime)
-
-                                return date.toLocaleString('id-ID', {
-                                    day: '2-digit',
-                                    month: 'short',
-                                    year: 'numeric',
-                                    hour: '2-digit',
-                                    minute: '2-digit',
-                                })
-                                }
-
-
-                                  const fetchLeads = async () => {
-                                        loadingLeads.value = true
-
-                                        try {
-                                            const res = await axios.get(endpoints.leads, {
-                                            headers: getAuthHeader(),
-                                            })
-
-                                            leads.value = res.data.data ?? []
-                                        } catch (err) {
-                                            console.error("Fetch Leads Failed:", err)
-                                            leads.value = []
-                                        } finally {
-                                            loadingLeads.value = false
-                                        }
-                                    }
-
-
-                                     const fetchCustomers = async () => {
-                                        loadingCustomers.value = true
-                                        try {
-                                            const res = await axios.get(endpoints.customers, {
-                                            headers: getAuthHeader(),
-                                            })
-
-                                            customers.value = res.data.data ?? []
-                                        } catch (err) {
-                                            console.error("Fetch Leads Failed:", err)
-                                            customers.value = []
-                                        } finally {
-                                            loadingCustomers.value = false
-                                        }
-                                    }
-
-
-                                       
-                                        const subjectTemplates = ref([
-                                        { value: 'INITIAL CONTACT CALL', label: 'Initial Contact - Phone' },
-                                        { value: 'FOLLOW UP WHATSAPP', label: 'Initial Follow Up - WhatsApp' },
-                                        { value: 'NEEDS QUALIFICATION', label: 'Qualification Needs - Phone' },
-                                        { value: 'MEETING CONFIRMATION', label: 'Meeting Confirmation' },
-                                        { value: 'PRODUCT_PRESENTATION', label: 'Product Presentation' },
-                                        { value: 'PRODUCT DEMO', label: 'Demo Product' },
-                                        { value: 'PRICE DISCUSSION', label: 'Discussion Price' },
-                                        { value: 'PRICE NEGOTIATION', label: 'Negotiation Price' },
-                                        { value: 'CLOSING DISCUSSION', label: 'Discussion Closing' },
-                                        { value: 'CONTRACT_SENT', label: 'Contract Sent' },
-                                        { value: 'DEAL FOLLOW UP', label: 'Follow Up Deal' },
-                                        { value: 'EMAIL CAMPAIGN', label: 'Email Campaign' }
-                                        ])
-
-
-                                          const followUpType = ref([
-                                        { value: 'CALL', label: 'Call' },
-                                        { value: 'MEETING', label: 'Meeting' },
-                                        { value: 'WHATSAPP', label: 'Whatsapp' },
-                                        { value: 'CHAT', label: 'Chat' },
-                                        { value: 'EMAIL', label: 'Email' },
-                                        { value: 'OTHER', label: 'Other' }
-                                        ])
-
-
-
-                                        const storeFollowUp = async (payload) => {
-                                            savingFollowUp.value = true
-                                            errorFollowUp.value = null
-
-                                            try {
-                                                const res = await axios.post(
-                                                '/api/follow-up/store',
-                                                payload,
-                                                { headers: getAuthHeader() }
-                                                )
-
-                                                // refresh list
-                                                await fetchFollowUp(buildUrl())
-
-                                                return res.data
-
-                                            } catch (err) {
-                                                if (err.response?.status === 422) {
-                                                errorFollowUp.value = err.response.data.errors
-                                                }
-                                                throw err
-
-                                            } finally {
-                                                savingFollowUp.value = false
-                                            }
-                                            }
-
-
-                                            const updateFollowUp = async (id, payload) => {
-                                                updatingFollowUp.value = true
-                                                errorFollowUp.value = null
-
-                                                try {
-                                                await axios.put(`/api/follow-up/update/${id}`, payload, {
-                                                    headers: getAuthHeader(),
-                                                })
-
-                                                await fetchFollowUp(buildUrl())
-                                                } catch (err) {
-                                                if (err.response?.status === 422) {
-                                                    errorFollowUp.value = err.response.data.errors
-                                                }
-                                                throw err
-                                                } finally {
-
-                                                updatingFollowUp.value = false
-                                                }
-                                            }
-
-
-                                            const deleteFollowUp = async (id) => {
-                                                deletingFollowUp.value = true
-
-                                                try {
-                                                await axios.delete(`/api/follow-up/delete/${id}`, {
-                                                    headers: getAuthHeader(),
-                                                })
-
-                                                await fetchFollowUp(buildUrl())
-                                                Swal.fire({
-                                                    icon: 'success',
-                                                    title: 'Succeed',
-                                                    text: 'Follow Up Data successfully deleted',
-                                                    timer: 1500,
-                                                    showConfirmButton: false,
-                                                })
-
-                                                } catch (err) {
-                                                if (err.response?.status === 403) {
-                                                    Swal.fire('Access Denied', 'You do not have permission to delete the data', 'error')
-                                                } else {
-                                                    Swal.fire('Error', 'Failed to delete data', 'error')
-                                                }
-                                                throw err
-                                                } finally {
-                                                deletingFollowUp.value = false
-                                                }
-                                            }
-
-
-
-            return {
-
-                baseUrlApi,
-                followUpData,
-                loadingFollowUp,
-                searchFollowUp,
-                searchTimeoutFollowUp,
-                savingFollowUp,
-                errorFollowUp,
-                updatingFollowUp,
-                deletingFollowUp,
-                // FollowUpDetail,
-                // loading,
-                leads,
-                customers,
-                userSales,
-                loadingLeads,
-                loadingCustomers,
-                loadingUserSales,
-                pagination,
-                sort,
-                allowedSortColumns,
-                fetchFollowUp,
-                getAuthHeader,
-                buildUrl,
-                searchWithDelay,
-                changePageSize,
-                toggleSort,
-                changeSorting,
-                resetFilters,
-                formatDate,
-                formatDateTime,
-                // detailFollowUp,
-
-
-                followUpDetail,
-                loadingDetail,
-                fetchFollowUpDetail,
-
-                fetchLeads,
-                fetchCustomers,
-
-                subjectTemplates,
-                followUpType,
-
-                storeFollowUp,
-                updateFollowUp,
-                deleteFollowUp
-                
-                
-            }
-
-
-})
+      const clearTimeline = () => {
+      timeline.value = [];
+      selectedFollowUpCode.value = null;
+    };
+
+/* ================= FETCH LEADS FOR SELECT ================= */
+const fetchLeadsOptions = async (keyword = "") => {
+  loadingLeadsOptions.value = true;
+
+  try {
+    const params = new URLSearchParams();
+    if (keyword) params.append("search", keyword);
+
+    const res = await axios.get(`${endpoints.leadsSelect}?${params.toString()}`, {
+      headers: getAuthHeader(),
+    });
+
+    leadsOptions.value = res.data.data ?? [];
+
+  } catch (err) {
+    console.error("Fetch Leads Options Failed:", err);
+    leadsOptions.value = [];
+  } finally {
+    loadingLeadsOptions.value = false;
+  }
+};
+
+
+
+const searchLeadsOptions = (val) => {
+  clearTimeout(leadsSearchTimeout);
+
+  leadsSearchTimeout = setTimeout(() => {
+    fetchLeadsOptions(val);
+  }, 400);
+};
+
+
+  return {
+    followUp,
+    loading,
+    search,
+    pagination,
+    sort,
+
+    fetchFollowUps,
+    searchWithDelay,
+    changePageSize,
+    nextPage,
+    prevPage,
+
+    fetchTimeline,
+
+    timeline,
+        loadingTimeline,
+        // selectedFollowUp,
+        selectedFollowUpCode,
+
+        fetchTimeline,
+        clearTimeline,
+
+
+      //  untuk select 
+        leadsOptions,
+        loadingLeadsOptions,
+        fetchLeadsOptions,
+        searchLeadsOptions,
+
+
+  };
+});

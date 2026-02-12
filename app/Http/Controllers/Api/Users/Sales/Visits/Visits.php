@@ -966,16 +966,41 @@ class Visits extends Controller
                                 'last_contacted_at' => now(),
                             ]);
 
-                            MsFollowUp::create([
+                            // MsFollowUp::create([
+                            //     'lead_id'        => $lead->id,
+                            //     'visit_id'       => $visit->id,
+                            //     'follow_up_code' => $followUpCode,
+                            //     'follow_up_at'   => now()->addDays(3),
+                            //     'subject'        => 'Result Visit',
+                            //     'notes'          => $request->notes,
+                            //     'follow_up_type' => 'VISIT',
+                            //     'created_by'     => auth()->id(),
+                            // ]);
+                            $followUpId = DB::table('follow_ups')->insertGetId([
                                 'lead_id'        => $lead->id,
-                                'visit_id'       => $visit->id,
+                                // 'visit_id'       => $visit->id,
                                 'follow_up_code' => $followUpCode,
                                 'follow_up_at'   => now()->addDays(3),
                                 'subject'        => 'Result Visit',
                                 'notes'          => $request->notes,
                                 'follow_up_type' => 'VISIT',
+                                'status'         => 'PENDING',
                                 'created_by'     => auth()->id(),
+                                'created_at'     => now(),
+                                'updated_at'     => now(),
                             ]);
+
+
+                            DB::table('follow_up_activities')->insert([
+                                'follow_up_id'  => $followUpId,
+                                'title'         => 'Follow Up Created Result Visit',
+                                'description'   => 'Follow up dibuat otomatis dari hasil visit dengan status: '.$request->customer_response,
+                                'activity_type' => 'CREATE',
+                                'activity_at'   => now(),
+                                'created_at'    => now(),
+                            ]);
+
+
                             break;
 
                         // -------------------------

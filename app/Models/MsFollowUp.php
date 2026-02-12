@@ -84,4 +84,11 @@ public function scopeSort($query, $sortBy, $sortDir)
 }
 
 
+public function activities()
+{
+    return $this->hasMany(ModelFollowUpActivity::class)
+        ->orderBy('activity_at');
+}
+
+
 }

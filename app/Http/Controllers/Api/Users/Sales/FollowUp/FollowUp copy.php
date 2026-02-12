@@ -13,10 +13,8 @@ use App\Helpers\ApiResponse;
 Use App\Http\Requests\FollowUpValidationIndex;
 use App\Http\Requests\FollowUpValidationRequest;
 use App\Http\Requests\FollowUpValidationUpdate;
-use App\Http\Resources\FollowUpLeadResourcesCollection;
-use App\Http\Resources\FollowUpLeadResources;
-use Carbon\Carbon;
-
+use App\Http\Resources\FollowUpResources;
+use App\Http\Resources\FollowUpResourcesCollection;
 
 
 class FollowUp extends Controller
@@ -33,36 +31,21 @@ class FollowUp extends Controller
      }
 
 
-//      public function followUpSales(FollowUpValidationIndex $request)
-
-public function followUpSalesByLeads(FollowUpValidationIndex $request)
+     public function followUpSales(FollowUpValidationIndex $request)
 {
     $validated = $request->validated();
     $user = auth()->user();
+
     $search    = $validated['search'] ?? null;
     $perPage   = $validated['per_page'] ?? 10;
+    $sortBy    = $validated['sort_by'] ?? 'follow_ups.follow_up_at';
+    $sortDir   = $validated['sort_dir'] ?? 'desc';
     $startDate = $validated['start_date'] ?? null;
     $endDate   = $validated['end_date'] ?? null;
-    /* ================= SAFE SORTING ================= */
-    $allowedSorts = [
-        'follow_up_at' => 'follow_ups.follow_up_at',
-        'created_at'   => 'follow_ups.created_at',
-        'company_name' => 'l.company_name',
-        'status'       => 'follow_ups.status',
-    ];
-    $sortKey = $validated['sort_by'] ?? 'follow_up_at';
-    $sortBy  = $allowedSorts[$sortKey] ?? 'follow_ups.follow_up_at';
-    $sortDir = $validated['sort_dir'] ?? 'desc';
 
-    /* ================= OVERDUE LOGIC ================= */
-    $overdueCondition = "
-    follow_ups.follow_up_at < NOW()
-    AND follow_ups.status = 'PENDING'
-";
     $query = $this->MsFollowUp->query()
         ->select([
             'follow_ups.id',
-            'follow_ups.lead_id',
             'follow_ups.follow_up_type',
             'follow_ups.subject',
             'follow_ups.notes',
@@ -71,15 +54,31 @@ public function followUpSalesByLeads(FollowUpValidationIndex $request)
             'follow_ups.created_at',
             'follow_ups.follow_up_code',
 
+            // MASTER LEAD
             'l.company_name as lead_company_name',
             'l.lead_status',
 
+            // MASTER CUSTOMER
+            'c.company_name as customer_company_name',
+
+            // SALES
             'sales.fullname as sales_name',
 
-            DB::raw("CASE WHEN {$overdueCondition} THEN 1 ELSE 0 END as is_overdue"),
-            DB::raw("CASE WHEN {$overdueCondition} THEN 'OVERDUE' ELSE follow_ups.status END as computed_status"),
+            // 🔥 PENENTU SUMBER DATA
+            DB::raw("
+                CASE
+                    WHEN follow_ups.lead_id IS NOT NULL THEN 'LEAD'
+                    WHEN follow_ups.customer_id IS NOT NULL THEN 'CUSTOMER'
+                END as target_source
+            "),
+
+            // 🔥 NAMA YANG DIPAKAI UI
+            DB::raw("
+                COALESCE(l.company_name, c.company_name) as target_name
+            "),
         ])
-        ->join('leads as l', 'l.id', '=', 'follow_ups.lead_id')
+        ->leftJoin('leads as l', 'l.id', '=', 'follow_ups.lead_id')
+        ->leftJoin('customers as c', 'c.id', '=', 'follow_ups.customer_id')
         ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'follow_ups.created_by')
         ->where('follow_ups.created_by', $user->id_user)
         ->whereNull('follow_ups.deleted_at');
@@ -89,7 +88,7 @@ public function followUpSalesByLeads(FollowUpValidationIndex $request)
         $query->where(function ($q) use ($search) {
             $q->where('follow_ups.notes', 'ILIKE', "%{$search}%")
               ->orWhere('l.company_name', 'ILIKE', "%{$search}%")
-              ->orWhere('follow_ups.subject', 'ILIKE', "%{$search}%");
+              ->orWhere('c.company_name', 'ILIKE', "%{$search}%");
         });
     }
 
@@ -107,11 +106,13 @@ public function followUpSalesByLeads(FollowUpValidationIndex $request)
 
     $results = $query->paginate($perPage);
 
+    $message = $results->isEmpty()
+        ? "Data tidak ditemukan"
+        : "Success Get Follow Up Sales";
+
     return ApiResponse::success(
-        new FollowUpLeadResourcesCollection($results),
-        $results->isEmpty()
-            ? "Data Follow Up Lead tidak ditemukan"
-            : "Success Get Follow Up Lead"
+        new FollowUpResourcesCollection($results),
+        $message
     );
 }
 
@@ -192,7 +193,7 @@ public function followUpSalesByLeads(FollowUpValidationIndex $request)
         DB::commit();
 
         return ApiResponse::success(
-            new FollowUpLeadResources($followUp),
+            new FollowUpResources($followUp),
             'Success Create Follow Up',
             201
         );
@@ -210,102 +211,37 @@ public function followUpSalesByLeads(FollowUpValidationIndex $request)
 
 
 
-public function getLeadsNeedFollowUp(Request $request)
+
+public function getLeadsBySales(Request $request)
 {
     $userId = auth()->user()->id_user;
+    $search = $request->get('search');
 
     $query = DB::table('leads as l')
-        ->leftJoin('follow_ups as f', function ($join) {
-            $join->on('f.lead_id', '=', 'l.id')
-                 ->whereNull('f.deleted_at');
-        })
-
         ->select([
-            'l.id as lead_id',
+            'l.id',
             'l.company_name',
             'l.contact_name',
-
-            'f.id as follow_up_id',
-            'f.follow_up_code',
-            'f.follow_up_at',
-            'f.status',
-            'f.subject',
-
-            DB::raw("
-                CASE
-                    WHEN f.id IS NULL THEN 'NO_SCHEDULE'
-                    WHEN f.follow_up_at < NOW() THEN 'OVERDUE'
-                    WHEN f.follow_up_at BETWEEN NOW() AND NOW() + INTERVAL '1 DAY' THEN 'DUE_SOON'
-                    ELSE 'SCHEDULED'
-                END as urgency_status
-            "),
-
-            DB::raw("
-                CASE
-                    WHEN f.follow_up_at IS NULL THEN NULL
-                    ELSE EXTRACT(EPOCH FROM (f.follow_up_at - NOW()))
-                END as seconds_remaining
-            ")
         ])
-
         ->where(function ($q) use ($userId) {
             $q->where('l.created_by', $userId)
               ->orWhere('l.assigned_to', $userId);
         })
+          ->whereNull('l.converted_at')
+        ->whereNull('l.deleted_at');
 
-        ->whereNull('l.converted_at')
-        ->whereNull('l.deleted_at')
+    if ($search) {
+        $query->where(function ($q) use ($search) {
+            $q->where('l.company_name', 'ILIKE', "%{$search}%")
+              ->orWhere('l.contact_name', 'ILIKE', "%{$search}%");
+        });
+    }
 
-        ->where(function ($q) {
-            $q->whereNull('f.id')
-              ->orWhereNotIn('f.status', ['DONE', 'CANCEL']);
-        })
-
-        ->orderByRaw("COALESCE(f.follow_up_at, l.created_at) ASC");
-
-    $data = $query->limit(50)->get()->map(function ($item) {
-
-        if (!$item->seconds_remaining) {
-            $item->time_remaining_text = 'Data is created directly for follow-up purposes.';
-            $item->follow_up_at_formatted = null;
-            return $item;
-        }
-
-        $seconds = (int) $item->seconds_remaining;
-
-        if ($seconds < 0) {
-            $seconds = abs($seconds);
-
-            if ($seconds < 3600) {
-                $text = "Overdue " . floor($seconds / 60) . " min";
-            } elseif ($seconds < 86400) {
-                $text = "Overdue " . floor($seconds / 3600) . " hour";
-            } else {
-                $text = "Overdue " . floor($seconds / 86400) . " day";
-            }
-        } else {
-            if ($seconds < 3600) {
-                $text = floor($seconds / 60) . " min left";
-            } elseif ($seconds < 86400) {
-                $text = floor($seconds / 3600) . " hour left";
-            } else {
-                $text = floor($seconds / 86400) . " day left";
-            }
-        }
-
-        $item->time_remaining_text = $text;
-
-        $item->follow_up_at_formatted = $item->follow_up_at
-            ? Carbon::parse($item->follow_up_at)->format('d M Y H:i')
-            : null;
-
-        return $item;
-    });
-
-    return ApiResponse::success($data, 'Leads Need Follow Up');
+    return ApiResponse::success(
+        $query->orderBy('l.company_name')->limit(20)->get(),
+        'Success Get Leads By Sales'
+    );
 }
-
-
 
 
 // ini kayanya perlu perubahan seperti leads juga nanati pas garap visit customer
@@ -488,7 +424,7 @@ public function showFollowUp($id)
         }
 
         return ApiResponse::success(
-            new FollowUpLeadResources($followUp),
+            new FollowUpResources($followUp),
             'Success Get Follow Up Detail'
         );
 
@@ -502,40 +438,5 @@ public function showFollowUp($id)
 }
 
 
-public function timeline($id)
-{
-    // Ambil header follow up
-    $followUp = DB::table('follow_ups')
-        ->select('id', 'follow_up_code')
-        ->where('id', $id)
-        ->first();
-
-    if (!$followUp) {
-        return response()->json([
-            'message' => 'Follow Up not found'
-        ], 404);
-    }
-
-    // Ambil history activity
-    $activities = DB::table('follow_up_activities')
-        ->where('follow_up_id', $id)
-        ->orderBy('activity_at', 'asc')
-        ->get()
-        ->map(function ($act) {
-            return [
-                'activity'     => $act->title,
-                'description'  => $act->description,
-                'activity_at'  => Carbon::parse($act->activity_at)->format('d M Y H:i'),
-                'type'         => $act->activity_type,
-            ];
-        });
-
-    return response()->json([
-        'data' => [
-            'follow_up_code' => $followUp->follow_up_code,
-            'histories'      => $activities,
-        ]
-    ]);
-}
 
 }

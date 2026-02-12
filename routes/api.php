@@ -148,19 +148,19 @@ Route::get('/customers/{customerId}/follow-ups',[Costumers::class, 'customerFoll
 
 
 // api sales Follow Up
-Route::get('/follow-up-masters', [FollowUp::class, 'followUpSales'])->name('api.follow.up.master');
+Route::get('/follow-up-leads', [FollowUp::class, 'followUpSalesByLeads'])->name('api.follow.up.master');
 Route::get('/follow-up/show/{id}', [FollowUp::class, 'showFollowUp'])->name('api.follow.up.show');
 Route::post('/follow-up/store', [FollowUp::class, 'storeFollowUp'])->name('api.follow.up.store');
-Route::get('/follow-up/get-sales/leads', [FollowUp::class, 'getLeadsBySales'])->name('api.get.sales.leads');
+Route::get('/follow-up/get-sales/leads', [FollowUp::class, 'getLeadsNeedFollowUp'])->name('api.get.sales.leads');
 Route::get('/follow-up/get-sales/customers', [FollowUp::class, 'getCustomersBySales'])->name('api.get.sales.customers');
 Route::put('/follow-up/update/{id}', [FollowUp::class, 'updateFollowUp'])->name('api.follow.up.update');
 Route::delete('/follow-up/delete/{id}', [FollowUp::class, 'deleteFollowUp'])->name('api.follow.up.delete');
+Route::get('/follow-ups/{id}/timeline', [FollowUp::class, 'timeline']);
 
 
 
 Route::get('/data-visits-leads', [Visits::class, 'getVisitLead'])->name('api.data.leads.visit');
-Route::get('/data-visits/detail/{id}', [Visits::class, 'getVisitDetail'])
-    ->name('api.data.visit.detail');
+Route::get('/data-visits/detail/{id}', [Visits::class, 'getVisitDetail'])->name('api.data.visit.detail');
 
 Route::get('/data-leads-visit', [Visits::class, 'VisitLeads'])->name('api.data.leads.visit');
 Route::get('/data-customers-visit', [Visits::class, 'VisitCustomers'])->name('api.data.customers.visit');
