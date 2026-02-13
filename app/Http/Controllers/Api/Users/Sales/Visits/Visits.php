@@ -95,17 +95,36 @@ class Visits extends Controller
                 ])
                 ->leftJoin('leads as l', 'l.id', '=', 'v.lead_id')
                 ->leftJoin('ms_users as u', 'u.id_user', '=', 'v.sales_id')
+                // ini code untuk hanya menampilkan visit dan check-in 
+                // ->where(function ($q) {
+                //     $q
+                //         ->where(function ($qq) {
+                //             $qq->whereNull('v.check_in_at')
+                //             ->where('v.visit_at', '<=', now());
+                //         })
+                //         ->orWhere(function ($qq) {
+                //             $qq->whereNotNull('v.check_in_at')
+                //             ->whereNull('v.check_out_at');
+                //         });
+                // })
                 ->where(function ($q) {
-                    $q
-                        ->where(function ($qq) {
-                            $qq->whereNull('v.check_in_at')
-                            ->where('v.visit_at', '<=', now());
-                        })
-                        ->orWhere(function ($qq) {
-                            $qq->whereNotNull('v.check_in_at')
-                            ->whereNull('v.check_out_at');
-                        });
-                })
+    $q
+        // Belum check-in tapi sudah waktunya visit
+        ->where(function ($qq) {
+            $qq->whereNull('v.check_in_at')
+               ->where('v.visit_at', '<=', now());
+        })
+
+        // Sudah check-in, belum check-out (masih di lokasi)
+        ->orWhere(function ($qq) {
+            $qq->whereNotNull('v.check_in_at')
+               ->whereNull('v.check_out_at');
+        })
+
+        // 🔥 Tambahan: yang sudah selesai
+        ->orWhereNotNull('v.check_out_at');
+})
+
                 ->orderBy('v.visit_at', 'desc');
 
             $results = $query->get();

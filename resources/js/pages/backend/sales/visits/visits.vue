@@ -290,7 +290,6 @@ const visitPhotoUrl = computed(() => {
                     </li>
                   </ul>
                   </div>
-               
                 </div>
 
 
