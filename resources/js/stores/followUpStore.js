@@ -109,6 +109,12 @@ let leadsSearchTimeout = null;
     fetchFollowUps();
   };
 
+  const changeSorting = () => {
+  pagination.current_page = 1
+  fetchFollowUps()
+}
+
+
   const nextPage = () => {
     if (pagination.current_page < pagination.last_page) {
       fetchFollowUps(null, pagination.current_page + 1);
@@ -183,6 +189,32 @@ const searchLeadsOptions = (val) => {
 };
 
 
+const typeFollowUp = ref([
+     { value: 'Call', label: 'Call' },
+     { value: 'Email', label: 'Email' },
+     { value: 'Whatsapp', label: 'Whatsapp'},
+     { value: 'LinkedIn', label: 'LinkedIn'},
+     { value: 'Visit Location', label: 'Visit Location' },
+    ])
+
+
+    const formatDate = (value) => {
+  if (!value) return "-"
+
+  // ubah "2026-02-15 13:55:41" → "2026-02-15T13:55:41"
+  const isoString = value.replace(" ", "T")
+
+  const date = new Date(isoString)
+
+  return date.toLocaleDateString("id-ID", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    timeZone: "Asia/Jakarta", // penting!
+  })
+}
+
+
   return {
     followUp,
     loading,
@@ -193,25 +225,27 @@ const searchLeadsOptions = (val) => {
     fetchFollowUps,
     searchWithDelay,
     changePageSize,
+    changeSorting,
     nextPage,
     prevPage,
 
     fetchTimeline,
-
     timeline,
-        loadingTimeline,
-        // selectedFollowUp,
-        selectedFollowUpCode,
+    loadingTimeline,
+    selectedFollowUpCode,
 
-        fetchTimeline,
-        clearTimeline,
+    fetchTimeline,
+    clearTimeline,
+    typeFollowUp,
 
 
-      //  untuk select 
-        leadsOptions,
-        loadingLeadsOptions,
-        fetchLeadsOptions,
-        searchLeadsOptions,
+    //  untuk select 
+    leadsOptions,
+    loadingLeadsOptions,
+    fetchLeadsOptions,
+    searchLeadsOptions,
+
+    formatDate,
 
 
   };

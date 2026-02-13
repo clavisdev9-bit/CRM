@@ -32,6 +32,28 @@ watch(
   }
 )
 
+const normalizeStatus = (status) => {
+  return status?.toUpperCase().replaceAll(' ', '_')
+}
+const StatusConfigFromLeads = {
+  PROSPECTIVE_CUSTOMERS: {
+    class: 'bg-info',
+    icon: 'fa-solid fa-user-plus',
+  },
+  CONSIDERATION_STAGE: {
+    class: 'bg-warning text-dark',
+    icon: 'fa-solid fa-clock',
+  },
+  POTENTIAL_CUSTOMERS: {
+    class: 'bg-primary',
+    icon: 'fa-solid fa-star',
+  },
+  OTHER: {
+    class: 'bg-dark',
+    icon: 'fa-solid fa-tag',
+  },
+}
+
 /* ================= SWITCH MODE (future ready) ================= */
 const changeMode = (type) => {
   followUpStore.fetchFollowUps(type)
@@ -47,7 +69,6 @@ const openAddModal = (type) => {
 
 const loading = ref(false);
 const dataLeads = ref([]); // Isi dengan data dari API
-
 const form = reactive({
   lead_id: '',
   follow_up_at: '',
@@ -57,6 +78,15 @@ const form = reactive({
   lead_category: '',
   notes: ''
 });
+
+const fpConfig = {
+  enableTime: true,
+  time_24hr: true,
+  dateFormat: 'Y-m-d H:i',
+  minuteIncrement: 5,
+  allowInput: true
+}
+
 
 const submitFollowUp = async () => {
   loading.value = true;
@@ -72,6 +102,7 @@ const submitFollowUp = async () => {
     loading.value = false;
   }
 };
+
 
 
 </script>
@@ -126,6 +157,8 @@ const submitFollowUp = async () => {
                     <i class="fas fa-list-ul me-1"></i> Showing:
                     </label>
                     <select class="form-select w-auto"
+                    v-model="followUpStore.pagination.per_page"
+                      @change="followUpStore.changePageSize()"
                   >
                     <option>10</option>
                     <option>25</option>
@@ -162,18 +195,23 @@ const submitFollowUp = async () => {
              <div class="d-flex flex-column gap-3 align-items-end" style="min-width:300px;">
                 <!-- Pencarian -->
                 <div class="input-group">
-                    <input type="text" class="form-control" placeholder="Searching....">
+                    <input type="text" class="form-control" placeholder="Searching.." 
+                      @input="e => followUpStore.searchWithDelay(e.target.value)">
                     <span class="input-group-text bg-white"><i class="fa fa-search"></i></span>
                 </div>
 
                 <!-- Urutan -->
                 <div class="d-flex gap-2 align-items-center">
                     <label class="mb-0 fw-semibold">Sort:</label>
-                    <select class="form-select w-auto" >
+                    <select class="form-select w-auto" 
+                     v-model="followUpStore.sort.column"
+                      @change="followUpStore.changeSorting()">
                     <option value="company_name">By Company Name</option>
                     <option value="created_at">By Created Date</option>
                     </select>
-                    <select class="form-select w-auto" >
+                    <select class="form-select w-auto" 
+                      v-model="followUpStore.sort.direction"
+                      @change="followUpStore.changeSorting()">
                     <option value="asc">Ascending</option>
                     <option value="desc">Descending</option>
                     </select>
@@ -202,7 +240,6 @@ const submitFollowUp = async () => {
                   </tr>
               <tr>
                 <th style="width:5%">No.</th>
-                
                 <th>Code Follow Up</th>
                 <th>Type</th>
                 <th>Subject</th>
@@ -210,7 +247,6 @@ const submitFollowUp = async () => {
                     <div>FollowUp</div>
                     <div>Lead / Customer</div>
                   </th>
-                <th>Follow Up At</th>
                 <th>Status Follow UP</th>
                 <th>Status From Visit</th>
                 <th>Date Visit / Created</th>
@@ -219,122 +255,140 @@ const submitFollowUp = async () => {
               </tr>
             </thead>
 
-          <tbody>
-      <!-- LOADING -->
-      <tr v-if="followUpStore.loading">
-        <td colspan="11" class="text-center">Loading...</td>
-      </tr>
+            <tbody v-if="followUpStore.loading">
+                <tr>
+                  <td colspan="11" class="text-center py-4">
+                    <div class="spinner-border text-primary"></div>
+                  </td>
+                </tr>
+            </tbody>
 
-      <!-- EMPTY -->
-      <tr v-else-if="followUpStore.followUp.length === 0">
-        <td colspan="11" class="text-center">No Data</td>
-      </tr>
+            <tbody v-else-if="followUpStore.followUp.length === 0">
+                   <tr>
+                      <td colspan="11" class="text-center">
+                        <div class="d-flex flex-column align-items-center justify-content-center">
+                          <img
+                            src="https://cdn.dribbble.com/users/285475/screenshots/2083086/dribbble_1.gif"
+                            alt="No data found"
+                            style="max-width: 250px; height: auto;"
+                            class="mb-3"
+                          />
+                          <p class="text-danger fw-bold fst-italic">
+                            <i class="fa fa-exclamation-circle me-1"></i>
+                            Follow UP Data Not Found.
+                          </p>
+                        </div>
+                      </td>
+                    </tr>
+          </tbody>
 
-      <!-- DATA -->
-      <tr
-        v-else
-        v-for="(item, index) in followUpStore.followUp"
-        :key="item.id"
-        :class="{ 'table-danger': item.is_overdue }"
-      >
-        <!-- NO -->
-        <td>{{ index + 1 }}</td>
-
-        <!-- CODE -->
-        <td>{{ item.follow_up_code }}</td>
-
-        <!-- TYPE -->
-        <td>{{ item.follow_up_type }}</td>
-
-        <!-- SUBJECT -->
-        <td>{{ item.subject }}</td>
-
-        <!-- TARGET -->
-        <td>
-          <div class="fw-bold">{{ item.target_name }}</div>
-          <small class="text-muted">{{ item.target_source }}</small>
-        </td>
-
-        <!-- FOLLOW UP DATE -->
-        <td>{{ item.follow_up_at }}</td>
-
-        <!-- STATUS -->
-        <td>
-          <span
-            class="badge"
-            :class="
-              item.computed_status === 'OVERDUE'
-                ? 'bg-danger'
-                : item.status === 'PENDING'
-                ? 'bg-warning'
-                : 'bg-success'
-            "
+          <tbody v-else>
+          <tr
+            v-for="(item, index) in followUpStore.followUp"
+            :key="item.id"
+            :class="{ 'table-danger': item.is_overdue }"
           >
-            {{ item.computed_status }}
-          </span>
-        </td>
+            <!-- NO -->
+            <td>{{ index + 1 }}</td>
 
-        <!-- LEAD STATUS -->
-        <td>{{ item.lead_status }}</td>
+            <!-- CODE -->
+            <td>{{ item.follow_up_code }}</td>
 
-        <!-- CREATED -->
-        <td>{{ item.created_at }}</td>
+            <!-- TYPE -->
+            <td>{{ item.follow_up_type }}</td>
 
-        <!-- ESTIMATED -->
-        <td>
-          <span :class="item.is_overdue ? 'text-danger fw-bold' : ''">
-            {{ item.follow_up_at }}
-          </span>
+            <!-- SUBJECT -->
+            <td>{{ item.subject }}</td>
 
-          <div v-if="item.is_overdue" class="small text-danger">
-            Overdue — Need Action
-          </div>
-        </td>
+            <!-- TARGET -->
+            <td>
+              <div class="fw-bold">{{ item.target_name }}</div>
+              <small class="text-muted">{{ item.target_source }}</small>
+            </td>
 
-        <!-- ACTION -->
-        <td>
-          <button
-            v-if="item.status === 'PENDING'"
-            class="btn btn-sm btn-outline-primary me-1"
-          >
-            <i class="fa-regular fa-pen-to-square"></i>
-          </button>
+            <!-- STATUS -->
+            <td>
+              <span
+                class="badge"
+                :class="
+                  item.computed_status === 'OVERDUE'
+                    ? 'bg-danger'
+                    : item.status === 'PENDING'
+                    ? 'bg-warning'
+                    : 'bg-success'
+                "
+              >
+                {{ item.computed_status }}
+              </span>
+            </td>
 
-          <button
-            v-if="item.status === 'PENDING'"
-            class="btn btn-sm btn-outline-primary me-1"
-          >
-          <i class="fa-regular fa-trash-can"></i>
-          </button>
-
-          <button
-            v-if="item.status === 'PENDING'"
-            class="btn btn-sm btn-outline-primary me-1 mt-1"
-          >
-            <i class="fa-regular fa-eye"></i>
-          </button>
-          
-          <span v-else class="badge bg-success">
-            {{ item.status }}
-          </span>
-
-        
-      <button
-          class="btn btn-outline-primary btn-sm mt-1"
-          data-bs-toggle="modal"
-          data-bs-target="#timeLineModal"
-          @click="followUpStore.fetchTimeline(item.id)"
-        >
-        <i class="fa-solid fa-timeline"></i> 
-        </button>
-    </td>
-  </tr>
-</tbody>
+            <!-- LEAD STATUS -->
+            <td>
+                      <span
+                        class="badge d-inline-flex align-items-center gap-1 px-2 py-1"
+                        :class="StatusConfigFromLeads[normalizeStatus(item.lead_status)]?.class || 'bg-light text-dark'"
+                      >
+                        <i
+                          :class="StatusConfigFromLeads[normalizeStatus(item.lead_status)]?.icon || 'fa-solid fa-circle-info'"
+                        ></i>
+                        {{ item.lead_status }}
+                      </span>
+            </td>
 
 
+            <!-- CREATED -->
+            <td class="fw-bold">{{  followUpStore.formatDate(item.created_at) }}</td>
 
+            <!-- ESTIMATED -->
+            <td class="fw-bold">
+              <span :class="item.is_overdue ? 'text-danger fw-bold' : ''">
+                {{ followUpStore.formatDate(item.follow_up_at) }}
+              </span>
 
-          
+              <div v-if="item.is_overdue" class="small text-danger">
+                <i class="fa-regular fa-bell"></i> Overdue — Need Action 
+              </div>
+            </td>
+
+            <!-- ACTION -->
+            <td>
+              <button
+                v-if="item.status === 'PENDING'"
+                class="btn btn-sm btn-outline-primary me-1"
+              >
+                <i class="fa-regular fa-pen-to-square"></i>
+              </button>
+
+              <button
+                v-if="item.status === 'PENDING'"
+                class="btn btn-sm btn-outline-primary me-1"
+              >
+              <i class="fa-regular fa-trash-can"></i>
+              </button>
+
+              <button
+                v-if="item.status === 'PENDING'"
+                class="btn btn-sm btn-outline-primary me-1 mt-1"
+              >
+                <i class="fa-regular fa-eye"></i>
+              </button>
+              
+              <span v-else class="badge bg-success">
+                {{ item.status }}
+              </span>
+
+            
+                <button
+                    class="btn btn-outline-primary btn-sm mt-1"
+                    data-bs-toggle="modal"
+                    data-bs-target="#timeLineModal"
+                    @click="followUpStore.fetchTimeline(item.id)"
+                  >
+                  <i class="fa-solid fa-timeline"></i> 
+                  </button>
+              </td>
+            </tr>
+          </tbody>
              </table>
             </div>
           </div>
@@ -343,18 +397,22 @@ const submitFollowUp = async () => {
          <div class="card">
             <div class="card-header d-flex justify-content-between align-items-center">
               <button class="btn btn-danger btn-sm" 
-               >
+                  :disabled="followUpStore.pagination.current_page === 1 || followUpStore.loading"
+                  @click="followUpStore.prevPage()" >
                 <i class="fa-solid fa-circle-chevron-left"
                 ></i> Prev
               </button>
   
                  <div class="mx-2 d-flex flex-column flex-sm-row align-items-center gap-1">
-                    <span class="badge border text-secondary px-3 py-2"> 11 data | on page 11</span>
-                    <span class="badge border text-secondary px-3 py-2">Total: 11</span>
+                    <span class="badge border text-secondary px-3 py-2">
+                    {{ followUpStore.followUp.length }} data |
+                    page {{ followUpStore.pagination.current_page }}</span>
+                    <span class="badge border text-secondary px-3 py-2">Total: {{ followUpStore.pagination.total }}</span>
                 </div>
   
                 <button class="btn btn-danger btn-sm"
-               
+                :disabled="followUpStore.pagination.current_page === followUpStore.pagination.last_page || followUpStore.loading"
+                  @click="followUpStore.nextPage()"
                >
                     Next <i class="fa-solid fa-circle-chevron-right"></i>
                 </button>
@@ -431,7 +489,7 @@ const submitFollowUp = async () => {
     </div>
 
 
-<div class="modal modal-blur fade" id="form-leads" tabindex="-1" role="dialog" aria-hidden="true">
+   <div class="modal modal-blur fade" id="form-leads" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
       <div class="modal-content">
         <div class="modal-header">
@@ -489,16 +547,28 @@ const submitFollowUp = async () => {
 
             <div class="col-lg-3">
               <label class="form-label">Follow-up Date Estimate Return <small class="text-success">(*ops*)</small></label>
-              <input type="datetime-local" v-model="form.follow_up_at" class="form-control">
+              <Flatpickr
+                 v-model="form.follow_up_at"
+                 :config="fpConfig"   
+                 class="form-control"
+                 placeholder="Select date & time"
+              />
             </div>
 
             <div class="col-lg-3">
               <label class="form-label">Type Follow UP <small class="text-danger">**</small></label>
-              <select v-model="form.follow_up_type" class="form-control">
-                <option value="CALL">Call</option>
-                <option value="WHATSAPP">WhatsApp</option>
-                <option value="MEETING">Meeting</option>
-              </select>
+              <Multiselect
+                                v-model="form.follow_up_type"
+                                :options="followUpStore.typeFollowUp"
+                                label="label"
+                                valueProp="value"
+                                placeholder="Select Follow Up"
+                                @update:modelValue="() => {
+                                  if (followUpStore.error?.follow_up_type) {
+                                    followUpStore.error.follow_up_type = null
+                                  }
+                                }"
+                              />
             </div>
 
             <div class="col-lg-12">
