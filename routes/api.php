@@ -156,7 +156,7 @@ Route::get('/follow-up/get-sales/customers', [FollowUp::class, 'getCustomersBySa
 Route::put('/follow-up/update/{id}', [FollowUp::class, 'updateFollowUp'])->name('api.follow.up.update');
 Route::delete('/follow-up/delete/{id}', [FollowUp::class, 'deleteFollowUp'])->name('api.follow.up.delete');
 Route::get('/follow-ups/{id}/timeline', [FollowUp::class, 'timeline']);
-
+Route::post('/follow-ups/{id}/submit-result', [FollowUp::class, 'submitResult']);
 
 
 Route::get('/data-visits-leads', [Visits::class, 'getVisitLead'])->name('api.data.leads.visit');
@@ -182,6 +182,7 @@ Route::get('/data-visits-all-data', [Visits::class, 'getVisitAllData'])->name('a
 
 // UNTUK GEO LOCATION
 Route::get('/reverse-geocode', [Location::class, 'reverse']);
+
 
 
 

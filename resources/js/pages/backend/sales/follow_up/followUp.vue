@@ -60,13 +60,7 @@ const changeMode = (type) => {
 }
 
 /* ================= OPEN MODAL ================= */
-const openAddModal = (type) => {
-  followUpStore.mode = type
-}
-
-
-// code desain form leads 
-
+// start
 const loading = ref(false);
 const dataLeads = ref([]); // Isi dengan data dari API
 const form = reactive({
@@ -76,8 +70,175 @@ const form = reactive({
   status: '',
   done_action: '', // CONVERT or FAILED
   lead_category: '',
-  notes: ''
+  notes: '',
+  subject: '',
+  subject_template: null,
 });
+
+
+
+
+const subjectTemplates = ref([
+  // Initial Engagement
+  { label: 'Terima Kasih atas Waktunya – Tindak Lanjut Diskusi', value: 'Terima Kasih atas Waktunya – Tindak Lanjut Diskusi' },
+  { label: 'Menindaklanjuti Pembahasan Solusi untuk Kebutuhan Anda', value: 'Menindaklanjuti Pembahasan Solusi untuk Kebutuhan Anda' },
+
+  // Needs Exploration
+  { label: 'Pendalaman Kebutuhan & Potensi Kolaborasi', value: 'Pendalaman Kebutuhan & Potensi Kolaborasi' },
+  { label: 'Diskusi Lanjutan Terkait Kebutuhan Bisnis Anda', value: 'Diskusi Lanjutan Terkait Kebutuhan Bisnis Anda' },
+
+  // Solution Alignment
+  { label: 'Penyesuaian Solusi Berdasarkan Diskusi Sebelumnya', value: 'Penyesuaian Solusi Berdasarkan Diskusi Sebelumnya' },
+  { label: 'Sharing Insight & Rekomendasi untuk Kebutuhan Anda', value: 'Sharing Insight & Rekomendasi untuk Kebutuhan Anda' },
+
+  // Proposal Soft Follow-up (belum closing)
+  { label: 'Tindak Lanjut Proposal yang Telah Dibagikan', value: 'Tindak Lanjut Proposal yang Telah Dibagikan' },
+  { label: 'Apakah Ada Hal yang Bisa Kami Sesuaikan?', value: 'Apakah Ada Hal yang Bisa Kami Sesuaikan?' },
+
+  // Relationship Building
+  { label: 'Menjaga Komunikasi & Update Perkembangan', value: 'Menjaga Komunikasi & Update Perkembangan' },
+  { label: 'Terbuka untuk Diskusi Lanjutan Kapan Saja', value: 'Terbuka untuk Diskusi Lanjutan Kapan Saja' },
+
+  // Re-engagement (kalau lead mulai dingin)
+  { label: 'Follow Up Kembali – Siap Melanjutkan Diskusi', value: 'Follow Up Kembali – Siap Melanjutkan Diskusi' },
+  { label: 'Apakah Masih Relevan untuk Kita Lanjutkan?', value: 'Apakah Masih Relevan untuk Kita Lanjutkan?' }
+])
+
+
+watch(() => form.subject_template, (val) => {
+  if (val) {
+    form.subject = val   // <-- LANGSUNG ISI
+  }
+})
+
+
+const openAddModal = (type) => {
+  followUpStore.mode = type
+  resetForm()
+}
+
+const resetForm = () => {
+  form.lead_id = ''
+  form.follow_up_at = ''
+  form.follow_up_type = ''
+  form.status = ''
+  form.done_action = ''
+  form.lead_category = ''
+  form.notes = ''
+  form.subject = ''
+  form.subject_template = ''
+}
+
+watch(() => form.status, (val) => {
+  if (val === 'DONE') {
+    form.lead_category = ''
+  }
+
+  if (val === 'PENDING') {
+    form.done_action = ''
+  }
+
+  if (val === 'CANCELED') {
+    form.done_action = ''
+    form.lead_category = ''
+  }
+})
+
+
+const errors = reactive({
+  lead_id: null,
+  follow_up_type: null,
+  status: null,
+})
+
+// const validateForm = () => {
+//   errors.lead_id = !form.lead_id ? 'Lead wajib dipilih' : null
+//   errors.follow_up_type = !form.follow_up_type ? 'Type wajib dipilih' : null
+//   errors.status = !form.status ? 'Status wajib dipilih' : null
+
+//   if (form.status === 'DONE' && !form.done_action) {
+//     Swal.fire('Action wajib dipilih untuk DONE')
+//     return false
+//   }
+
+//   return !errors.lead_id && !errors.follow_up_type && !errors.status
+// }
+const validateForm = () => {
+  // reset error dulu
+  errors.lead_id = null
+  errors.follow_up_type = null
+  errors.status = null
+
+  // validasi required
+  if (!form.lead_id) errors.lead_id = 'Lead wajib dipilih'
+  if (!form.follow_up_type) errors.follow_up_type = 'Type wajib dipilih'
+  if (!form.status) errors.status = 'Status wajib dipilih'
+
+  // validasi khusus DONE
+  if (form.status === 'DONE' && !form.done_action) {
+    Swal.fire({
+      icon: 'warning',
+      title: 'Validasi',
+      text: 'Action wajib dipilih untuk DONE',
+    })
+    return false
+  }
+
+  return !errors.lead_id && !errors.follow_up_type && !errors.status
+}
+
+
+const submitFollowUp = async () => {
+  if (!validateForm()) return
+
+  loading.value = true
+
+  try {
+    console.log('VALID PAYLOAD:', form)
+
+    Swal.fire({
+      icon: 'success',
+      title: 'Form Valid ✔',
+      text: 'Ready to send API',
+    })
+
+    // nanti tinggal:
+    // await followUpStore.storeFollowUp(form)
+
+  } catch (err) {
+    console.error(err)
+  } finally {
+    loading.value = false
+  }
+}
+
+
+// const submitFollowUp = async () => {
+//   if (!validateForm()) return
+
+//   loading.value = true
+
+//   try {
+//     console.log('VALID PAYLOAD:', form)
+
+//     Swal.fire({
+//       icon: 'success',
+//       title: 'Form Valid ✔',
+//       text: 'Ready to send API',
+//     })
+
+//   } finally {
+//     loading.value = false
+//   }
+// }
+
+// end
+
+
+
+// code desain form leads 
+
+
 
 const fpConfig = {
   enableTime: true,
@@ -122,20 +283,20 @@ const getFollowUpStatus = (status) => {
 }
 
 
-const submitFollowUp = async () => {
-  loading.value = true;
-  try {
-    // Di sini kamu panggil API kamu
-    console.log("Payload yang dikirim:", form);
-    // await axios.post('/api/follow-up', form);
+// const submitFollowUp = async () => {
+//   loading.value = true;
+//   try {
+//     // Di sini kamu panggil API kamu
+//     console.log("Payload yang dikirim:", form);
+//     // await axios.post('/api/follow-up', form);
     
-    alert('Data Berhasil di-sync!');
-  } catch (error) {
-    console.error(error);
-  } finally {
-    loading.value = false;
-  }
-};
+//     alert('Data Berhasil di-sync!');
+//   } catch (error) {
+//     console.error(error);
+//   } finally {
+//     loading.value = false;
+//   }
+// };
 
 
 
@@ -200,6 +361,9 @@ const openDetailFollowUp = async (followUp) => {
     console.error(err)
   }
 }
+
+
+
 
 
 
@@ -461,8 +625,16 @@ const openDetailFollowUp = async (followUp) => {
               <i class="fa-regular fa-trash-can"></i>
               </button>
 
-             <button
-                v-if="item.status === 'PENDING'"
+            
+
+              
+              <span v-else class="badge bg-success">
+                {{ item.status }}
+              </span>
+
+
+               <button
+                
                 type="button"
                 data-bs-toggle="modal"
                     data-bs-target="#followUpDetailModal"
@@ -471,11 +643,6 @@ const openDetailFollowUp = async (followUp) => {
               >
                 <i class="fa-regular fa-eye"></i>
             </button>
-
-              
-              <span v-else class="badge bg-success">
-                {{ item.status }}
-              </span>
 
             
                 <button
@@ -656,7 +823,8 @@ const openDetailFollowUp = async (followUp) => {
         <div class="modal-body">
           <div class="row g-3">
             <div class="col-lg-6">
-              <label class="form-label">Lead <small class="text-danger">**</small></label>
+              <label class="form-label">Lead <small class="text-danger">**</small></label><br>
+                <small class="text-danger">{{ errors.lead_id }}</small>
               <Multiselect
                 v-model="form.lead_id"
                 :options="followUpStore.leadsOptions"
@@ -668,6 +836,7 @@ const openDetailFollowUp = async (followUp) => {
                 @open="followUpStore.fetchLeadsOptions()"
                 @search-change="followUpStore.searchLeadsOptions" 
               >
+              
               <!-- Dropdown List -->
               <template #option="{ option }">
                 <div class="d-flex flex-column">
@@ -732,8 +901,8 @@ const openDetailFollowUp = async (followUp) => {
               <select v-model="form.status" class="form-select form-select-lg border-primary">
                 <option value="">-- Choose Status --</option>
                 <option value="PENDING">PENDING</option>
-                <option value="DONE">DONE</option>
-                <option value="CANCELED">CANCELED</option>
+                <option value="DONE">DONE OR FAILED</option>
+                <!-- <option value="CANCELED">CANCELED</option> -->
               </select>
             </div>
 
@@ -743,11 +912,11 @@ const openDetailFollowUp = async (followUp) => {
                   <label class="form-label text-success fw-bold">Action after Done:</label>
                   <div class="d-flex gap-4">
                     <label class="form-check">
-                      <input type="radio" v-model="form.done_action" value="CONVERT" class="form-check-input">
+                      <input type="radio" v-model="form.done_action" value="convert" class="form-check-input">
                       <span class="form-check-label">Convert to Customer</span>
                     </label>
                     <label class="form-check">
-                      <input type="radio" v-model="form.done_action" value="FAILED" class="form-check-input">
+                      <input type="radio" v-model="form.done_action" value="failed" class="form-check-input">
                       <span class="form-check-label">Mark Lead as Failed</span>
                     </label>
                   </div>
@@ -764,18 +933,57 @@ const openDetailFollowUp = async (followUp) => {
                   </select>
                 </div>
 
-                <div v-else-if="form.status === 'CANCELED'" class="p-3 border border-danger rounded bg-light">
+                <!-- <div v-else-if="form.status === 'CANCELED'" class="p-3 border border-danger rounded bg-light">
                   <p class="mb-0 text-danger">
                     <strong>Note:</strong> Status Lead akan otomatis berubah menjadi <strong>Failed</strong> di database.
                   </p>
-                </div>
+                </div> -->
               </transition>
             </div>
 
-            <div class="col-lg-12">
-              <label class="form-label">Notes <small class="text-success">(*ops*)</small></label>
-              <textarea v-model="form.notes" class="form-control" rows="3"></textarea>
-            </div>
+
+         <div class="col-lg-6">
+  <label class="form-label">
+    Template Subject <small class="text-success">(opsional)</small>
+  </label>
+
+ <Multiselect
+  v-model="form.subject_template"
+  :options="subjectTemplates"
+  label="label"
+  valueProp="value"
+  trackBy="value"
+  placeholder="Pilih Template Subject"
+  :searchable="true"
+/>
+
+</div>
+
+
+<div class="col-lg-6">
+  <label class="form-label">
+    Subject <small class="text-danger">**</small>
+  </label>
+
+  <input
+    v-model="form.subject"
+    type="text"
+    class="form-control"
+    placeholder="Tulis subject atau pilih template"
+  />
+</div>
+
+
+<div class="col-lg-12">
+  <label class="form-label">
+    Notes <small class="text-success">(*opsional)</small>
+  </label>
+
+  <textarea v-model="form.notes" class="form-control" rows="3"></textarea>
+</div>
+
+
+           
           </div>
         </div>
 
