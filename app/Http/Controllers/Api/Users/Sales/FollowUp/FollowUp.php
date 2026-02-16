@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 use App\Models\MsFollowUp;
 use App\Models\MsLeadsModel;
 use App\Models\MsCustomers;
@@ -253,6 +254,17 @@ public function getLeadsNeedFollowUp(Request $request)
 
         ->whereNull('l.converted_at')
         ->whereNull('l.deleted_at')
+        
+
+           ->where(function ($q) {
+    $q->whereNull('l.lead_status')
+      ->orWhere('l.lead_status', '!=', 'failed');
+})
+
+// ->where(function ($q) {
+//     $q->whereNull('f.id')
+//       ->orWhere('f.status', 'New'); // ✅ ini fix utama
+// })
 
         ->where(function ($q) {
             $q->whereNull('f.id')
@@ -405,8 +417,15 @@ public function deleteFollowUp($id)
 {
     $userId = auth()->user()->id_user;
 
+    DB::beginTransaction();
+
     try {
-        // Pastikan follow up milik sales login
+
+        /*
+        |--------------------------------------------------------------------------
+        | 0️⃣ Validate Follow Up Ownership
+        |--------------------------------------------------------------------------
+        */
         $followUp = DB::table('follow_ups')
             ->where('id', $id)
             ->where('created_by', $userId)
@@ -421,20 +440,85 @@ public function deleteFollowUp($id)
             );
         }
 
-        // Soft delete
+
+        /*
+        |--------------------------------------------------------------------------
+        | 1️⃣ HARD DELETE activities (no soft delete)
+        |--------------------------------------------------------------------------
+        */
+        DB::table('follow_up_activities')
+            ->where('follow_up_id', $id)
+            ->delete();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 2️⃣ HARD DELETE follow up
+        |--------------------------------------------------------------------------
+        */
         DB::table('follow_ups')
             ->where('id', $id)
+            ->delete();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 3️⃣ Ambil semua visits untuk hapus FILE dulu
+        |--------------------------------------------------------------------------
+        */
+        $visits = DB::table('visits')
+            ->where('lead_id', $followUp->lead_id)
+            ->get();
+
+        foreach ($visits as $visit) {
+
+            // contoh isi DB: visits/checkin/IMG123.jpg
+            if (!empty($visit->photo)) {
+
+                $filePath = $visit->photo;
+
+                if (Storage::disk('public')->exists($filePath)) {
+                    Storage::disk('public')->delete($filePath);
+                }
+            }
+        }
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 4️⃣ HARD DELETE visits (setelah file aman dihapus)
+        |--------------------------------------------------------------------------
+        */
+        DB::table('visits')
+            ->where('lead_id', $followUp->lead_id)
+            ->delete();
+
+
+        /*
+        |--------------------------------------------------------------------------
+        | 5️⃣ Reset Lead ke kondisi awal
+        |--------------------------------------------------------------------------
+        */
+        DB::table('leads')
+            ->where('id', $followUp->lead_id)
             ->update([
-                'deleted_at' => now(),
-                'updated_at' => now(),
+                'lead_status'  => 'New',
+                'converted_at' => null,
+                'updated_at'   => now(),
             ]);
+
+
+        DB::commit();
 
         return ApiResponse::success(
             null,
-            'Success Delete Follow Up'
+            'Success Delete Follow Up, Visits & Images cleaned'
         );
 
     } catch (\Throwable $e) {
+
+        DB::rollBack();
+
         return ApiResponse::error(
             'Failed to delete follow up',
             config('app.debug') ? ['exception' => $e->getMessage()] : null,
@@ -445,59 +529,6 @@ public function deleteFollowUp($id)
 
 
 
-
-
-
-// public function showFollowUp($id)
-// {
-//     $userId = auth()->user()->id_user;
-
-//     try {
-//         $followUp = DB::table('follow_ups as fu')
-//             ->select([
-//                 'fu.*',
-
-//                 // Lead
-//                 'l.company_name as lead_company_name',
-//                 'l.contact_name as lead_contact_name',
-//                 'l.lead_status',
-
-//                 // Customer
-//                 'c.company_name as customer_company_name',
-//                 'c.contact_name as customer_contact_name',
-
-//                 // Sales
-//                 'sales.fullname',
-//             ])
-//             ->leftJoin('leads as l', 'l.id', '=', 'fu.lead_id')
-//             ->leftJoin('customers as c', 'c.id', '=', 'fu.customer_id')
-//             ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'fu.created_by')
-//             ->where('fu.id', $id)
-//             ->where('fu.created_by', $userId)
-//             ->whereNull('fu.deleted_at')
-//             ->first();
-
-//         if (!$followUp) {
-//             return ApiResponse::error(
-//                 'Follow up not found or access denied',
-//                 null,
-//                 404
-//             );
-//         }
-
-//         return ApiResponse::success(
-//             new FollowUpLeadResources($followUp),
-//             'Success Get Follow Up Detail'
-//         );
-
-//     } catch (\Throwable $e) {
-//         return ApiResponse::error(
-//             'Failed to get follow up detail',
-//             config('app.debug') ? ['exception' => $e->getMessage()] : null,
-//             500
-//         );
-//     }
-// }
 
 
 public function showFollowUp($id)
@@ -575,6 +606,7 @@ public function showFollowUp($id)
         );
     }
 }
+
 
 
 

@@ -31,8 +31,9 @@ const leadsOptions = ref([]);
 const loadingLeadsOptions = ref(false);
 let leadsSearchTimeout = null;
 
-
-
+ const deletingFollowUp = ref(false)
+ const followUpDetail = ref(null)
+ const loadingDetail = ref(false);
 
   const pagination = reactive({
     current_page: 1,
@@ -167,9 +168,7 @@ const fetchLeadsOptions = async (keyword = "") => {
     const res = await axios.get(`${endpoints.leadsSelect}?${params.toString()}`, {
       headers: getAuthHeader(),
     });
-
     leadsOptions.value = res.data.data ?? [];
-
   } catch (err) {
     console.error("Fetch Leads Options Failed:", err);
     leadsOptions.value = [];
@@ -214,10 +213,78 @@ const typeFollowUp = ref([
   })
 }
 
+const formatDates = (value) => {
+    if (!value) return "-"
+    const date = new Date(value)
+    return date.toLocaleDateString("id-ID", {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    })
+  }
+
+                            const deleteFollowUp = async (id) => {
+                                  deletingFollowUp.value = true
+
+                                  try {
+                                    await axios.delete(`/api/follow-up/delete/${id}`, {
+                                      headers: getAuthHeader(),
+                                    })
+
+                                    await fetchFollowUps()
+
+                                    Swal.fire({
+                                      icon: 'success',
+                                      title: 'Succeed',
+                                      text: 'Follow Up successfully deleted',
+                                      timer: 1500,
+                                      showConfirmButton: false,
+                                    })
+
+                                  } catch (err) {
+                                    if (err.response?.status === 403) {
+                                      Swal.fire(
+                                        'Access Denied',
+                                        'You do not have permission to delete the follow up',
+                                        'error'
+                                      )
+                                    } else {
+                                      Swal.fire(
+                                        'Error',
+                                        err.response?.data?.message || 'Failed to delete follow up',
+                                        'error'
+                                      )
+                                    }
+                                    throw err
+                                  } finally {
+                                    deletingFollowUp.value = false
+                                  }
+                                }
+
+
+                                 const detailFollowUpData = async (followUpId) => {
+                                loadingDetail.value = true
+                                try {
+                                    const res = await axios.get(`/api/follow-up/show/${followUpId}`, {
+                                    headers: getAuthHeader(),
+                                    })
+                                    followUpDetail.value = res.data.data
+                                } catch (err) {
+                                     Swal.fire({
+                                      icon: "error",
+                                      title: "Failed!",
+                                      text: err.response?.data?.message || "Failed to fetch follow up details.",
+                                      confirmButtonText: "OK",
+                                    })
+                                } finally {
+                                    loadingDetail.value = false
+                                }
+                                }
 
   return {
     followUp,
     loading,
+    loadingDetail,
     search,
     pagination,
     sort,
@@ -237,6 +304,7 @@ const typeFollowUp = ref([
     fetchTimeline,
     clearTimeline,
     typeFollowUp,
+    formatDates,
 
 
     //  untuk select 
@@ -246,6 +314,12 @@ const typeFollowUp = ref([
     searchLeadsOptions,
 
     formatDate,
+
+    deletingFollowUp,
+    deleteFollowUp,
+
+    followUpDetail,
+    detailFollowUpData
 
 
   };

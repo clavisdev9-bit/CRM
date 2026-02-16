@@ -88,6 +88,40 @@ const fpConfig = {
 }
 
 
+const followUpStatusConfig = {
+  PENDING: {
+    class: 'bg-warning text-dark',
+    label: 'PENDING',
+  },
+  DONE: {
+    class: 'bg-success',
+    label: 'DONE',
+  },
+  CANCELED: {
+    class: 'bg-danger',
+    label: 'CANCELED',
+  },
+}
+
+const normalizeFollowUpStatus = (status) => {
+  if (!status) return ''
+
+  // mapping typo lama dari DB
+  if (status === 'CANCELLED') return 'CANCELED'
+
+  return status.toUpperCase()
+}
+
+const getFollowUpStatus = (status) => {
+  const normalized = normalizeFollowUpStatus(status)
+
+  return followUpStatusConfig[normalized] || {
+    class: 'bg-secondary',
+    label: normalized || '-',
+  }
+}
+
+
 const submitFollowUp = async () => {
   loading.value = true;
   try {
@@ -102,6 +136,70 @@ const submitFollowUp = async () => {
     loading.value = false;
   }
 };
+
+
+
+const handleDeleteFollowUp = async (followUp) => {
+  const { isConfirmed } = await Swal.fire({
+    title: 'Delete Follow Up?',
+    html: `Follow Up <b>"${followUp.follow_up_code}"</b> will be permanently deleted.`,
+    icon: 'warning',
+    showCancelButton: true,
+    confirmButtonColor: '#d33',
+    confirmButtonText: 'Yes, delete',
+    cancelButtonText: 'Cancel',
+    reverseButtons: true,
+  })
+
+  if (!isConfirmed) return
+
+  try {
+    Swal.fire({
+      title: 'Deleting...',
+      allowOutsideClick: false,
+      didOpen: () => Swal.showLoading(),
+    })
+
+    //  ID USER YANG BENAR
+    await followUpStore.deleteFollowUp(followUp.id)
+
+    Swal.fire({
+      icon: 'success',
+      title: 'Deleted!',
+      text: 'Follow Up has been deleted successfully.',
+      timer: 1500,
+      showConfirmButton: false,
+    })
+  } catch (e) {
+    console.error(e)
+
+    Swal.fire({
+      icon: 'error',
+      title: 'Failed',
+      text:
+        e.response?.data?.message ||
+        'Failed to delete follow up.',
+    })
+  }
+}
+
+
+
+const openDetailFollowUp = async (followUp) => {
+  try {
+    followUpStore.followUpDetail = null // reset dulu
+    await followUpStore.detailFollowUpData(followUp.id)
+
+    const modalEl = document.getElementById('followUpDetailModal')
+    const modal =
+      bootstrap.Modal.getInstance(modalEl) ||
+      new bootstrap.Modal(modalEl)
+
+    modal.show()
+  } catch (err) {
+    console.error(err)
+  }
+}
 
 
 
@@ -229,7 +327,7 @@ const submitFollowUp = async () => {
               <table class="table card-table table-vcenter">
             <thead>
               <tr>
-                   <th :colspan="mode === 'Leads' ? 11 : 11"
+                   <th :colspan="followUpStore.mode === 'Leads' ? 11 : 11"
                         class="bg-light fw-bold text-primary">
                       <i class="fa fa-table me-2"></i>
                       {{ followUpStore.mode === 'customers'
@@ -290,16 +388,12 @@ const submitFollowUp = async () => {
           >
             <!-- NO -->
             <td>{{ index + 1 }}</td>
-
             <!-- CODE -->
             <td>{{ item.follow_up_code }}</td>
-
             <!-- TYPE -->
             <td>{{ item.follow_up_type }}</td>
-
             <!-- SUBJECT -->
             <td>{{ item.subject }}</td>
-
             <!-- TARGET -->
             <td>
               <div class="fw-bold">{{ item.target_name }}</div>
@@ -362,16 +456,22 @@ const submitFollowUp = async () => {
               <button
                 v-if="item.status === 'PENDING'"
                 class="btn btn-sm btn-outline-primary me-1"
+                @click="handleDeleteFollowUp(item)"
               >
               <i class="fa-regular fa-trash-can"></i>
               </button>
 
-              <button
+             <button
                 v-if="item.status === 'PENDING'"
+                type="button"
+                data-bs-toggle="modal"
+                    data-bs-target="#followUpDetailModal"
                 class="btn btn-sm btn-outline-primary me-1 mt-1"
+                @click="openDetailFollowUp(item)"
               >
                 <i class="fa-regular fa-eye"></i>
-              </button>
+            </button>
+
               
               <span v-else class="badge bg-success">
                 {{ item.status }}
@@ -423,72 +523,128 @@ const submitFollowUp = async () => {
     </div>
 
 
-      <!-- Code Modal: Detail Data -->
-    <div class="modal modal-blur fade" id="timeLineModal" tabindex="-1" role="dialog" aria-hidden="true">
-      <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
-        <div class="modal-content">
-          
-          <!-- Header -->
-          <div class="modal-header">
-          <h5 class="modal-title">
-            Timeline - {{ followUpStore.selectedFollowUpCode }}
-          </h5>
 
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+
+<!-- code modal detail -->
+    <div class="modal fade" id="followUpDetailModal" tabindex="-1">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+
+      <!-- HEADER -->
+      <div class="modal-header">
+        <h5 class="modal-title">
+          Detail Follow Up
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <!-- BODY -->
+      <div class="modal-body">
+
+        <!-- LOADING -->
+        <div v-if="followUpStore.loadingDetail" class="text-center py-5">
+          <div class="spinner-border text-primary"></div>
+        </div>
+
+        <!-- DATA -->
+        <div v-else-if="followUpStore.followUpDetail">
+
+          <!-- CODE -->
+          <div class="alert alert-primary d-flex justify-content-between">
+            <div>
+              <strong>{{ followUpStore.followUpDetail.follow_up_code }}</strong><br>
+              {{ followUpStore.followUpDetail.target_name }}
+            </div>
+
+           <span
+              class="badge badge-pill"
+              :class="getFollowUpStatus(followUpStore.followUpDetail.status).class"
+            >
+              {{ getFollowUpStatus(followUpStore.followUpDetail.status).label }}
+            </span>
           </div>
 
-          <!-- Body -->
-        <div class="modal-body">
+          <div class="row g-3">
 
-            <!-- LOADING -->
-            <div v-if="followUpStore.loadingTimeline"
-                class="d-flex justify-content-center py-5">
-              <div class="spinner-border text-primary"></div>
+            <div class="col-md-6">
+              <label class="form-label">Follow Up Type</label>
+              <input class="form-control"
+                :value="followUpStore.followUpDetail.follow_up_type"
+                readonly>
             </div>
 
-            <!-- EMPTY -->
-            <div v-else-if="followUpStore.timeline.length === 0"
-                class="text-center text-muted py-4">
-              No Activity Found
+            <div class="col-md-6">
+              <label class="form-label">Sales</label>
+              <input class="form-control"
+                :value="followUpStore.followUpDetail.sales_name"
+                readonly>
             </div>
 
-            <!-- TIMELINE -->
-            <div v-else class="timeline-wrapper">
-
-              <div
-                v-for="(item, index) in followUpStore.timeline"
-                :key="index"
-                class="timeline-step"
-              >
-                <div class="circle" :class="{ active: index === 0 }"></div>
-
-                <div class="label fw-bold">
-                  {{ item.activity }}
-                </div>
-
-                <small class="text-muted d-block">
-                  {{ item.activity_at }}
-                </small>
-
-                <div class="small mt-2">
-                  {{ item.description }}
-                </div>
-              </div>
-
+            <div class="col-md-12">
+              <label class="form-label">Subject</label>
+              <input class="form-control"
+                :value="followUpStore.followUpDetail.subject"
+                readonly>
             </div>
-          </div>
 
-          <!-- Footer -->
-          <div class="modal-footer">
-            <button type="button" class="btn btn-link link-secondary" data-bs-dismiss="modal">
-              Close
-            </button>
+            <div class="col-md-12">
+              <label class="form-label">Notes</label>
+              <textarea class="form-control" rows="4" readonly>
+                {{ followUpStore.followUpDetail.notes }}
+              </textarea>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Follow Up Retun Estimate</label>
+              <input class="form-control"
+                :value="followUpStore.formatDates(followUpStore.followUpDetail.follow_up_at)"
+                readonly>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Created Date</label>
+              <input class="form-control"
+                :value="followUpStore.formatDates(followUpStore.followUpDetail.created_at)"
+                readonly>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Lead Company</label>
+              <input class="form-control"
+                :value="followUpStore.followUpDetail.lead_company_name"
+                readonly>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Lead Status</label>
+              <input class="form-control"
+                :value="followUpStore.followUpDetail.lead_status"
+                readonly>
+            </div>
+
           </div>
         </div>
+
+        <!-- EMPTY -->
+        <div v-else class="text-center text-muted py-5">
+          Data tidak ditemukan
+        </div>
+
       </div>
+
+      <!-- FOOTER -->
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">
+          Close
+        </button>
+      </div>
+
     </div>
+  </div>
+</div>
 
 
+<!-- form add dan edit -->
    <div class="modal modal-blur fade" id="form-leads" tabindex="-1" role="dialog" aria-hidden="true">
     <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
       <div class="modal-content">
@@ -632,6 +788,74 @@ const submitFollowUp = async () => {
       </div>
     </div>
   </div>
+
+
+
+
+   <!-- Code Modal: Timeline Data -->
+    <div class="modal modal-blur fade" id="timeLineModal" tabindex="-1" role="dialog" aria-hidden="true">
+      <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+        <div class="modal-content">
+          
+          <!-- Header -->
+          <div class="modal-header">
+          <h5 class="modal-title">
+            Timeline - {{ followUpStore.selectedFollowUpCode }}
+          </h5>
+
+            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+          </div>
+
+          <!-- Body -->
+        <div class="modal-body">
+
+            <!-- LOADING -->
+            <div v-if="followUpStore.loadingTimeline"
+                class="d-flex justify-content-center py-5">
+              <div class="spinner-border text-primary"></div>
+            </div>
+
+            <!-- EMPTY -->
+            <div v-else-if="followUpStore.timeline.length === 0"
+                class="text-center text-muted py-4">
+              No Activity Found
+            </div>
+
+            <!-- TIMELINE -->
+            <div v-else class="timeline-wrapper">
+
+              <div
+                v-for="(item, index) in followUpStore.timeline"
+                :key="index"
+                class="timeline-step"
+              >
+                <div class="circle" :class="{ active: index === 0 }"></div>
+
+                <div class="label fw-bold">
+                  {{ item.activity }}
+                </div>
+
+                <small class="text-muted d-block">
+                  {{ item.activity_at }}
+                </small>
+
+                <div class="small mt-2">
+                  {{ item.description }}
+                </div>
+              </div>
+
+            </div>
+          </div>
+
+          <!-- Footer -->
+          <div class="modal-footer">
+            <button type="button" class="btn btn-link link-secondary" data-bs-dismiss="modal">
+              Close
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
 
   </backendLayouts>
 </template>
