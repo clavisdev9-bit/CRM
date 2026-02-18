@@ -116,19 +116,13 @@ public function followUpSalesByLeads(FollowUpValidationIndex $request)
 }
 
 
-         
-
-
 
 public function getLeadsNeedFollowUp(Request $request)
 {
     $userId = auth()->user()->id_user;
 
-    $query = DB::table('leads as l')
-        ->leftJoin('follow_ups as f', function ($join) {
-            $join->on('f.lead_id', '=', 'l.id')
-                 ->whereNull('f.deleted_at');
-        })
+    $query = DB::table('follow_ups as f') // 🔥 mulai dari follow_up (bukan leads)
+        ->join('leads as l', 'l.id', '=', 'f.lead_id')
 
         ->select([
             'l.id as lead_id',
@@ -143,7 +137,6 @@ public function getLeadsNeedFollowUp(Request $request)
 
             DB::raw("
                 CASE
-                    WHEN f.id IS NULL THEN 'NO_SCHEDULE'
                     WHEN f.follow_up_at < NOW() THEN 'OVERDUE'
                     WHEN f.follow_up_at BETWEEN NOW() AND NOW() + INTERVAL '1 DAY' THEN 'DUE_SOON'
                     ELSE 'SCHEDULED'
@@ -151,46 +144,27 @@ public function getLeadsNeedFollowUp(Request $request)
             "),
 
             DB::raw("
-                CASE
-                    WHEN f.follow_up_at IS NULL THEN NULL
-                    ELSE EXTRACT(EPOCH FROM (f.follow_up_at - NOW()))
-                END as seconds_remaining
+                EXTRACT(EPOCH FROM (f.follow_up_at - NOW()))
+                as seconds_remaining
             ")
         ])
 
+        // hanya milik sales login
         ->where(function ($q) use ($userId) {
             $q->where('l.created_by', $userId)
               ->orWhere('l.assigned_to', $userId);
         })
 
-        ->whereNull('l.converted_at')
+        ->whereNull('f.deleted_at')
         ->whereNull('l.deleted_at')
-        
+        ->whereNull('l.converted_at')
 
-           ->where(function ($q) {
-    $q->whereNull('l.lead_status')
-      ->orWhere('l.lead_status', '!=', 'failed');
-})
+        // ❗ hanya follow up yang masih aktif
+        ->whereNotIn('f.status', ['DONE', 'CANCELLED'])
 
-// ->where(function ($q) {
-//     $q->whereNull('f.id')
-//       ->orWhere('f.status', 'New'); // ✅ ini fix utama
-// })
-
-        ->where(function ($q) {
-            $q->whereNull('f.id')
-              ->orWhereNotIn('f.status', ['DONE', 'CANCEL']);
-        })
-
-        ->orderByRaw("COALESCE(f.follow_up_at, l.created_at) ASC");
+        ->orderBy('f.follow_up_at', 'ASC');
 
     $data = $query->limit(50)->get()->map(function ($item) {
-
-        if (!$item->seconds_remaining) {
-            $item->time_remaining_text = 'Data is created directly for follow-up purposes.';
-            $item->follow_up_at_formatted = null;
-            return $item;
-        }
 
         $seconds = (int) $item->seconds_remaining;
 
@@ -216,15 +190,124 @@ public function getLeadsNeedFollowUp(Request $request)
 
         $item->time_remaining_text = $text;
 
-        $item->follow_up_at_formatted = $item->follow_up_at
-            ? Carbon::parse($item->follow_up_at)->format('d M Y H:i')
-            : null;
+        $item->follow_up_at_formatted = Carbon::parse($item->follow_up_at)
+            ->format('d M Y H:i');
 
         return $item;
     });
 
     return ApiResponse::success($data, 'Leads Need Follow Up');
 }
+
+         
+
+
+// okay
+// public function getLeadsNeedFollowUp(Request $request)
+// {
+//     $userId = auth()->user()->id_user;
+
+//     $query = DB::table('leads as l')
+//         ->leftJoin('follow_ups as f', function ($join) {
+//             $join->on('f.lead_id', '=', 'l.id')
+//                  ->whereNull('f.deleted_at');
+//         })
+
+//         ->select([
+//             'l.id as lead_id',
+//             'l.company_name',
+//             'l.contact_name',
+
+//             'f.id as follow_up_id',
+//             'f.follow_up_code',
+//             'f.follow_up_at',
+//             'f.status',
+//             'f.subject',
+
+//             DB::raw("
+//                 CASE
+//                     WHEN f.id IS NULL THEN 'NO_SCHEDULE'
+//                     WHEN f.follow_up_at < NOW() THEN 'OVERDUE'
+//                     WHEN f.follow_up_at BETWEEN NOW() AND NOW() + INTERVAL '1 DAY' THEN 'DUE_SOON'
+//                     ELSE 'SCHEDULED'
+//                 END as urgency_status
+//             "),
+
+//             DB::raw("
+//                 CASE
+//                     WHEN f.follow_up_at IS NULL THEN NULL
+//                     ELSE EXTRACT(EPOCH FROM (f.follow_up_at - NOW()))
+//                 END as seconds_remaining
+//             ")
+//         ])
+
+//         ->where(function ($q) use ($userId) {
+//             $q->where('l.created_by', $userId)
+//               ->orWhere('l.assigned_to', $userId);
+//         })
+
+//         ->whereNull('l.converted_at')
+//         ->whereNull('l.deleted_at')
+        
+
+//            ->where(function ($q) {
+//     $q->whereNull('l.lead_status')
+//       ->orWhere('l.lead_status', '!=', 'failed');
+// })
+
+// // ->where(function ($q) {
+// //     $q->whereNull('f.id')
+// //       ->orWhere('f.status', 'New'); // ✅ ini fix utama
+// // })
+
+//         ->where(function ($q) {
+//             $q->whereNull('f.id')
+//               ->orWhereNotIn('f.status', ['DONE', 'CANCEL']);
+//         })
+
+//         ->orderByRaw("COALESCE(f.follow_up_at, l.created_at) ASC");
+
+//     $data = $query->limit(50)->get()->map(function ($item) {
+
+//         if (!$item->seconds_remaining) {
+//             $item->time_remaining_text = 'Data is created directly for follow-up purposes.';
+//             $item->follow_up_at_formatted = null;
+//             return $item;
+//         }
+
+//         $seconds = (int) $item->seconds_remaining;
+
+//         if ($seconds < 0) {
+//             $seconds = abs($seconds);
+
+//             if ($seconds < 3600) {
+//                 $text = "Overdue " . floor($seconds / 60) . " min";
+//             } elseif ($seconds < 86400) {
+//                 $text = "Overdue " . floor($seconds / 3600) . " hour";
+//             } else {
+//                 $text = "Overdue " . floor($seconds / 86400) . " day";
+//             }
+//         } else {
+//             if ($seconds < 3600) {
+//                 $text = floor($seconds / 60) . " min left";
+//             } elseif ($seconds < 86400) {
+//                 $text = floor($seconds / 3600) . " hour left";
+//             } else {
+//                 $text = floor($seconds / 86400) . " day left";
+//             }
+//         }
+
+//         $item->time_remaining_text = $text;
+
+//         $item->follow_up_at_formatted = $item->follow_up_at
+//             ? Carbon::parse($item->follow_up_at)->format('d M Y H:i')
+//             : null;
+
+//         return $item;
+//     });
+
+//     return ApiResponse::success($data, 'Leads Need Follow Up');
+// }
 
 
 
@@ -520,49 +603,12 @@ public function showFollowUp($id)
 
 
 
-// time line lama
-// public function timeline($id)
-// {
-//     // Ambil header follow up
-//     $followUp = DB::table('follow_ups')
-//         ->select('id', 'follow_up_code')
-//         ->where('id', $id)
-//         ->first();
-
-//     if (!$followUp) {
-//         return response()->json([
-//             'message' => 'Follow Up not found'
-//         ], 404);
-//     }
-
-//     // Ambil history activity
-//     $activities = DB::table('follow_up_activities')
-//         ->where('follow_up_id', $id)
-//         ->orderBy('activity_at', 'asc')
-//         ->get()
-//         ->map(function ($act) {
-//             return [
-//                 'activity'     => $act->title,
-//                 'description'  => $act->description,
-//                 'activity_at'  => Carbon::parse($act->activity_at)->format('d M Y H:i'),
-//                 'type'         => $act->activity_type,
-//             ];
-//         });
-
-//     return response()->json([
-//         'data' => [
-//             'follow_up_code' => $followUp->follow_up_code,
-//             'histories'      => $activities,
-//         ]
-//     ]);
-// }
-
 
 public function timeline($id)
 {
     /*
     |--------------------------------------------------------------------------
-    | 1️⃣ Ambil Follow Up yg diklik
+    | Ambil Follow Up yang diklik
     |--------------------------------------------------------------------------
     */
     $followUp = DB::table('follow_ups')
@@ -578,59 +624,77 @@ public function timeline($id)
 
     /*
     |--------------------------------------------------------------------------
-    | 2️⃣ Ambil SEMUA follow-up dalam 1 lead (ini kuncinya)
+    | Ambil semua follow-up dalam 1 lead (Journey Lead)
     |--------------------------------------------------------------------------
     */
-    $followUpIds = DB::table('follow_ups')
+    $followUps = DB::table('follow_ups')
         ->where('lead_id', $followUp->lead_id)
         ->orderBy('created_at', 'asc')
-        ->pluck('id');
+        ->get(['id', 'follow_up_code']);
+
+    $followUpIds = $followUps->pluck('id');
 
     /*
     |--------------------------------------------------------------------------
-    | 3️⃣ Ambil semua activity dari seluruh follow-up itu
+    | Ambil semua aktivitas dari seluruh follow-up tsb
     |--------------------------------------------------------------------------
     */
     $activities = DB::table('follow_up_activities as act')
         ->join('follow_ups as fu', 'fu.id', '=', 'act.follow_up_id')
         ->whereIn('act.follow_up_id', $followUpIds)
-        ->orderBy('act.activity_at', 'asc')
+        ->orderBy('act.activity_at', 'asc') // URUT BERDASARKAN WAKTU KEJADIAN
         ->select([
+            'act.id',
             'act.activity_type',
             'act.title',
             'act.description',
             'act.activity_at',
-            'fu.follow_up_code'
+            'fu.follow_up_code',
+            'fu.id as follow_up_id'
         ])
-        ->get()
-        ->map(function ($act) {
-            return [
-                'follow_up_code' => $act->follow_up_code, // penting utk UI
-                'activity'       => $act->title,
-                'description'    => $act->description,
-                'activity_at'    => Carbon::parse($act->activity_at)->format('d M Y H:i'),
-                'type'           => $act->activity_type,
-            ];
-        });
+        ->get();
 
     /*
     |--------------------------------------------------------------------------
-    | 4️⃣ Return sebagai "Lead Journey"
+    | Mapping → format siap pakai UI
+    |--------------------------------------------------------------------------
+    */
+    $histories = $activities->map(function ($act) {
+
+        return [
+            'follow_up_code' => $act->follow_up_code,
+            'follow_up_id'   => $act->follow_up_id,
+
+            'activity'       => $act->title,
+            'description'    => $act->description,
+
+            'type'           => $act->activity_type,
+
+            // waktu asli (untuk sorting FE jika perlu)
+            'activity_raw'   => $act->activity_at,
+
+            // waktu formatted (untuk display)
+            'activity_at'    => Carbon::parse($act->activity_at)
+                                    ->timezone('Asia/Jakarta')
+                                    ->format('d M Y H:i'),
+        ];
+    });
+
+    /*
+    |--------------------------------------------------------------------------
+    | Response sebagai LEAD JOURNEY
     |--------------------------------------------------------------------------
     */
     return response()->json([
         'data' => [
-            'lead_id'         => $followUp->lead_id,
-            'current_followup'=> $followUp->follow_up_code,
-            'histories'       => $activities,
+            'lead_id'          => $followUp->lead_id,
+            'current_followup' => $followUp->follow_up_code,
+            'total_followups'  => $followUps->count(),
+            'histories'        => $histories,
         ]
     ]);
 }
 
-
-
-
-// code store follow up baru
 
  // generate code follow up
  public function generateFollowUpCode(): string
@@ -680,397 +744,17 @@ public function timeline($id)
         }
 
 
-    //    ini code lama, tapi untuk submit hasil follow up yang sudah dikerjakan
-        // public function submitResult(Request $request, $id)
-        // {
-        //     $request->validate([
-        //         'status' => 'required|in:Done',
-        //         'done_action' => 'required|in:convert,failed',
-        //         'notes' => 'nullable|string'
-        //     ]);
 
-        //     DB::beginTransaction();
-
-        //     try {
-
-        //         $followUp = DB::table('follow_ups')
-        //             ->lockForUpdate()
-        //             ->where('id', $id)
-        //             ->first();
-
-        //         if (!$followUp) {
-        //             throw new \Exception('Follow up tidak ditemukan');
-        //         }
-
-        //         /*
-        //         |--------------------------------------------------------------------------
-        //         | 1️⃣ Update FOLLOW-UP YANG DIKERJAKAN SAJA
-        //         |--------------------------------------------------------------------------
-        //         */
-        //         DB::table('follow_ups')
-        //             ->where('id', $id)
-        //             ->update([
-        //                 'status' => 'DONE',
-        //                 'completed_at' => now(),
-        //                 'notes' => $request->notes,
-        //                 'updated_at' => now(),
-        //             ]);
-
-        //         /*
-        //         |--------------------------------------------------------------------------
-        //         | 2️⃣ Log Activity Follow-up Done
-        //         |--------------------------------------------------------------------------
-        //         */
-        //         DB::table('follow_up_activities')->insert([
-        //             'follow_up_id' => $id,
-        //             'title' => 'Follow Up Done',
-        //             'description' => 'Follow up telah diselesaikan',
-        //             'activity_type' => 'EXECUTED',
-        //             'activity_at' => now(),
-        //             'created_at' => now(),
-        //         ]);
-
-        //         /*
-        //         |--------------------------------------------------------------------------
-        //         | 3️⃣ HANDLE PILIHAN LANJUTAN
-        //         |--------------------------------------------------------------------------
-        //         */
-
-        //         if ($request->done_action === 'convert') {
-
-        //             /*
-        //             |--------------------------------------------------
-        //             | CONVERT → UPDATE LEAD
-        //             |--------------------------------------------------
-        //             */
-        //             DB::table('leads')->where('id', $followUp->lead_id)->update([
-        //                 'lead_status' => 'converted',
-        //                 'updated_at' => now(),
-        //             ]);
-
-        //             $lead = DB::table('leads')->where('id', $followUp->lead_id)->first();
-
-        //             /*
-        //             |--------------------------------------------------
-        //             | INSERT CUSTOMER BARU
-        //             |--------------------------------------------------
-        //             */
-        //         $user    = auth()->user();
-        //             $salesId = $user->id_user;
-
-        //             DB::table('customers')->insert([
-        //                 'customer_code' => $this->generateCustomerCode(),
-        //                 'lead_id' => $lead->id,
-        //                 'company_name' => $lead->company_name,
-        //                 'contact_name' => $lead->contact_name,
-        //                 'industry_id' => $lead->industry_id,
-        //                 'email' => $lead->email,
-        //                 'phone' => $lead->phone,
-        //                 'address' => $lead->address,
-        //                 'customer_status' => 'Active',
-        //                 'converted_at' => now(),
-        //                 'created_by' => $salesId,
-        //                 'created_at' => now(),
-        //                 'updated_at' => now(),
-        //                 'id_user' =>  $salesId,
-        //             ]);
-
-        //             /*
-        //             |--------------------------------------------------
-        //             | AUTO TUTUP FOLLOW-UP LAIN (IMPORTANT)
-        //             |--------------------------------------------------
-        //             */
-        //             DB::table('follow_ups')
-        //                 ->where('lead_id', $followUp->lead_id)
-        //                 ->where('id', '!=', $id)
-        //                 ->whereNull('completed_at')
-        //                 ->update([
-        //                     'status' => 'DONE',
-        //                     'completed_at' => now(),
-        //                     'updated_at' => now(),
-        //                 ]);
-
-        //             /*
-        //             |--------------------------------------------------
-        //             | LOG CONVERT
-        //             |--------------------------------------------------
-        //             */
-        //             DB::table('follow_up_activities')->insert([
-        //                 'follow_up_id' => $id,
-        //                 'title' => 'Lead Converted',
-        //                 'description' => 'Lead berhasil dikonversi menjadi customer',
-        //                 'activity_type' => 'LEAD_CONVERTED',
-        //                 'activity_at' => now(),
-        //                 'created_at' => now(),
-        //             ]);
-
-        //         } else {
-
-        //             /*
-        //             |--------------------------------------------------
-        //             | FAILED → UPDATE LEAD
-        //             |--------------------------------------------------
-        //             */
-        //             DB::table('leads')->where('id', $followUp->lead_id)->update([
-        //                 'lead_status' => 'failed',
-        //                 'updated_at' => now(),
-        //             ]);
-
-        //             /*
-        //             |--------------------------------------------------
-        //             | AUTO TUTUP FOLLOW-UP LAIN
-        //             |--------------------------------------------------
-        //             */
-        //             DB::table('follow_ups')
-        //                 ->where('lead_id', $followUp->lead_id)
-        //                 ->where('id', '!=', $id)
-        //                 ->whereNull('completed_at')
-        //                 ->update([
-        //                     'status' => 'DONE',
-        //                     'completed_at' => now(),
-        //                     'updated_at' => now(),
-        //                 ]);
-
-        //             /*
-        //             |--------------------------------------------------
-        //             | LOG FAILED
-        //             |--------------------------------------------------
-        //             */
-        //             DB::table('follow_up_activities')->insert([
-        //                 'follow_up_id' => $id,
-        //                 'title' => 'Lead Failed',
-        //                 'description' => 'Lead dinyatakan gagal',
-        //                 'activity_type' => 'LEAD_FAILED',
-        //                 'activity_at' => now(),
-        //                 'created_at' => now(),
-        //             ]);
-        //         }
-
-        //         DB::commit();
-
-        //         return ApiResponse::success(null, "Follow Up berhasil disimpan");
-
-        //     } catch (\Throwable $e) {
-        //         DB::rollBack();
-        //         throw $e;
-        //     }
-        // }
-
-
-        // code ke2
-//         public function submitResult(Request $request, $id)
-// {
-//     $request->validate([
-//         'status' => 'required|in:DONE,PENDING',
-//         'done_action' => 'required_if:status,DONE|in:convert,failed',
-//         'follow_up_at' => 'required_if:status,PENDING|date',
-//         'lead_category' => 'nullable|in:potential_customers,consideration_stage,prospective_customers',
-//         'notes' => 'nullable|string'
-//     ]);
-
-//     DB::beginTransaction();
-
-//     try {
-
-//         $followUp = DB::table('follow_ups')
-//             ->lockForUpdate()
-//             ->where('id', $id)
-//             ->first();
-
-//         if (!$followUp) {
-//             throw new \Exception('Follow up tidak ditemukan');
-//         }
-
-//         /*
-//         |------------------------------------------------------------------
-//         | 🔵 CASE A : STATUS = PENDING (LANJUT FOLLOW-UP)
-//         |------------------------------------------------------------------
-//         */
-//         if ($request->status === 'PENDING') {
-
-//         $user    = auth()->user();
-//                     $salesId = $user->id_user;
-//             // 1️⃣ Close Follow-Up sekarang
-//             DB::table('follow_ups')
-//                 ->where('id', $id)
-//                 ->update([
-//                     'status' => 'DONE',
-//                     'completed_at' => now(),
-//                     'notes' => $request->notes,
-//                     'updated_at' => now(),
-//                 ]);
-
-//             // 2️⃣ Update Lead Progress (opsional stage)
-//             $leadUpdate = [
-//                 'last_contacted_at' => now(),
-//                 'updated_at' => now(),
-//             ];
-
-//             if ($request->lead_category) {
-//                 $leadUpdate['lead_status'] = $request->lead_category;
-//             }
-
-//             DB::table('leads')
-//                 ->where('id', $followUp->lead_id)
-//                 ->update($leadUpdate);
-
-//             // 3️⃣ Generate Follow-Up Baru (REMINDER BERIKUTNYA)
-//             $newFollowUpId = DB::table('follow_ups')->insertGetId([
-//                 'follow_up_code' => $this->generateFollowUpCode(), // ✅ WAJIB
-//                 'lead_id' => $followUp->lead_id,
-//                 'subject' => $request->subject,
-//                 'follow_up_type' => $request->follow_up_type,
-//                 'follow_up_at' => $request->follow_up_at,
-//                 'status' => 'PENDING',
-//                 'created_by' => $salesId,
-//                 'created_at' => now(),
-//                 'updated_at' => now(),
-//             ]);
-
-
-//             // 4️⃣ Log Activity
-//             DB::table('follow_up_activities')->insert([
-//                 'follow_up_id' => $id,
-//                 'title' => 'Next Follow Up Scheduled',
-//                 'description' => 'Follow up berikutnya dijadwalkan pada '
-//                     . \Carbon\Carbon::parse($request->follow_up_at)->format('d M Y H:i'),
-//                 'activity_type' => 'NEXT_FOLLOW_UP',
-//                 'activity_at' => now(),
-//                 'created_at' => now(),
-//             ]);
-
-//             DB::commit();
-//             return ApiResponse::success(null, "Follow Up lanjutan berhasil dijadwalkan");
-//         }
-
-//         /*
-//         |------------------------------------------------------------------
-//         | 🟢 CASE B : STATUS = DONE (FLOW LAMA)
-//         |------------------------------------------------------------------
-//         */
-
-//         // Update follow-up yang dikerjakan
-//         DB::table('follow_ups')
-//             ->where('id', $id)
-//             ->update([
-//                 'status' => 'DONE',
-//                 'completed_at' => now(),
-//                 'notes' => $request->notes,
-//                 'updated_at' => now(),
-//             ]);
-
-//         // Log Done
-//         DB::table('follow_up_activities')->insert([
-//             'follow_up_id' => $id,
-//             'title' => 'Follow Up Done',
-//             'description' => 'Follow up telah diselesaikan',
-//             'activity_type' => 'EXECUTED',
-//             'activity_at' => now(),
-//             'created_at' => now(),
-//         ]);
-
-//         /*
-//         |------------------------------------------------------------------
-//         | HANDLE DONE ACTION
-//         |------------------------------------------------------------------
-//         */
-
-//         if ($request->done_action === 'convert') {
-
-//             DB::table('leads')->where('id', $followUp->lead_id)->update([
-//                 'lead_status' => 'converted',
-//                 'updated_at' => now(),
-//             ]);
-
-//             $lead = DB::table('leads')->where('id', $followUp->lead_id)->first();
-
-//             $salesId = auth()->user()->id_user;
-
-//             DB::table('customers')->insert([
-//                 'customer_code' => $this->generateCustomerCode(),
-//                 'lead_id' => $lead->id,
-//                 'company_name' => $lead->company_name,
-//                 'contact_name' => $lead->contact_name,
-//                 'industry_id' => $lead->industry_id,
-//                 'email' => $lead->email,
-//                 'phone' => $lead->phone,
-//                 'address' => $lead->address,
-//                 'customer_status' => 'Active',
-//                 'converted_at' => now(),
-//                 'created_by' => $salesId,
-//                 'created_at' => now(),
-//                 'updated_at' => now(),
-//                 'id_user' => $salesId,
-//             ]);
-
-//             // Tutup follow-up lain
-//             DB::table('follow_ups')
-//                 ->where('lead_id', $followUp->lead_id)
-//                 ->where('id', '!=', $id)
-//                 ->whereNull('completed_at')
-//                 ->update([
-//                     'status' => 'DONE',
-//                     'completed_at' => now(),
-//                     'updated_at' => now(),
-//                 ]);
-
-//             DB::table('follow_up_activities')->insert([
-//                 'follow_up_id' => $id,
-//                 'title' => 'Lead Converted',
-//                 'description' => 'Lead berhasil dikonversi menjadi customer',
-//                 'activity_type' => 'LEAD_CONVERTED',
-//                 'activity_at' => now(),
-//                 'created_at' => now(),
-//             ]);
-
-//         } else {
-
-//             DB::table('leads')->where('id', $followUp->lead_id)->update([
-//                 'lead_status' => 'failed',
-//                 'updated_at' => now(),
-//             ]);
-
-//             DB::table('follow_ups')
-//                 ->where('lead_id', $followUp->lead_id)
-//                 ->where('id', '!=', $id)
-//                 ->whereNull('completed_at')
-//                 ->update([
-//                     'status' => 'DONE',
-//                     'completed_at' => now(),
-//                     'updated_at' => now(),
-//                 ]);
-
-//             DB::table('follow_up_activities')->insert([
-//                 'follow_up_id' => $id,
-//                 'title' => 'Lead Failed',
-//                 'description' => 'Lead dinyatakan gagal',
-//                 'activity_type' => 'LEAD_FAILED',
-//                 'activity_at' => now(),
-//                 'created_at' => now(),
-//             ]);
-//         }
-
-//         DB::commit();
-//         return ApiResponse::success(null, "Follow Up berhasil disimpan");
-
-//     } catch (\Throwable $e) {
-//         DB::rollBack();
-//         throw $e;
-//     }
-// }
-
-
-
-public function submitResult(Request $request, $id)
+public function submitResultFollowUp(Request $request, $id)
 {
     $request->validate([
-        'status' => 'required|in:DONE,PENDING',
-        'done_action' => 'required_if:status,DONE|in:convert,failed',
-        'follow_up_at' => 'required_if:status,PENDING|date',
-        'subject' => 'nullable|string',
-        'follow_up_type' => 'nullable|string',
-        'lead_category' => 'nullable|in:potential_customers,consideration_stage,prospective_customers',
-        'notes' => 'nullable|string'
+        'status'          => 'required|in:DONE,PENDING',
+        'done_action'     => 'required_if:status,DONE|in:convert,failed',
+        'follow_up_at'    => 'required_if:status,PENDING|date',
+        'subject'         => 'nullable|string',
+        'follow_up_type'  => 'nullable|string',
+        'lead_category'   => 'nullable|in:potential_customers,consideration_stage,prospective_customers',
+        'notes'           => 'nullable|string'
     ]);
 
     DB::beginTransaction();
@@ -1086,7 +770,7 @@ public function submitResult(Request $request, $id)
             throw new \Exception('Follow up tidak ditemukan');
         }
 
-        $salesId = auth()->user()->id_user;
+         $salesId = auth()->user()->id_user;// ✅ pakai users.id (bukan id_user!)
 
         /*
         |--------------------------------------------------------------------------
@@ -1099,16 +783,27 @@ public function submitResult(Request $request, $id)
             DB::table('follow_ups')
                 ->where('id', $id)
                 ->update([
-                    'status' => 'DONE',
+                    'status'       => 'DONE',
                     'completed_at' => now(),
-                    'notes' => $request->notes,
-                    'updated_at' => now(),
+                    'notes'        => $request->notes,
+                    'updated_at'   => now(),
                 ]);
+
+            // Activity EXECUTION (terjadi sekarang)
+            DB::table('follow_up_activities')->insert([
+                'follow_up_id'  => $id,
+                'title'         => 'Follow Up Executed',
+                'description'   => 'Sales melakukan follow up dan membuat jadwal lanjutan',
+                'activity_type' => 'EXECUTED',
+                'activity_at'   => now(),
+                'created_by'    => $salesId,
+                'created_at'    => now(),
+            ]);
 
             // 2️⃣ Update Lead Progress
             $leadUpdate = [
                 'last_contacted_at' => now(),
-                'updated_at' => now(),
+                'updated_at'        => now(),
             ];
 
             if ($request->lead_category) {
@@ -1122,51 +817,43 @@ public function submitResult(Request $request, $id)
             // 3️⃣ Create Follow-Up Baru
             $newFollowUpId = DB::table('follow_ups')->insertGetId([
                 'follow_up_code' => $this->generateFollowUpCode(),
-                'lead_id' => $followUp->lead_id,
-                'subject' => $request->subject ?? $followUp->subject,
+                'lead_id'        => $followUp->lead_id,
+                'subject'        => $request->subject ?? $followUp->subject,
                 'follow_up_type' => $request->follow_up_type ?? $followUp->follow_up_type,
-                'follow_up_at' => $request->follow_up_at,
-                'status' => 'PENDING',
-                'created_by' => $salesId,
-                'created_at' => now(),
-                'updated_at' => now(),
+                'follow_up_at'   => $request->follow_up_at,
+                'status'         => 'PENDING',
+                'created_by'     => $salesId,
+                'created_at'     => now(),
+                'updated_at'     => now(),
             ]);
 
-            /*
-            |--------------------------------------------------------------------------
-            | 📝 TIMELINE ACTIVITY
-            |--------------------------------------------------------------------------
-            */
-
-            // Activity untuk Follow-Up Lama
+            // CREATED activity (sekarang)
             DB::table('follow_up_activities')->insert([
-                'follow_up_id' => $id,
-                'title' => 'Follow Up Executed',
-                'description' => 'Follow up telah dilakukan dan dijadwalkan lanjutan',
-                'activity_type' => 'EXECUTED',
-                'activity_at' => now(),
-                'created_at' => now(),
-            ]);
-
-            // Activity Awal Follow-Up Baru
-            DB::table('follow_up_activities')->insert([
-                'follow_up_id' => $newFollowUpId,
-                'title' => 'Follow Up Created',
-                'description' => 'Follow up lanjutan dibuat dari aktivitas sebelumnya',
+                'follow_up_id'  => $newFollowUpId,
+                'title'         => 'Follow Up Created',
+                'description'   => 'Follow up lanjutan dibuat dari aktivitas sebelumnya',
                 'activity_type' => 'CREATED',
-                'activity_at' => now(),
-                'created_at' => now(),
+                'activity_at'   => now(),
+                'created_by'    => $salesId,
+                'created_at'    => now(),
             ]);
 
-            // Activity Jadwal Baru
+            // 🔥 SCHEDULE activity (bukan future activity!)
             DB::table('follow_up_activities')->insert([
-                'follow_up_id' => $newFollowUpId,
-                'title' => 'Next Follow Up Scheduled',
-                'description' => 'Follow up dijadwalkan pada ' .
+                'follow_up_id'  => $newFollowUpId,
+                'title'         => 'Next Follow Up Scheduled',
+                'description'   => 'Follow up dijadwalkan pada ' .
                     \Carbon\Carbon::parse($request->follow_up_at)->format('d M Y H:i'),
                 'activity_type' => 'SCHEDULED',
-                'activity_at' => $request->follow_up_at,
-                'created_at' => now(),
+
+                // activity terjadi SEKARANG
+                'activity_at'   => now(),
+
+                // waktu rencana asli
+                'scheduled_for' => $request->follow_up_at,
+
+                'created_by'    => $salesId,
+                'created_at'    => now(),
             ]);
 
             DB::commit();
@@ -1182,19 +869,20 @@ public function submitResult(Request $request, $id)
         DB::table('follow_ups')
             ->where('id', $id)
             ->update([
-                'status' => 'DONE',
+                'status'       => 'DONE',
                 'completed_at' => now(),
-                'notes' => $request->notes,
-                'updated_at' => now(),
+                'notes'        => $request->notes,
+                'updated_at'   => now(),
             ]);
 
         DB::table('follow_up_activities')->insert([
-            'follow_up_id' => $id,
-            'title' => 'Follow Up Done',
-            'description' => 'Follow up telah diselesaikan',
+            'follow_up_id'  => $id,
+            'title'         => 'Follow Up Done',
+            'description'   => 'Follow up telah diselesaikan',
             'activity_type' => 'EXECUTED',
-            'activity_at' => now(),
-            'created_at' => now(),
+            'activity_at'   => now(),
+            'created_by'    => $salesId,
+            'created_at'    => now(),
         ]);
 
         /*
@@ -1207,53 +895,71 @@ public function submitResult(Request $request, $id)
 
             DB::table('leads')->where('id', $followUp->lead_id)->update([
                 'lead_status' => 'converted',
-                'updated_at' => now(),
+                'updated_at'  => now(),
             ]);
 
             $lead = DB::table('leads')->where('id', $followUp->lead_id)->first();
 
             DB::table('customers')->insert([
-                'customer_code' => $this->generateCustomerCode(),
-                'lead_id' => $lead->id,
-                'company_name' => $lead->company_name,
-                'contact_name' => $lead->contact_name,
-                'industry_id' => $lead->industry_id,
-                'email' => $lead->email,
-                'phone' => $lead->phone,
-                'address' => $lead->address,
+                'customer_code'   => $this->generateCustomerCode(),
+                'lead_id'         => $lead->id,
+                'company_name'    => $lead->company_name,
+                'contact_name'    => $lead->contact_name,
+                'industry_id'     => $lead->industry_id,
+                'email'           => $lead->email,
+                'phone'           => $lead->phone,
+                'address'         => $lead->address,
                 'customer_status' => 'Active',
-                'converted_at' => now(),
-                'created_by' => $salesId,
-                'created_at' => now(),
-                'updated_at' => now(),
-                'id_user' => $salesId,
+                'converted_at'    => now(),
+                'created_by'      => $salesId,
+                'id_user'         => $salesId,
+                'created_at'      => now(),
+                'updated_at'      => now(),
             ]);
 
             DB::table('follow_up_activities')->insert([
-                'follow_up_id' => $id,
-                'title' => 'Lead Converted',
-                'description' => 'Lead berhasil dikonversi menjadi customer',
+                'follow_up_id'  => $id,
+                'title'         => 'Lead Converted',
+                'description'   => 'Lead berhasil dikonversi menjadi customer',
                 'activity_type' => 'LEAD_CONVERTED',
-                'activity_at' => now(),
-                'created_at' => now(),
+                'activity_at'   => now(),
+                'created_by'    => $salesId,
+                'created_at'    => now(),
             ]);
 
         } else {
 
             DB::table('leads')->where('id', $followUp->lead_id)->update([
                 'lead_status' => 'failed',
-                'updated_at' => now(),
+                'updated_at'  => now(),
             ]);
 
             DB::table('follow_up_activities')->insert([
-                'follow_up_id' => $id,
-                'title' => 'Lead Failed',
-                'description' => 'Lead dinyatakan gagal',
+                'follow_up_id'  => $id,
+                'title'         => 'Lead Failed',
+                'description'   => 'Lead dinyatakan gagal',
                 'activity_type' => 'LEAD_FAILED',
-                'activity_at' => now(),
-                'created_at' => now(),
+                'activity_at'   => now(),
+                'created_by'    => $salesId,
+                'created_at'    => now(),
             ]);
         }
+
+        /*
+        |--------------------------------------------------------------------------
+        | CLOSE ALL OTHER OPEN FOLLOW UPS
+        |--------------------------------------------------------------------------
+        */
+
+        DB::table('follow_ups')
+            ->where('lead_id', $followUp->lead_id)
+            ->whereNull('completed_at')
+            ->where('id', '!=', $id)
+            ->update([
+                'status'       => 'DONE',
+                'completed_at' => now(),
+                'updated_at'   => now(),
+            ]);
 
         DB::commit();
         return ApiResponse::success(null, "Follow Up berhasil disimpan");
@@ -1263,6 +969,120 @@ public function submitResult(Request $request, $id)
         throw $e;
     }
 }
+
+
+
+
+
+
+
+public function createDirectFollowUpFromLead(Request $request, $leadId)
+{
+    $request->validate([
+        'subject'        => 'required|string',
+        'follow_up_type' => 'required|string',
+        'follow_up_at'   => 'required|date',
+        'notes'          => 'nullable|string'
+    ]);
+
+    DB::beginTransaction();
+
+    try {
+
+        $salesId = auth()->user()->id_user;
+
+        $lead = DB::table('leads')
+            ->lockForUpdate()
+            ->where('id', $leadId)
+            ->first();
+
+        if (!$lead) {
+            throw new \Exception('Lead tidak ditemukan');
+        }
+
+        /*
+        |------------------------------------------
+        | ❗ Cegah double open follow up
+        |------------------------------------------
+        */
+        $existing = DB::table('follow_ups')
+            ->where('lead_id', $leadId)
+            ->whereNull('completed_at')
+            ->exists();
+
+        if ($existing) {
+            throw new \Exception('Lead masih punya follow up aktif');
+        }
+
+        /*
+        |------------------------------------------
+        | CREATE FOLLOW UP PERTAMA
+        |------------------------------------------
+        */
+        $followUpId = DB::table('follow_ups')->insertGetId([
+            'follow_up_code' => $this->generateFollowUpCode(),
+            'lead_id'        => $leadId,
+            'subject'        => $request->subject,
+            'follow_up_type' => $request->follow_up_type,
+            'follow_up_at'   => $request->follow_up_at,
+            'status'         => 'PENDING',
+            'created_by'     => $salesId,
+            'created_at'     => now(),
+            'updated_at'     => now(),
+        ]);
+
+        /*
+        |------------------------------------------
+        | TIMELINE CREATED
+        |------------------------------------------
+        */
+        DB::table('follow_up_activities')->insert([
+            'follow_up_id'  => $followUpId,
+            'title'         => 'Follow Up Created',
+            'description'   => 'Follow up dibuat langsung dari lead (tanpa visit)',
+            'activity_type' => 'CREATED',
+            'activity_at'   => now(),
+            'created_by'    => $salesId,
+            'created_at'    => now(),
+        ]);
+
+        /*
+        |------------------------------------------
+        | TIMELINE SCHEDULED
+        |------------------------------------------
+        */
+        DB::table('follow_up_activities')->insert([
+            'follow_up_id'  => $followUpId,
+            'title'         => 'Follow Up Scheduled',
+            'description'   => 'Follow up dijadwalkan pada ' .
+                \Carbon\Carbon::parse($request->follow_up_at)->format('d M Y H:i'),
+            'activity_type' => 'SCHEDULED',
+            'activity_at'   => now(),
+            'scheduled_for' => $request->follow_up_at,
+            'created_by'    => $salesId,
+            'created_at'    => now(),
+        ]);
+
+        /*
+        |------------------------------------------
+        | UPDATE LEAD STATUS
+        |------------------------------------------
+        */
+        DB::table('leads')->where('id', $leadId)->update([
+            'lead_status'       => 'prospecting',
+            'last_contacted_at' => now(),
+            'updated_at'        => now(),
+        ]);
+
+        DB::commit();
+
+        return ApiResponse::success(null, 'Direct Follow Up berhasil dibuat');
+    } catch (\Throwable $e) {
+        DB::rollBack();
+        throw $e;
+    }
+}
+
 
 
 }

@@ -150,13 +150,14 @@ Route::get('/customers/{customerId}/follow-ups',[Costumers::class, 'customerFoll
 // api sales Follow Up
 Route::get('/follow-up-leads', [FollowUp::class, 'followUpSalesByLeads'])->name('api.follow.up.master');
 Route::get('/follow-up/show/{id}', [FollowUp::class, 'showFollowUp'])->name('api.follow.up.show');
-Route::post('/follow-up/store', [FollowUp::class, 'storeFollowUp'])->name('api.follow.up.store');
+// Route::post('/follow-up/store', [FollowUp::class, 'storeFollowUp'])->name('api.follow.up.store');
 Route::get('/follow-up/get-sales/leads', [FollowUp::class, 'getLeadsNeedFollowUp'])->name('api.get.sales.leads');
 Route::get('/follow-up/get-sales/customers', [FollowUp::class, 'getCustomersBySales'])->name('api.get.sales.customers');
 Route::put('/follow-up/update/{id}', [FollowUp::class, 'updateFollowUp'])->name('api.follow.up.update');
 Route::delete('/follow-up/delete/{id}', [FollowUp::class, 'deleteFollowUp'])->name('api.follow.up.delete');
-Route::get('/follow-ups/{id}/timeline', [FollowUp::class, 'timeline']);
-Route::post('/follow-ups/{id}/submit-result', [FollowUp::class, 'submitResult']);
+Route::get('/follow-ups/{id}/timeline', [FollowUp::class, 'timeline'])->name('api.follow.up.timeline');
+Route::post('/follow-ups/{id}/submit-result', [FollowUp::class, 'submitResultFollowUp'])->name('api.follow.up.submit.result');
+Route::post('/follow-ups/{id}/direct-follow-up', [FollowUp::class, 'createDirectFollowUpFromLead'])->name('api.follow.up.start.follow.up');
 
 
 Route::get('/data-visits-leads', [Visits::class, 'getVisitLead'])->name('api.data.leads.visit');

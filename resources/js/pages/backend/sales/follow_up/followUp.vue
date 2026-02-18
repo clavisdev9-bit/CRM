@@ -35,6 +35,7 @@ watch(
 const normalizeStatus = (status) => {
   return status?.toUpperCase().replaceAll(' ', '_')
 }
+
 const StatusConfigFromLeads = {
   PROSPECTIVE_CUSTOMERS: {
     class: 'bg-info',
@@ -47,6 +48,16 @@ const StatusConfigFromLeads = {
   POTENTIAL_CUSTOMERS: {
     class: 'bg-primary',
     icon: 'fa-solid fa-star',
+  },
+  // Tambahan Status CONVERTED (Berhasil jadi Customer/Closing)
+  CONVERTED: {
+    class: 'bg-success',
+    icon: 'fa-solid fa-check-double',
+  },
+  // Tambahan Status FAILED (Gagal/Diskualifikasi)
+  FAILED: {
+    class: 'bg-danger',
+    icon: 'fa-solid fa-circle-xmark',
   },
   OTHER: {
     class: 'bg-dark',
@@ -151,18 +162,6 @@ const errors = reactive({
   status: null,
 })
 
-// const validateForm = () => {
-//   errors.lead_id = !form.lead_id ? 'Lead wajib dipilih' : null
-//   errors.follow_up_type = !form.follow_up_type ? 'Type wajib dipilih' : null
-//   errors.status = !form.status ? 'Status wajib dipilih' : null
-
-//   if (form.status === 'DONE' && !form.done_action) {
-//     Swal.fire('Action wajib dipilih untuk DONE')
-//     return false
-//   }
-
-//   return !errors.lead_id && !errors.follow_up_type && !errors.status
-// }
 const validateForm = () => {
   // reset error dulu
   errors.lead_id = null
@@ -213,28 +212,6 @@ const submitFollowUp = async () => {
 }
 
 
-// const submitFollowUp = async () => {
-//   if (!validateForm()) return
-
-//   loading.value = true
-
-//   try {
-//     console.log('VALID PAYLOAD:', form)
-
-//     Swal.fire({
-//       icon: 'success',
-//       title: 'Form Valid ✔',
-//       text: 'Ready to send API',
-//     })
-
-//   } finally {
-//     loading.value = false
-//   }
-// }
-
-// end
-
-
 
 // code desain form leads 
 
@@ -283,20 +260,6 @@ const getFollowUpStatus = (status) => {
 }
 
 
-// const submitFollowUp = async () => {
-//   loading.value = true;
-//   try {
-//     // Di sini kamu panggil API kamu
-//     console.log("Payload yang dikirim:", form);
-//     // await axios.post('/api/follow-up', form);
-    
-//     alert('Data Berhasil di-sync!');
-//   } catch (error) {
-//     console.error(error);
-//   } finally {
-//     loading.value = false;
-//   }
-// };
 
 
 
@@ -432,15 +395,24 @@ const openDetailFollowUp = async (followUp) => {
                 <!-- Tombol add -->
                  <div class="d-flex justify-content-between align-items-center mb-2"> 
                 <!-- Kiri --> 
-                <button class="btn btn-primary btn-sm me-1" data-bs-toggle="modal" 
+              <button class="btn btn-primary btn-sm me-1" data-bs-toggle="modal" 
                    data-bs-target="#form-leads" @click="openAddModal('lead')" >
-                <i class="fa fa-plus"></i> Add FL Follow Up </button>
+                <i class="fa fa-plus"></i> Add Follow Up (Leads)
+              </button>
 
                      <!-- Kanan --> 
-                <button class="btn btn-success btn-sm" data-bs-toggle="modal"
+                <button class="btn btn-success btn-sm me-1" data-bs-toggle="modal"
                        data-bs-target="#modal-add-data" @click="openAddModal('customer')" >
-                        <i class="fa fa-plus"></i> Add FL Customer </button> 
+                        <i class="fa fa-plus"></i> Add Follow Up (Customer) 
+                </button> 
+
+                 <button class="btn btn-danger btn-sm" data-bs-toggle="modal"
+                       data-bs-target="#modal-add-data" @click="openAddModal('customer')" >
+                        <i class="fa fa-plus"></i> Add Follow Up (DIRECT) </button> 
+                
                 </div>
+
+                 
 
                 <div class="d-flex gap-2 align-items-center">
                     <label class="mb-0 fw-semibold">Filter Follow UP By:</label>
@@ -628,7 +600,7 @@ const openDetailFollowUp = async (followUp) => {
             
 
               
-              <span v-else class="badge bg-success">
+              <span v-else class="badge bg-success me-1">
                 {{ item.status }}
               </span>
 
@@ -638,7 +610,7 @@ const openDetailFollowUp = async (followUp) => {
                 type="button"
                 data-bs-toggle="modal"
                     data-bs-target="#followUpDetailModal"
-                class="btn btn-sm btn-outline-primary me-1 mt-1"
+                class="btn btn-sm btn-outline-primary me-1 mt-1 mr-1"
                 @click="openDetailFollowUp(item)"
               >
                 <i class="fa-regular fa-eye"></i>
@@ -694,7 +666,7 @@ const openDetailFollowUp = async (followUp) => {
 
 <!-- code modal detail -->
     <div class="modal fade" id="followUpDetailModal" tabindex="-1">
-  <div class="modal-dialog modal-lg modal-dialog-centered">
+  <div class="modal-dialog modal-xl ">
     <div class="modal-content">
 
       <!-- HEADER -->
@@ -708,7 +680,7 @@ const openDetailFollowUp = async (followUp) => {
       <!-- BODY -->
       <div class="modal-body">
 
-        <!-- LOADING -->
+        LOADING
         <div v-if="followUpStore.loadingDetail" class="text-center py-5">
           <div class="spinner-border text-primary"></div>
         </div>
@@ -943,47 +915,44 @@ const openDetailFollowUp = async (followUp) => {
 
 
          <div class="col-lg-6">
-  <label class="form-label">
-    Template Subject <small class="text-success">(opsional)</small>
-  </label>
+            <label class="form-label">
+              Template Subject <small class="text-success">(opsional)</small>
+            </label>
 
- <Multiselect
-  v-model="form.subject_template"
-  :options="subjectTemplates"
-  label="label"
-  valueProp="value"
-  trackBy="value"
-  placeholder="Pilih Template Subject"
-  :searchable="true"
-/>
+            <Multiselect
+              v-model="form.subject_template"
+              :options="subjectTemplates"
+              label="label"
+              valueProp="value"
+              trackBy="value"
+              placeholder="Pilih Template Subject"
+              :searchable="true"
+            />
 
-</div>
-
-
-<div class="col-lg-6">
-  <label class="form-label">
-    Subject <small class="text-danger">**</small>
-  </label>
-
-  <input
-    v-model="form.subject"
-    type="text"
-    class="form-control"
-    placeholder="Tulis subject atau pilih template"
-  />
-</div>
+          </div>
 
 
-<div class="col-lg-12">
-  <label class="form-label">
-    Notes <small class="text-success">(*opsional)</small>
-  </label>
+          <div class="col-lg-6">
+            <label class="form-label">
+              Subject <small class="text-danger">**</small>
+            </label>
 
-  <textarea v-model="form.notes" class="form-control" rows="3"></textarea>
-</div>
+            <input
+              v-model="form.subject"
+              type="text"
+              class="form-control"
+              placeholder="Tulis subject atau pilih template"
+            />
+          </div>
 
 
-           
+          <div class="col-lg-12">
+            <label class="form-label">
+              Notes <small class="text-success">(*opsional)</small>
+            </label>
+
+            <textarea v-model="form.notes" class="form-control" rows="3"></textarea>
+          </div>
           </div>
         </div>
 
@@ -1031,27 +1000,21 @@ const openDetailFollowUp = async (followUp) => {
 
             <!-- TIMELINE -->
             <div v-else class="timeline-wrapper">
-
-              <div
-                v-for="(item, index) in followUpStore.timeline"
-                :key="index"
-                class="timeline-step"
-              >
+              <div v-for="(item, index) in followUpStore.timeline" :key="index" class="timeline-step">
                 <div class="circle" :class="{ active: index === 0 }"></div>
 
                 <div class="label fw-bold">
                   {{ item.activity }}
                 </div>
 
-                <small class="text-muted d-block">
+                <small class="text-muted d-block" style="font-size: 10px;">
                   {{ item.activity_at }}
                 </small>
 
-                <div class="small mt-2">
+                <div class="description-text">
                   {{ item.description }}
                 </div>
               </div>
-
             </div>
           </div>
 
@@ -1070,52 +1033,36 @@ const openDetailFollowUp = async (followUp) => {
 
 
 <style scoped>
-/* BACKDROP */
-.custom-modal {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.4);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 9999;
-}
-
-/* MODAL BOX */
-.custom-modal-content {
-  background: #fff;
-  padding: 30px;
-  border-radius: 12px;
-  width: 700px;
-}
-
-/* TIMELINE */
+/* TIMELINE CONTAINER */
 .timeline-wrapper {
   display: flex;
   justify-content: space-between;
-  align-items: center;
+  align-items: flex-start; /* Biar teks yang panjang tidak narik circle ke bawah */
   position: relative;
   margin-top: 40px;
+  padding: 0 20px;
+  min-height: 200px;
 }
 
-/* LINE */
+/* GARIS MERAH (Pindah ke Background Wrapper) */
 .timeline-wrapper::before {
   content: "";
   position: absolute;
-  top: 20px;
-  left: 0;
-  right: 0;
+  top: 20px; /* Setengah dari tinggi circle (40px/2) */
+  left: 50px; /* Sesuaikan agar tidak mentok kiri */
+  right: 50px; /* Sesuaikan agar tidak mentok kanan */
   height: 3px;
   background: #dc3545;
   z-index: 0;
 }
 
-/* STEP */
+/* MASING-MASING STEP */
 .timeline-step {
   position: relative;
   text-align: center;
   z-index: 1;
-  width: 100%;
+  flex: 1; /* Memberi ruang yang sama rata untuk tiap step */
+  padding: 0 5px;
 }
 
 /* CIRCLE */
@@ -1125,21 +1072,118 @@ const openDetailFollowUp = async (followUp) => {
   border: 3px solid #dc3545;
   border-radius: 50%;
   background: white;
-  margin: auto;
+  margin: 0 auto 15px auto; /* Margin bottom untuk jarak ke teks */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.3s ease;
 }
 
-/* ACTIVE STEP */
+/* CIRCLE AKTIF (ISI MERAH) */
 .circle.active {
   background: #dc3545;
 }
 
-/* LABEL */
+/* TIPOGRAFI */
 .label {
-  margin-top: 10px;
-  font-size: 14px;
+  font-size: 13px;
   color: #dc3545;
+  line-height: 1.2;
+  margin-bottom: 4px;
+  min-height: 32px; /* Menjaga agar tinggi teks judul seragam */
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.description-text {
+  font-size: 11px;
+  color: #6c757d;
+  line-height: 1.4;
+  margin-top: 8px;
+}
+
+/* MODAL ADJUSTMENT */
+.modal-lg {
+  max-width: 900px; /* Perlebar sedikit karena step-nya cukup banyak */
+}
+
+/* --- TAMPILAN STANDAR (UNTUK DESKTOP) --- */
+.timeline-wrapper {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  position: relative;
+  margin-top: 40px;
+  padding: 0 10px;
+}
+
+.timeline-wrapper::before {
+  content: "";
+  position: absolute;
+  top: 20px;
+  left: 30px;
+  right: 30px;
+  height: 3px;
+  background: #dc3545;
+  z-index: 0;
+}
+
+.timeline-step {
+  position: relative;
+  text-align: center;
+  z-index: 1;
+  flex: 1;
+}
+
+/* --- TAMPILAN KHUSUS HP (RESPONSIVE) --- */
+@media (max-width: 768px) {
+  .timeline-wrapper {
+    flex-direction: column; /* Ubah jadi berderet ke bawah */
+    align-items: flex-start; /* Rata kiri */
+    padding-left: 40px; /* Ruang untuk garis vertikal */
+  }
+
+  /* Ubah garis merah jadi vertikal (berdiri) */
+  .timeline-wrapper::before {
+    top: 0;
+    bottom: 0;
+    left: 20px; /* Posisi garis di sebelah kiri */
+    width: 3px;
+    height: 100%;
+  }
+
+  .timeline-step {
+    text-align: left; /* Teks rata kiri */
+    margin-bottom: 30px; /* Jarak antar step */
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+  }
+
+  .circle {
+    margin: 0; /* Hilangkan margin auto tengah */
+    position: absolute;
+    left: -40px; /* Geser lingkaran ke posisi garis vertikal */
+    top: 0;
+    width: 30px; /* Kecilkan sedikit biar manis di HP */
+    height: 30px;
+  }
+
+  .label {
+    justify-content: flex-start; /* Judul rata kiri */
+    min-height: auto;
+    margin-top: 0;
+    font-size: 14px;
+  }
+
+  .description-text {
+    margin-left: 0;
+    padding-bottom: 10px;
+  }
 }
 
 .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
+
 </style>

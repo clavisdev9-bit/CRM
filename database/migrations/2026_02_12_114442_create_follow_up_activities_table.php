@@ -28,12 +28,14 @@ return new class extends Migration
 
     $table->timestamp('activity_at'); // kapan kejadian
 
+    $table->timestamp('scheduled_for')->nullable(); // untuk reminder atau jadwal follow up berikutnya
+
     $table->foreignId('created_by')
         ->nullable()
-        ->constrained('users');
+        ->constrained('ms_users');
 
     $table->timestamps();
-});
+    });
 
     }
 
