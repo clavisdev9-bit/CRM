@@ -188,40 +188,48 @@ const searchLeadsOptions = (val) => {
 };
 
 
-const typeFollowUp = ref([
-     { value: 'Call', label: 'Call' },
-     { value: 'Email', label: 'Email' },
-     { value: 'Whatsapp', label: 'Whatsapp'},
-     { value: 'LinkedIn', label: 'LinkedIn'},
-     { value: 'Visit Location', label: 'Visit Location' },
-    ])
+                        const typeFollowUp = ref([
+                            { value: 'Call', label: 'Call' },
+                            { value: 'Email', label: 'Email' },
+                            { value: 'Whatsapp', label: 'Whatsapp'},
+                            { value: 'LinkedIn', label: 'LinkedIn'},
+                            { value: 'Visit Location', label: 'Visit Location' },
+                            ])
+
+                            const typeSubjectDirect = ref([
+                            { value: 'Call', label: 'Call' },
+                            { value: 'Email', label: 'Email' },
+                            { value: 'Whatsapp', label: 'Whatsapp'},
+                            { value: 'LinkedIn', label: 'LinkedIn'},
+                            { value: 'Visit Location', label: 'Visit Location' },
+                            ])
 
 
-    const formatDate = (value) => {
-  if (!value) return "-"
+                              const formatDate = (value) => {
+                            if (!value) return "-"
 
-  // ubah "2026-02-15 13:55:41" → "2026-02-15T13:55:41"
-  const isoString = value.replace(" ", "T")
+                            // ubah "2026-02-15 13:55:41" → "2026-02-15T13:55:41"
+                            const isoString = value.replace(" ", "T")
 
-  const date = new Date(isoString)
+                            const date = new Date(isoString)
 
-  return date.toLocaleDateString("id-ID", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    timeZone: "Asia/Jakarta", // penting!
-  })
-}
+                            return date.toLocaleDateString("id-ID", {
+                              day: "2-digit",
+                              month: "short",
+                              year: "numeric",
+                              timeZone: "Asia/Jakarta", // penting!
+                            })
+                          }
 
-const formatDates = (value) => {
-    if (!value) return "-"
-    const date = new Date(value)
-    return date.toLocaleDateString("id-ID", {
-      day: "2-digit",
-      month: "short",
-      year: "numeric",
-    })
-  }
+                          const formatDates = (value) => {
+                              if (!value) return "-"
+                              const date = new Date(value)
+                              return date.toLocaleDateString("id-ID", {
+                                day: "2-digit",
+                                month: "short",
+                                year: "numeric",
+                              })
+                            }
 
                             const deleteFollowUp = async (id) => {
                                   deletingFollowUp.value = true

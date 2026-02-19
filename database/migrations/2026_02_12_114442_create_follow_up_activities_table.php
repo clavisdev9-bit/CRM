@@ -30,10 +30,11 @@ return new class extends Migration
 
     $table->timestamp('scheduled_for')->nullable(); // untuk reminder atau jadwal follow up berikutnya
 
-    $table->foreignId('created_by')
-        ->nullable()
-        ->constrained('ms_users');
-
+  $table->foreign('created_by')
+        ->references('id_user')   // ← ini yang benar
+        ->on('ms_users')
+        ->nullOnDelete();  
+        
     $table->timestamps();
     });
 

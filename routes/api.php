@@ -152,6 +152,7 @@ Route::get('/follow-up-leads', [FollowUp::class, 'followUpSalesByLeads'])->name(
 Route::get('/follow-up/show/{id}', [FollowUp::class, 'showFollowUp'])->name('api.follow.up.show');
 // Route::post('/follow-up/store', [FollowUp::class, 'storeFollowUp'])->name('api.follow.up.store');
 Route::get('/follow-up/get-sales/leads', [FollowUp::class, 'getLeadsNeedFollowUp'])->name('api.get.sales.leads');
+Route::get('/follow-up/get-sales/leads/direct', [FollowUp::class, 'getLeadsForDirectFollowUp'])->name('api.get.sales.leads.direct');
 Route::get('/follow-up/get-sales/customers', [FollowUp::class, 'getCustomersBySales'])->name('api.get.sales.customers');
 Route::put('/follow-up/update/{id}', [FollowUp::class, 'updateFollowUp'])->name('api.follow.up.update');
 Route::delete('/follow-up/delete/{id}', [FollowUp::class, 'deleteFollowUp'])->name('api.follow.up.delete');

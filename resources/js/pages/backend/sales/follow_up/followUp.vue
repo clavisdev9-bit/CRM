@@ -327,8 +327,10 @@ const openDetailFollowUp = async (followUp) => {
 
 
 
-
-
+const openAddModalDirect = (type) => {
+  followUpStore.mode = type
+  resetForm()
+}
 
 </script>
 
@@ -367,10 +369,7 @@ const openDetailFollowUp = async (followUp) => {
       <div  class="page-body flex-grow-1">
         <div class="container-xl">
           <!-- Card: Export/Import -->
-         
-
-
-
+        
           <!-- Card: Filter & Sort -->
           <div class="card mb-4">
             <div class="card-header d-flex justify-content-between flex-wrap gap-3">
@@ -407,7 +406,7 @@ const openDetailFollowUp = async (followUp) => {
                 </button> 
 
                  <button class="btn btn-danger btn-sm" data-bs-toggle="modal"
-                       data-bs-target="#modal-add-data" @click="openAddModal('customer')" >
+                       data-bs-target="#form-leads-for-direct" @click="openAddModalDirect('leads')" >
                         <i class="fa fa-plus"></i> Add Follow Up (DIRECT) </button> 
                 
                 </div>
@@ -1027,6 +1026,152 @@ const openDetailFollowUp = async (followUp) => {
         </div>
       </div>
     </div>
+
+
+
+    <!-- code untuk modal add direct follow up -->
+
+    <!-- form add dan edit -->
+   <div class="modal modal-blur fade" id="form-leads-for-direct" tabindex="-1" role="dialog" aria-hidden="true">
+    <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
+      <div class="modal-content">
+        <div class="modal-header">
+          <h5 class="modal-title">Form Follow Up Direct</h5>
+          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+        </div>
+
+        <div class="modal-body">
+          <div class="row g-3">
+            <div class="col-lg-6">
+              <label class="form-label">Lead <small class="text-danger">**</small></label><br>
+                <small class="text-danger">{{ errors.lead_id }}</small>
+              <Multiselect
+                v-model="form.lead_id"
+                :options="followUpStore.leadsOptions"
+                :loading="followUpStore.loadingLeadsOptions"
+                valueProp="lead_id"
+                label="company_name"
+                placeholder="Pilih Leads..."
+                
+                @open="followUpStore.fetchLeadsOptions()"
+                @search-change="followUpStore.searchLeadsOptions" 
+              >
+              
+              <!-- Dropdown List -->
+              <template #option="{ option }">
+                <div class="d-flex flex-column">
+                  <strong>{{ option.company_name }}</strong>
+                  <small class="text-muted">
+                    {{ option.contact_name }}
+                  </small>
+                  <small
+                    :class="{
+                      'text-danger': option.urgency_status === 'OVERDUE',
+                      'text-warning': option.urgency_status === 'DUE_SOON',
+                      'text-success': option.urgency_status === 'SCHEDULED'
+                    }"
+                  >
+                    ⏱ {{ option.time_remaining_text }}
+                  </small>
+                  </div>
+                </template>
+
+                      <!-- Selected Value -->
+                      <template #singlelabel="{ value }">
+                        <div>
+                          {{ value.company_name }}
+                          <small class="ms-2 text-muted">
+                            ({{ value.time_remaining_text }})
+                          </small>
+                        </div>
+                      </template>
+                    </Multiselect>
+                </div>
+
+
+
+            <div class="col-lg-3">
+              <label class="form-label">Follow-up Date Estimate Return <small class="text-success">(*ops*)</small></label>
+              <Flatpickr
+                 v-model="form.follow_up_at"
+                 :config="fpConfig"   
+                 class="form-control"
+                 placeholder="Select date & time"
+              />
+            </div>
+
+            <div class="col-lg-3">
+              <label class="form-label">Type Follow UP <small class="text-danger">**</small></label>
+              <Multiselect
+                                v-model="form.follow_up_type"
+                                :options="followUpStore.typeFollowUp"
+                                label="label"
+                                valueProp="value"
+                                placeholder="Select Follow Up"
+                                @update:modelValue="() => {
+                                  if (followUpStore.error?.follow_up_type) {
+                                    followUpStore.error.follow_up_type = null
+                                  }
+                                }"
+                              />
+            </div>
+
+            
+
+           
+
+
+         <div class="col-lg-6">
+            <label class="form-label">
+              Template Subject <small class="text-success">(opsional)</small>
+            </label>
+
+            <Multiselect
+              v-model="form.subject_template"
+              :options="subjectTemplates"
+              label="label"
+              valueProp="value"
+              trackBy="value"
+              placeholder="Pilih Template Subject"
+              :searchable="true"
+            />
+
+          </div>
+
+
+          <div class="col-lg-6">
+            <label class="form-label">
+              Subject <small class="text-danger">**</small>
+            </label>
+
+            <input
+              v-model="form.subject"
+              type="text"
+              class="form-control"
+              placeholder="Tulis subject atau pilih template"
+            />
+          </div>
+
+
+          <div class="col-lg-12">
+            <label class="form-label">
+              Notes <small class="text-success">(*opsional)</small>
+            </label>
+
+            <textarea v-model="form.notes" class="form-control" rows="3"></textarea>
+          </div>
+          </div>
+        </div>
+
+        <div class="modal-footer">
+          <button type="button" class="btn btn-link link-secondary" data-bs-dismiss="modal">Close</button>
+          <button @click="submitFollowUp" class="btn btn-primary ms-auto" :disabled="loading">
+            {{ loading ? 'Processing...' : 'Save & Sync Tables' }}
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 
   </backendLayouts>
 </template>
