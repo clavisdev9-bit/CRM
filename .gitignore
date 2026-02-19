@@ -24,11 +24,15 @@ Homestead.yaml
 Thumbs.db
 
 # Jangan ignore folder public storage dan folder default
-!storage/app/public
-!storage/app/public/app-setting
-!storage/app/public/attendance/photos
-!storage/app/public/users
-!storage/app/public/visits/checkin
+storage/app/public/*
+!storage/app/public/.gitignore
+!storage/app/public/app-setting/
+!storage/app/public/attendance/
+!storage/app/public/attendance/photos/
+!storage/app/public/users/
+!storage/app/public/visits/
+!storage/app/public/visits/checkin/
+
 
 # Optional: ignore symlink (public/storage)
 public/storage
