@@ -13,8 +13,8 @@ import '../vendor/assets/vendor/js/helpers.js'
 import '../vendor/assets/js/config.js'
 
 // untuk PWA
-import { registerSW } from "virtual:pwa-register";
-registerSW({ immediate: true });
+// import { registerSW } from "virtual:pwa-register";
+// registerSW({ immediate: true });
 
 
 // jQuery + Popper
