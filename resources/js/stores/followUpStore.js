@@ -31,9 +31,22 @@ const leadsOptions = ref([]);
 const loadingLeadsOptions = ref(false);
 let leadsSearchTimeout = null;
 
+// state untuk delete dan detail follow up
  const deletingFollowUp = ref(false)
  const followUpDetail = ref(null)
  const loadingDetail = ref(false);
+
+// code untuk select leads direct subject follow up
+const leadsOptionsDirect = ref([]);
+const loadingLeadsOptionsDirect = ref(false);
+
+// state untuk direct follow up (tanpa visit)
+const savingLeadDirectToFollowUp = ref(false)
+const errorLeadDirectToFollowUp = ref(null)
+
+// store untuk type follow up
+const submittingResult = ref(false)
+const errorSubmitResult = ref(null)
 
   const pagination = reactive({
     current_page: 1,
@@ -178,34 +191,41 @@ const fetchLeadsOptions = async (keyword = "") => {
 };
 
 
+                  //  code serch leads dengan delay 400ms
+                  const searchLeadsOptions = (val) => {
+                    clearTimeout(leadsSearchTimeout);
 
-const searchLeadsOptions = (val) => {
-  clearTimeout(leadsSearchTimeout);
-
-  leadsSearchTimeout = setTimeout(() => {
-    fetchLeadsOptions(val);
-  }, 400);
-};
-
+                    leadsSearchTimeout = setTimeout(() => {
+                      fetchLeadsOptions(val);
+                    }, 400);
+                  };
 
                         const typeFollowUp = ref([
-                            { value: 'Call', label: 'Call' },
-                            { value: 'Email', label: 'Email' },
-                            { value: 'Whatsapp', label: 'Whatsapp'},
-                            { value: 'LinkedIn', label: 'LinkedIn'},
-                            { value: 'Visit Location', label: 'Visit Location' },
+                            { value: 'Call', label: 'CALL' },
+                            { value: 'EMAIL', label: 'EMAIL' },
+                            { value: 'WHATSAPP', label: 'WHATSAPP'},
+                            { value: 'MEETING', label: 'MEETING'},
+                            { value: 'VISIT', label: 'VISIT LOCATION' },
                             ])
 
                             const typeSubjectDirect = ref([
-                            { value: 'Call', label: 'Call' },
-                            { value: 'Email', label: 'Email' },
-                            { value: 'Whatsapp', label: 'Whatsapp'},
-                            { value: 'LinkedIn', label: 'LinkedIn'},
-                            { value: 'Visit Location', label: 'Visit Location' },
-                            ])
+                            { value: 'Perkenalan Produk', label: 'Perkenalan Produk' },
+                            { value: 'Penawaran Harga', label: 'Penawaran Harga' },
+                            { value: 'Negosiasi', label: 'Negosiasi' },
+                            { value: 'Follow Up', label: 'Follow Up' },
+                            { value: 'Kirim Proposal', label: 'Kirim Proposal' },
+                            { value: 'Presentasi Produk', label: 'Presentasi Produk' },
+                            { value: 'Demo Produk', label: 'Demo Produk' },
+                            { value: 'Klarifikasi Kebutuhan', label: 'Klarifikasi Kebutuhan' },
+                            { value: 'Pembahasan Kontrak', label: 'Pembahasan Kontrak' },
+                            { value: 'After Sales', label: 'After Sales' },
+                            { value: 'Menunggu Keputusan', label: 'Menunggu Keputusan' },
+                            { value: 'Lainnya', label: 'Lainnya' },
+                          ])
 
 
-                              const formatDate = (value) => {
+                          //  format tanggal untuk tabel
+                          const formatDate = (value) => {
                             if (!value) return "-"
 
                             // ubah "2026-02-15 13:55:41" → "2026-02-15T13:55:41"
@@ -221,6 +241,9 @@ const searchLeadsOptions = (val) => {
                             })
                           }
 
+
+                           
+                          // format tanggal untuk timeline
                           const formatDates = (value) => {
                               if (!value) return "-"
                               const date = new Date(value)
@@ -231,6 +254,7 @@ const searchLeadsOptions = (val) => {
                               })
                             }
 
+                            //kode untuk delete follow up
                             const deleteFollowUp = async (id) => {
                                   deletingFollowUp.value = true
 
@@ -269,8 +293,8 @@ const searchLeadsOptions = (val) => {
                                   }
                                 }
 
-
-                                 const detailFollowUpData = async (followUpId) => {
+                              //  kode untuk detail follow up
+                              const detailFollowUpData = async (followUpId) => {
                                 loadingDetail.value = true
                                 try {
                                     const res = await axios.get(`/api/follow-up/show/${followUpId}`, {
@@ -290,7 +314,95 @@ const searchLeadsOptions = (val) => {
                                 }
 
 
-                          
+
+                                // code untuk fecth leads
+                               const fetchLeadsSelectDirectSubject = async () => {
+                                  loadingLeadsOptionsDirect.value = true
+                                  try {
+                                    const res = await axios.get('/api/follow-up/get-sales/leads/direct', {
+                                      headers: { ...getAuthHeader() },
+                                    })
+
+                                    console.log('DIRECT LEADS RESPONSE:', res)
+
+                                    //  cek dulu sebelum map
+                                    if (!res.data || !res.data.data) {
+                                      console.error('FORMAT RESPONSE TIDAK SESUAI', res.data)
+                                      leadsOptionsDirect.value = []
+                                      return
+                                    }
+
+                                  leadsOptionsDirect.value = res.data.data.map(item => ({
+                                  lead_id: Number(item.id), // ⬅️ paksa number
+                                  company_name: item.company_name,
+                                  contact_name: item.contact_name,
+                                }))
+
+
+                                  } catch (err) {
+                                    console.error('FETCH DIRECT LEADS ERROR', err)
+                                    leadsOptionsDirect.value = []
+                                  } finally {
+                                    loadingLeadsOptionsDirect.value = false
+                                  }
+                             }
+
+
+                          // store untuk direct langsung follow up (tanpa visit)
+                           const storeLeadDirectForFollowUp = async (leadId, payload) => {
+                              savingLeadDirectToFollowUp.value = true
+                              errorLeadDirectToFollowUp.value = null
+
+                              try {
+                                const res = await axios.post(
+                                  `/api/follow-ups/${leadId}/direct-follow-up`,
+                                  payload,
+                                  { headers: getAuthHeader() }
+                                )
+
+                                // refresh data follow up list
+                                await fetchFollowUps()
+
+                                return res.data
+                              } catch (err) {
+                                if (err.response?.status === 422) {
+                                  errorLeadDirectToFollowUp.value = err.response.data.errors
+                                }
+                                throw err
+                              } finally {
+                                savingLeadDirectToFollowUp.value = false
+                              }
+                            }
+
+
+
+                            
+
+                            const submitFollowUpResult = async (followUpId, payload) => {
+                              submittingResult.value = true
+                              errorSubmitResult.value = null
+
+                              try {
+                                const res = await axios.post(
+                                  `/api/follow-ups/${followUpId}/submit-result`,
+                                  payload,
+                                  { headers: getAuthHeader() }
+                                )
+
+                                // refresh list setelah submit
+                                await fetchFollowUps()
+
+                                return res.data
+                              } catch (err) {
+                                if (err.response?.status === 422) {
+                                  errorSubmitResult.value = err.response.data.errors
+                                }
+                                throw err
+                              } finally {
+                                submittingResult.value = false
+                              }
+                            }
+
 
 
   return {
@@ -331,7 +443,21 @@ const searchLeadsOptions = (val) => {
     deleteFollowUp,
 
     followUpDetail,
-    detailFollowUpData
+    detailFollowUpData,
+    typeSubjectDirect,
+
+    leadsOptionsDirect,
+    fetchLeadsSelectDirectSubject,
+    loadingLeadsOptionsDirect,
+
+
+    savingLeadDirectToFollowUp,
+    errorLeadDirectToFollowUp,
+    storeLeadDirectForFollowUp,
+
+     submitFollowUpResult,
+  submittingResult,
+  errorSubmitResult,
 
 
   };

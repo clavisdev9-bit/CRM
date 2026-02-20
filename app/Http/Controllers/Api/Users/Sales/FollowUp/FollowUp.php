@@ -671,7 +671,7 @@ class FollowUp extends Controller
 
 
         // code untuk submit hasil follow up (baik DONE atau PENDING dengan jadwal lanjutan)
-        public function submitResultFollowUp(Request $request, $id)
+        public function submitResultFollowUp(Request $request, $follow_up_id)
         {
             $request->validate([
                 'status'          => 'required|in:DONE,PENDING',
@@ -689,14 +689,14 @@ class FollowUp extends Controller
 
                 $followUp = DB::table('follow_ups')
                     ->lockForUpdate()
-                    ->where('id', $id)
+                    ->where('id', $follow_up_id)
                     ->first();
 
                 if (!$followUp) {
                     throw new \Exception('Follow up tidak ditemukan');
                 }
 
-                $salesId = auth()->user()->id_user;// ✅ pakai users.id (bukan id_user!)
+                $salesId = auth()->user()->id_user;// 
 
                 /*
                 |--------------------------------------------------------------------------
@@ -707,7 +707,7 @@ class FollowUp extends Controller
 
                     // 1️⃣ Close Follow-Up Lama
                     DB::table('follow_ups')
-                        ->where('id', $id)
+                        ->where('id', $follow_up_id)
                         ->update([
                             'status'       => 'DONE',
                             'completed_at' => now(),
@@ -717,7 +717,7 @@ class FollowUp extends Controller
 
                     // Activity EXECUTION (terjadi sekarang)
                     DB::table('follow_up_activities')->insert([
-                        'follow_up_id'  => $id,
+                        'follow_up_id'  => $follow_up_id,
                         'title'         => 'Follow Up Executed',
                         'description'   => 'Sales melakukan follow up dan membuat jadwal lanjutan',
                         'activity_type' => 'EXECUTED',
@@ -793,7 +793,7 @@ class FollowUp extends Controller
                 */
 
                 DB::table('follow_ups')
-                    ->where('id', $id)
+                    ->where('id', $follow_up_id)
                     ->update([
                         'status'       => 'DONE',
                         'completed_at' => now(),
@@ -802,7 +802,7 @@ class FollowUp extends Controller
                     ]);
 
                 DB::table('follow_up_activities')->insert([
-                    'follow_up_id'  => $id,
+                    'follow_up_id'  => $follow_up_id,
                     'title'         => 'Follow Up Done',
                     'description'   => 'Follow up telah diselesaikan',
                     'activity_type' => 'EXECUTED',
@@ -844,7 +844,7 @@ class FollowUp extends Controller
                     ]);
 
                     DB::table('follow_up_activities')->insert([
-                        'follow_up_id'  => $id,
+                        'follow_up_id'  => $follow_up_id,
                         'title'         => 'Lead Converted',
                         'description'   => 'Lead berhasil dikonversi menjadi customer',
                         'activity_type' => 'LEAD_CONVERTED',
@@ -861,7 +861,7 @@ class FollowUp extends Controller
                     ]);
 
                     DB::table('follow_up_activities')->insert([
-                        'follow_up_id'  => $id,
+                        'follow_up_id'  => $follow_up_id,
                         'title'         => 'Lead Failed',
                         'description'   => 'Lead dinyatakan gagal',
                         'activity_type' => 'LEAD_FAILED',
@@ -880,7 +880,7 @@ class FollowUp extends Controller
                 DB::table('follow_ups')
                     ->where('lead_id', $followUp->lead_id)
                     ->whereNull('completed_at')
-                    ->where('id', '!=', $id)
+                    ->where('id', '!=', $follow_up_id)
                     ->update([
                         'status'       => 'DONE',
                         'completed_at' => now(),
@@ -979,7 +979,7 @@ public function createDirectFollowUpFromLead(Request $request, $leadId)
             'follow_up_id'  => $followUpId,
             'title'         => 'Follow Up Scheduled',
             'description'   => 'Follow up dijadwalkan pada ' .
-                \Carbon\Carbon::parse($request->follow_up_at)->format('d M Y H:i'),
+             Carbon::parse($request->follow_up_at)->format('d M Y H:i'),
             'activity_type' => 'SCHEDULED',
             'activity_at'   => now(),
             'scheduled_for' => $request->follow_up_at,
@@ -993,7 +993,7 @@ public function createDirectFollowUpFromLead(Request $request, $leadId)
         |------------------------------------------
         */
         DB::table('leads')->where('id', $leadId)->update([
-            'lead_status'       => 'prospecting',
+            'lead_status'       => 'No Visit (Direct)',
             'last_contacted_at' => now(),
             'updated_at'        => now(),
         ]);

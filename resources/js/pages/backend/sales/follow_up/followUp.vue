@@ -8,7 +8,7 @@ import Swal from 'sweetalert2'
 import Multiselect from "@vueform/multiselect"
 import Flatpickr from 'vue-flatpickr-component'
 import 'flatpickr/dist/flatpickr.css'
-
+import { toasts } from "@/utils/toasts"
 const PagesTitle = 'Data Follow Up';
 
 /* ================= STORE ================= */
@@ -22,6 +22,7 @@ const router = useRouter()
 onMounted(() => {
   // hard lock ke LEADS dulu
   followUpStore.fetchFollowUps("leads")
+    
 })
 
 /* ================= SEARCH WATCH ================= */
@@ -32,6 +33,7 @@ watch(
   }
 )
 
+// untuk tampilan status lead di tabel follow up
 const normalizeStatus = (status) => {
   return status?.toUpperCase().replaceAll(' ', '_')
 }
@@ -59,6 +61,7 @@ const StatusConfigFromLeads = {
     class: 'bg-danger',
     icon: 'fa-solid fa-circle-xmark',
   },
+  
   OTHER: {
     class: 'bg-dark',
     icon: 'fa-solid fa-tag',
@@ -70,160 +73,6 @@ const changeMode = (type) => {
   followUpStore.fetchFollowUps(type)
 }
 
-/* ================= OPEN MODAL ================= */
-// start
-const loading = ref(false);
-const dataLeads = ref([]); // Isi dengan data dari API
-const form = reactive({
-  lead_id: '',
-  follow_up_at: '',
-  follow_up_type: '',
-  status: '',
-  done_action: '', // CONVERT or FAILED
-  lead_category: '',
-  notes: '',
-  subject: '',
-  subject_template: null,
-});
-
-
-
-
-const subjectTemplates = ref([
-  // Initial Engagement
-  { label: 'Terima Kasih atas Waktunya – Tindak Lanjut Diskusi', value: 'Terima Kasih atas Waktunya – Tindak Lanjut Diskusi' },
-  { label: 'Menindaklanjuti Pembahasan Solusi untuk Kebutuhan Anda', value: 'Menindaklanjuti Pembahasan Solusi untuk Kebutuhan Anda' },
-
-  // Needs Exploration
-  { label: 'Pendalaman Kebutuhan & Potensi Kolaborasi', value: 'Pendalaman Kebutuhan & Potensi Kolaborasi' },
-  { label: 'Diskusi Lanjutan Terkait Kebutuhan Bisnis Anda', value: 'Diskusi Lanjutan Terkait Kebutuhan Bisnis Anda' },
-
-  // Solution Alignment
-  { label: 'Penyesuaian Solusi Berdasarkan Diskusi Sebelumnya', value: 'Penyesuaian Solusi Berdasarkan Diskusi Sebelumnya' },
-  { label: 'Sharing Insight & Rekomendasi untuk Kebutuhan Anda', value: 'Sharing Insight & Rekomendasi untuk Kebutuhan Anda' },
-
-  // Proposal Soft Follow-up (belum closing)
-  { label: 'Tindak Lanjut Proposal yang Telah Dibagikan', value: 'Tindak Lanjut Proposal yang Telah Dibagikan' },
-  { label: 'Apakah Ada Hal yang Bisa Kami Sesuaikan?', value: 'Apakah Ada Hal yang Bisa Kami Sesuaikan?' },
-
-  // Relationship Building
-  { label: 'Menjaga Komunikasi & Update Perkembangan', value: 'Menjaga Komunikasi & Update Perkembangan' },
-  { label: 'Terbuka untuk Diskusi Lanjutan Kapan Saja', value: 'Terbuka untuk Diskusi Lanjutan Kapan Saja' },
-
-  // Re-engagement (kalau lead mulai dingin)
-  { label: 'Follow Up Kembali – Siap Melanjutkan Diskusi', value: 'Follow Up Kembali – Siap Melanjutkan Diskusi' },
-  { label: 'Apakah Masih Relevan untuk Kita Lanjutkan?', value: 'Apakah Masih Relevan untuk Kita Lanjutkan?' }
-])
-
-
-watch(() => form.subject_template, (val) => {
-  if (val) {
-    form.subject = val   // <-- LANGSUNG ISI
-  }
-})
-
-
-const openAddModal = (type) => {
-  followUpStore.mode = type
-  resetForm()
-}
-
-const resetForm = () => {
-  form.lead_id = ''
-  form.follow_up_at = ''
-  form.follow_up_type = ''
-  form.status = ''
-  form.done_action = ''
-  form.lead_category = ''
-  form.notes = ''
-  form.subject = ''
-  form.subject_template = ''
-}
-
-watch(() => form.status, (val) => {
-  if (val === 'DONE') {
-    form.lead_category = ''
-  }
-
-  if (val === 'PENDING') {
-    form.done_action = ''
-  }
-
-  if (val === 'CANCELED') {
-    form.done_action = ''
-    form.lead_category = ''
-  }
-})
-
-
-const errors = reactive({
-  lead_id: null,
-  follow_up_type: null,
-  status: null,
-})
-
-const validateForm = () => {
-  // reset error dulu
-  errors.lead_id = null
-  errors.follow_up_type = null
-  errors.status = null
-
-  // validasi required
-  if (!form.lead_id) errors.lead_id = 'Lead wajib dipilih'
-  if (!form.follow_up_type) errors.follow_up_type = 'Type wajib dipilih'
-  if (!form.status) errors.status = 'Status wajib dipilih'
-
-  // validasi khusus DONE
-  if (form.status === 'DONE' && !form.done_action) {
-    Swal.fire({
-      icon: 'warning',
-      title: 'Validasi',
-      text: 'Action wajib dipilih untuk DONE',
-    })
-    return false
-  }
-
-  return !errors.lead_id && !errors.follow_up_type && !errors.status
-}
-
-
-const submitFollowUp = async () => {
-  if (!validateForm()) return
-
-  loading.value = true
-
-  try {
-    console.log('VALID PAYLOAD:', form)
-
-    Swal.fire({
-      icon: 'success',
-      title: 'Form Valid ✔',
-      text: 'Ready to send API',
-    })
-
-    // nanti tinggal:
-    // await followUpStore.storeFollowUp(form)
-
-  } catch (err) {
-    console.error(err)
-  } finally {
-    loading.value = false
-  }
-}
-
-
-
-// code desain form leads 
-
-
-
-const fpConfig = {
-  enableTime: true,
-  time_24hr: true,
-  dateFormat: 'Y-m-d H:i',
-  minuteIncrement: 5,
-  allowInput: true
-}
 
 
 const followUpStatusConfig = {
@@ -261,8 +110,241 @@ const getFollowUpStatus = (status) => {
 
 
 
+// start code untuk form follow up biasa (reschedule, done, cancel)
+/* ================= OPEN MODAL ================= */
+// start
+const loading = ref(false);
+const dataLeads = ref([]); // Isi dengan data dari API
+const form = reactive({
+  follow_up_id: null,            
+  lead_id: '',
+  follow_up_at: '',
+  follow_up_type: '',
+  status: '',
+  done_action: '',
+  lead_category: '',
+  notes: '',
+  subject: '',
+  subject_template: null,
+})
+
+const errors = reactive({
+  follow_up_id: null,
+  follow_up_at: null,
+  follow_up_type: null,
+  status: null,
+  done_action: null,
+  subject: null,
+  lead_category: null,
+  notes: null,
+})
+
+const resetForm = () => {
+  form.follow_up_id = null        
+  form.lead_id = null
+  form.status = ''
+  form.done_action = ''
+  form.follow_up_at = ''
+  form.follow_up_type = ''
+  form.subject = ''
+  form.lead_category = ''
+  form.notes = ''
+}
+
+const subjectTemplates = ref([
+  // Initial Engagement
+  { label: 'Terima Kasih atas Waktunya - Tindak Lanjut Diskusi', value: 'Terima Kasih atas Waktunya - Tindak Lanjut Diskusi' },
+  { label: 'Menindaklanjuti Pembahasan Solusi untuk Kebutuhan Anda', value: 'Menindaklanjuti Pembahasan Solusi untuk Kebutuhan Anda' },
+
+  // Needs Exploration
+  { label: 'Pendalaman Kebutuhan & Potensi Kolaborasi', value: 'Pendalaman Kebutuhan & Potensi Kolaborasi' },
+  { label: 'Diskusi Lanjutan Terkait Kebutuhan Bisnis Anda', value: 'Diskusi Lanjutan Terkait Kebutuhan Bisnis Anda' },
+
+  // Solution Alignment
+  { label: 'Penyesuaian Solusi Berdasarkan Diskusi Sebelumnya', value: 'Penyesuaian Solusi Berdasarkan Diskusi Sebelumnya' },
+  { label: 'Sharing Insight & Rekomendasi untuk Kebutuhan Anda', value: 'Sharing Insight & Rekomendasi untuk Kebutuhan Anda' },
+
+  // Proposal Soft Follow-up (belum closing)
+  { label: 'Tindak Lanjut Proposal yang Telah Dibagikan', value: 'Tindak Lanjut Proposal yang Telah Dibagikan' },
+  { label: 'Apakah Ada Hal yang Bisa Kami Sesuaikan?', value: 'Apakah Ada Hal yang Bisa Kami Sesuaikan?' },
+
+  // Relationship Building
+  { label: 'Menjaga Komunikasi & Update Perkembangan', value: 'Menjaga Komunikasi & Update Perkembangan' },
+  { label: 'Terbuka untuk Diskusi Lanjutan Kapan Saja', value: 'Terbuka untuk Diskusi Lanjutan Kapan Saja' },
 
 
+   // calon customer mau mngjadi customer
+  { label: 'Konversi Berhasil - Menjadi Customer Aktif', value: 'Konversi Berhasil - Menjadi Customer Aktif' },
+  { label: 'Repeat Order - Customer Tetap', value: 'Repeat Order - Customer Tetap' },
+  { label: 'Deal - Menunggu Tanda Tangan Kontrak/PKS', value: 'Deal - Menunggu Tanda Tangan Kontrak/PKS' },
+  { label: 'Proses Administrasi - Pengumpulan Dokumen Legal (NPWP/KTP)', value: 'Proses Administrasi - Pengumpulan Dokumen Legal (NPWP/KTP)' },
+
+  { label: 'Tidak Berminat - Masalah Anggaran (Over Budget)', value: 'Tidak Berminat - Masalah Anggaran (Over Budget)' },
+  { label: 'Tidak Berminat - Belum Menjadi Prioritas Saat Ini', value: 'Tidak Berminat - Belum Menjadi Prioritas Saat Ini' },
+  { label: 'Tidak Berminat - Sudah Menemukan Solusi Lain', value: 'Tidak Berminat - Sudah Menemukan Solusi Lain' },
+  
+  // Re-engagement (kalau lead mulai dingin)
+  { label: 'Follow Up Kembali - Siap Melanjutkan Diskusi', value: 'Follow Up Kembali - Siap Melanjutkan Diskusi' },
+  { label: 'Apakah Masih Relevan untuk Kita Lanjutkan?', value: 'Apakah Masih Relevan untuk Kita Lanjutkan?' }
+])
+
+
+watch(() => form.subject_template, (val) => {
+  if (val) {
+    form.subject = val   // <-- LANGSUNG ISI
+  }
+})
+
+
+const openAddModal = (row) => {
+  console.log('ROW DATA:', row)
+
+  form.follow_up_id = row.follow_up_id   // ← ini yang benar
+  form.lead_id = row.lead_id
+  form.subject = row.subject
+  form.follow_up_type = row.follow_up_type
+}
+
+
+watch(() => form.status, (val) => {
+  if (val === 'DONE') {
+    form.lead_category = ''
+  }
+
+  if (val === 'PENDING') {
+    form.done_action = ''
+  }
+
+  if (val === 'CANCELED') {
+    form.done_action = ''
+    form.lead_category = ''
+  }
+})
+
+
+const clearErrors = () => {
+  Object.keys(errors).forEach(key => errors[key] = null)
+}
+
+
+const submitFollowUp = async () => {
+   clearErrors()
+
+ if (!form.follow_up_id) {
+  return toasts.fire({ icon: "error", title: "Follow up tidak ditemukan" })
+}
+
+if (!form.follow_up_at) {
+  return toasts.fire({ icon: "error", title: "Tanggal follow up Belum Ada" })
+}
+
+if (!form.follow_up_type) {
+  return toasts.fire({ icon: "error", title: "Tipe follow up Belum Dipilih" })
+}
+
+
+if (!form.status) {
+  return toasts.fire({ icon: "error", title: "Status follow up Belum Diisi" })
+}
+
+if (!form.subject) {
+  return toasts.fire({ icon: "error", title: "Subject follow up Belum Diisi" })
+}
+
+  let payload = {
+    status: form.status,
+    notes: form.notes,
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | DONE FLOW
+  |--------------------------------------------------------------------------
+  */
+  if (form.status === 'DONE') {
+    if (!form.done_action) {
+      return toasts.fire({
+        icon: "warning",
+        title: "Pilih action setelah DONE"
+      })
+    }
+
+    payload.done_action = form.done_action
+  }
+
+  /*
+  |--------------------------------------------------------------------------
+  | PENDING FLOW (RESCHEDULE)
+  |--------------------------------------------------------------------------
+  */
+  if (form.status === 'PENDING') {
+    if (!form.follow_up_at || !form.follow_up_type || !form.subject) {
+      return toasts.fire({
+        icon: "warning",
+        title: "Lengkapi jadwal follow up berikutnya"
+      })
+    }
+
+    payload.follow_up_at = form.follow_up_at
+    payload.follow_up_type = String(form.follow_up_type).toUpperCase()
+    payload.subject = form.subject
+    payload.lead_category = form.lead_category
+  }
+
+  try {
+
+    await followUpStore.submitFollowUpResult(form.follow_up_id, payload)
+
+    const modal = document.getElementById("form-leads")
+    bootstrap.Modal.getInstance(modal).hide()
+
+    toasts.fire({
+      icon: "success",
+      title: "Follow Up berhasil disimpan",
+    })
+
+    resetForm()
+
+  }  
+  catch (err) {
+  if (err.response?.status === 422) {
+
+    const backendErrors = err.response.data.errors
+
+    clearErrors() // reset dulu
+
+    Object.entries(backendErrors).forEach(([field, message]) => {
+      if (field in errors) {
+        errors[field] = message[0]
+      }
+    })
+
+    return
+  }
+
+  toasts.fire({
+    icon: "error",
+    title: err.response?.data?.message || "Terjadi kesalahan",
+  })
+}
+}
+
+
+
+
+// code desain form leads 
+const fpConfig = {
+  enableTime: true,
+  time_24hr: true,
+  dateFormat: 'Y-m-d H:i',
+  minuteIncrement: 5,
+  allowInput: true
+}
+
+
+
+
+// code untuk delete follow up
 const handleDeleteFollowUp = async (followUp) => {
   const { isConfirmed } = await Swal.fire({
     title: 'Delete Follow Up?',
@@ -308,7 +390,7 @@ const handleDeleteFollowUp = async (followUp) => {
 }
 
 
-
+// code untuk modal detail follow up
 const openDetailFollowUp = async (followUp) => {
   try {
     followUpStore.followUpDetail = null // reset dulu
@@ -326,11 +408,81 @@ const openDetailFollowUp = async (followUp) => {
 }
 
 
+// code for form direct follow up
+const formDirect = reactive({
+ lead_id: null,
+  follow_up_at: '',
+  follow_up_type: '',
+  status: '',
+  notes: '',
+  subject: '',
+  subject_template_direct: null,
+});
 
-const openAddModalDirect = (type) => {
-  followUpStore.mode = type
-  resetForm()
+
+const resetFormDirect = () => {
+  formDirect.lead_id = null
+  formDirect.follow_up_at = ''
+  formDirect.follow_up_type = ''
+  formDirect.notes = ''
+  formDirect.subject = ''
+  formDirect.subject_template_direct = null
 }
+
+const openAddModalDirect = async (type) => {
+  followUpStore.mode = type
+  resetFormDirect()
+
+  await followUpStore.fetchLeadsSelectDirectSubject()
+  
+}
+
+
+
+watch(() => formDirect.subject_template_direct, (val) => {
+  if (val) {
+    formDirect.subject = val   
+  }
+})
+
+
+
+// submit untuk direct follow up
+const saveDirectFollowUp = async () => {
+  const payload = {
+    subject: formDirect.subject,
+    follow_up_type: formDirect.follow_up_type,
+    follow_up_at: formDirect.follow_up_at,
+    notes: formDirect.notes,
+  }
+
+  try {
+    await followUpStore.storeLeadDirectForFollowUp(
+      formDirect.lead_id,
+      payload
+    )
+
+    const modal = document.getElementById("form-leads-for-direct")
+    bootstrap.Modal.getInstance(modal).hide()
+
+    resetFormDirect()
+
+    toasts.fire({
+      icon: "success",
+      title: "Direct Follow Up successfully created",
+    })
+
+  } 
+  catch (err) {
+    toasts.fire({
+      icon: "error",
+      title: err.response?.data?.message || "Failed to create direct follow up",
+    })
+  }
+ 
+}
+
+
 
 </script>
 
@@ -663,307 +815,304 @@ const openAddModalDirect = (type) => {
 
 
 
-<!-- code modal detail -->
-    <div class="modal fade" id="followUpDetailModal" tabindex="-1">
-  <div class="modal-dialog modal-xl ">
-    <div class="modal-content">
+          <!-- code modal detail -->
+              <div class="modal fade" id="followUpDetailModal" tabindex="-1">
+            <div class="modal-dialog modal-xl ">
+              <div class="modal-content">
 
-      <!-- HEADER -->
-      <div class="modal-header">
-        <h5 class="modal-title">
-          Detail Follow Up
-        </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
+                <!-- HEADER -->
+                <div class="modal-header">
+                  <h5 class="modal-title">
+                    Detail Follow Up
+                  </h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
 
-      <!-- BODY -->
-      <div class="modal-body">
+                <!-- BODY -->
+                <div class="modal-body">
 
-        LOADING
-        <div v-if="followUpStore.loadingDetail" class="text-center py-5">
-          <div class="spinner-border text-primary"></div>
-        </div>
-
-        <!-- DATA -->
-        <div v-else-if="followUpStore.followUpDetail">
-
-          <!-- CODE -->
-          <div class="alert alert-primary d-flex justify-content-between">
-            <div>
-              <strong>{{ followUpStore.followUpDetail.follow_up_code }}</strong><br>
-              {{ followUpStore.followUpDetail.target_name }}
-            </div>
-
-           <span
-              class="badge badge-pill"
-              :class="getFollowUpStatus(followUpStore.followUpDetail.status).class"
-            >
-              {{ getFollowUpStatus(followUpStore.followUpDetail.status).label }}
-            </span>
-          </div>
-
-          <div class="row g-3">
-
-            <div class="col-md-6">
-              <label class="form-label">Follow Up Type</label>
-              <input class="form-control"
-                :value="followUpStore.followUpDetail.follow_up_type"
-                readonly>
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label">Sales</label>
-              <input class="form-control"
-                :value="followUpStore.followUpDetail.sales_name"
-                readonly>
-            </div>
-
-            <div class="col-md-12">
-              <label class="form-label">Subject</label>
-              <input class="form-control"
-                :value="followUpStore.followUpDetail.subject"
-                readonly>
-            </div>
-
-            <div class="col-md-12">
-              <label class="form-label">Notes</label>
-              <textarea class="form-control" rows="4" readonly>
-                {{ followUpStore.followUpDetail.notes }}
-              </textarea>
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label">Follow Up Retun Estimate</label>
-              <input class="form-control"
-                :value="followUpStore.formatDates(followUpStore.followUpDetail.follow_up_at)"
-                readonly>
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label">Created Date</label>
-              <input class="form-control"
-                :value="followUpStore.formatDates(followUpStore.followUpDetail.created_at)"
-                readonly>
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label">Lead Company</label>
-              <input class="form-control"
-                :value="followUpStore.followUpDetail.lead_company_name"
-                readonly>
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label">Lead Status</label>
-              <input class="form-control"
-                :value="followUpStore.followUpDetail.lead_status"
-                readonly>
-            </div>
-
-          </div>
-        </div>
-
-        <!-- EMPTY -->
-        <div v-else class="text-center text-muted py-5">
-          Data tidak ditemukan
-        </div>
-
-      </div>
-
-      <!-- FOOTER -->
-      <div class="modal-footer">
-        <button class="btn btn-secondary" data-bs-dismiss="modal">
-          Close
-        </button>
-      </div>
-
-    </div>
-  </div>
-</div>
-
-
-<!-- form add dan edit -->
-   <div class="modal modal-blur fade" id="form-leads" tabindex="-1" role="dialog" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">Form Follow Up</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
-
-        <div class="modal-body">
-          <div class="row g-3">
-            <div class="col-lg-6">
-              <label class="form-label">Lead <small class="text-danger">**</small></label><br>
-                <small class="text-danger">{{ errors.lead_id }}</small>
-              <Multiselect
-                v-model="form.lead_id"
-                :options="followUpStore.leadsOptions"
-                :loading="followUpStore.loadingLeadsOptions"
-                valueProp="lead_id"
-                label="company_name"
-                placeholder="Pilih Leads..."
-                
-                @open="followUpStore.fetchLeadsOptions()"
-                @search-change="followUpStore.searchLeadsOptions" 
-              >
-              
-              <!-- Dropdown List -->
-              <template #option="{ option }">
-                <div class="d-flex flex-column">
-                  <strong>{{ option.company_name }}</strong>
-                  <small class="text-muted">
-                    {{ option.contact_name }}
-                  </small>
-                  <small
-                    :class="{
-                      'text-danger': option.urgency_status === 'OVERDUE',
-                      'text-warning': option.urgency_status === 'DUE_SOON',
-                      'text-success': option.urgency_status === 'SCHEDULED'
-                    }"
-                  >
-                    ⏱ {{ option.time_remaining_text }}
-                  </small>
+                  LOADING
+                  <div v-if="followUpStore.loadingDetail" class="text-center py-5">
+                    <div class="spinner-border text-primary"></div>
                   </div>
-                </template>
 
-                      <!-- Selected Value -->
-                      <template #singlelabel="{ value }">
-                        <div>
-                          {{ value.company_name }}
-                          <small class="ms-2 text-muted">
-                            ({{ value.time_remaining_text }})
+                  <!-- DATA -->
+                  <div v-else-if="followUpStore.followUpDetail">
+
+                    <!-- CODE -->
+                    <div class="alert alert-primary d-flex justify-content-between">
+                      <div>
+                        <strong>{{ followUpStore.followUpDetail.follow_up_code }}</strong><br>
+                        {{ followUpStore.followUpDetail.target_name }}
+                      </div>
+
+                    <span
+                        class="badge badge-pill"
+                        :class="getFollowUpStatus(followUpStore.followUpDetail.status).class"
+                      >
+                        {{ getFollowUpStatus(followUpStore.followUpDetail.status).label }}
+                      </span>
+                    </div>
+
+                    <div class="row g-3">
+
+                      <div class="col-md-6">
+                        <label class="form-label">Follow Up Type</label>
+                        <input class="form-control"
+                          :value="followUpStore.followUpDetail.follow_up_type"
+                          readonly>
+                      </div>
+
+                      <div class="col-md-6">
+                        <label class="form-label">Sales</label>
+                        <input class="form-control"
+                          :value="followUpStore.followUpDetail.sales_name"
+                          readonly>
+                      </div>
+
+                      <div class="col-md-12">
+                        <label class="form-label">Subject</label>
+                        <input class="form-control"
+                          :value="followUpStore.followUpDetail.subject"
+                          readonly>
+                      </div>
+
+                      <div class="col-md-12">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" rows="4" readonly>
+                          {{ followUpStore.followUpDetail.notes }}
+                        </textarea>
+                      </div>
+
+                      <div class="col-md-6">
+                        <label class="form-label">Follow Up Retun Estimate</label>
+                        <input class="form-control"
+                          :value="followUpStore.formatDates(followUpStore.followUpDetail.follow_up_at)"
+                          readonly>
+                      </div>
+
+                      <div class="col-md-6">
+                        <label class="form-label">Created Date</label>
+                        <input class="form-control"
+                          :value="followUpStore.formatDates(followUpStore.followUpDetail.created_at)"
+                          readonly>
+                      </div>
+
+                      <div class="col-md-6">
+                        <label class="form-label">Lead Company</label>
+                        <input class="form-control"
+                          :value="followUpStore.followUpDetail.lead_company_name"
+                          readonly>
+                      </div>
+
+                      <div class="col-md-6">
+                        <label class="form-label">Lead Status</label>
+                        <input class="form-control"
+                          :value="followUpStore.followUpDetail.lead_status"
+                          readonly>
+                      </div>
+
+                    </div>
+                  </div>
+
+                  <!-- EMPTY -->
+                  <div v-else class="text-center text-muted py-5">
+                    Data tidak ditemukan
+                  </div>
+
+                </div>
+
+                <!-- FOOTER -->
+                <div class="modal-footer">
+                  <button class="btn btn-secondary" data-bs-dismiss="modal">
+                    Close
+                  </button>
+                </div>
+
+              </div>
+            </div>
+          </div>
+
+
+
+
+        <!-- form add dan edit -->
+          <div class="modal modal-blur fade" id="form-leads" tabindex="-1" role="dialog" aria-hidden="true">
+            <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h5 class="modal-title">Form Follow Up</h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+
+                <div class="modal-body">
+                  <div class="row g-3">
+                    <div class="col-lg-6">
+                      <label class="form-label">Lead <small class="text-danger">**</small></label><br>
+                          <Multiselect
+                            v-model="form.follow_up_id"
+                            :options="followUpStore.leadsOptions"
+                            :loading="followUpStore.loadingLeadsOptions"
+                            valueProp="follow_up_id"
+                            label="company_name"
+                            placeholder="Pilih Leads..."
+                            
+                            @open="followUpStore.fetchLeadsOptions()"
+                            @search-change="followUpStore.searchLeadsOptions" 
+                          >
+                      <!-- Dropdown List -->
+                      <template #option="{ option }">
+                        <div class="d-flex flex-column">
+                          <strong>{{ option.company_name }}</strong>
+                          <small class="text-muted">
+                            {{ option.contact_name }}
                           </small>
+                          <small
+                            :class="{
+                              'text-danger': option.urgency_status === 'OVERDUE',
+                              'text-warning': option.urgency_status === 'DUE_SOON',
+                              'text-success': option.urgency_status === 'SCHEDULED'
+                            }"
+                          >
+                            ⏱ {{ option.time_remaining_text }}
+                          </small>
+                          </div>
+                        </template>
+
+                              <!-- Selected Value -->
+                              <template #singlelabel="{ value }">
+                                <div>
+                                  {{ value.company_name }}
+                                  <small class="ms-2 text-muted">
+                                    ({{ value.time_remaining_text }})
+                                  </small>
+                                </div>
+                              </template>
+                            </Multiselect>
+                        
                         </div>
-                      </template>
-                    </Multiselect>
-                </div>
 
 
 
-            <div class="col-lg-3">
-              <label class="form-label">Follow-up Date Estimate Return <small class="text-success">(*ops*)</small></label>
-              <Flatpickr
-                 v-model="form.follow_up_at"
-                 :config="fpConfig"   
-                 class="form-control"
-                 placeholder="Select date & time"
-              />
-            </div>
+                    <div class="col-lg-3">
+                      <label class="form-label">Follow-up Date Estimate Return <small class="text-success">(*ops*)</small></label>
+                      <Flatpickr
+                        v-model="form.follow_up_at"
+                        :config="fpConfig"   
+                        class="form-control"
+                        placeholder="Select date & time"
+                      />
+                    </div>
 
-            <div class="col-lg-3">
-              <label class="form-label">Type Follow UP <small class="text-danger">**</small></label>
-              <Multiselect
-                                v-model="form.follow_up_type"
-                                :options="followUpStore.typeFollowUp"
-                                label="label"
-                                valueProp="value"
-                                placeholder="Select Follow Up"
-                                @update:modelValue="() => {
-                                  if (followUpStore.error?.follow_up_type) {
-                                    followUpStore.error.follow_up_type = null
-                                  }
-                                }"
-                              />
-            </div>
+                    <div class="col-lg-3">
+                      <label class="form-label">Type Follow UP <small class="text-danger">**</small></label>
+                      <Multiselect
+                                        v-model="form.follow_up_type"
+                                        :options="followUpStore.typeFollowUp"
+                                        label="label"
+                                        valueProp="value"
+                                        placeholder="Select Follow Up"
+                                        @update:modelValue="() => {
+                                          if (followUpStore.error?.follow_up_type) {
+                                            followUpStore.error.follow_up_type = null
+                                          }
+                                        }"
+                                      />
+                    </div>
 
-            <div class="col-lg-12">
-              <label class="form-label fw-bold">Follow Up Result Status <small class="text-danger">**</small></label>
-              <select v-model="form.status" class="form-select form-select-lg border-primary">
-                <option value="">-- Choose Status --</option>
-                <option value="PENDING">PENDING</option>
-                <option value="DONE">DONE OR FAILED</option>
-                <!-- <option value="CANCELED">CANCELED</option> -->
-              </select>
-            </div>
+                    <div class="col-lg-12">
+                      <label class="form-label fw-bold">Follow Up Result Status <small class="text-danger">**</small></label>
+                      <select v-model="form.status" class="form-select form-select-lg border-primary">
+                        <option value="">-- Choose Status --</option>
+                        <option value="PENDING">PENDING</option>
+                        <option value="DONE">DONE OR FAILED</option>
+                      </select>
+                    </div>
 
-            <div class="col-lg-12">
-              <transition name="fade">
-                <div v-if="form.status === 'DONE'" class="p-3 border border-success rounded bg-light">
-                  <label class="form-label text-success fw-bold">Action after Done:</label>
-                  <div class="d-flex gap-4">
-                    <label class="form-check">
-                      <input type="radio" v-model="form.done_action" value="convert" class="form-check-input">
-                      <span class="form-check-label">Convert to Customer</span>
+                    <div class="col-lg-12">
+                      <transition name="fade">
+                        <div v-if="form.status === 'DONE'" class="p-3 border border-success rounded bg-light">
+                          <label class="form-label text-success fw-bold">Action after Done:</label>
+                          <div class="d-flex gap-4">
+                            <label class="form-check">
+                              <input type="radio" v-model="form.done_action" value="convert" class="form-check-input">
+                              <span class="form-check-label">Convert to Customer</span>
+                            </label>
+                            <label class="form-check">
+                              <input type="radio" v-model="form.done_action" value="failed" class="form-check-input">
+                              <span class="form-check-label">Mark Lead as Failed</span>
+                            </label>
+                          </div>
+                          <small class="text-muted text-italic">*Semua data follow-up Lead ini akan ditandai DONE.</small>
+                        </div>
+
+                        <div v-else-if="form.status === 'PENDING'" class="p-3 border border-warning rounded bg-light">
+                          <label class="form-label text-warning fw-bold">Update Lead Category (Optional):</label>
+                          <select v-model="form.lead_category" class="form-control">
+                            <option value="">-- Keep Current Data --</option>
+                            <option value="potential_customers">Potential Customers</option>
+                            <option value="consideration_stage">Consideration Stage</option>
+                            <option value="prospective_customers">Prospective Customers</option>
+                          </select>
+                        </div>
+                      </transition>
+                    </div>
+
+
+                <div class="col-lg-6">
+                    <label class="form-label">
+                      Template Subject <small class="text-success">(opsional)</small>
                     </label>
-                    <label class="form-check">
-                      <input type="radio" v-model="form.done_action" value="failed" class="form-check-input">
-                      <span class="form-check-label">Mark Lead as Failed</span>
-                    </label>
+
+                    <Multiselect
+                      v-model="form.subject_template"
+                      :options="subjectTemplates"
+                      label="label"
+                      valueProp="value"
+                      trackBy="value"
+                      placeholder="Pilih Template Subject"
+                      :searchable="true"
+                    />
+
                   </div>
-                  <small class="text-muted text-italic">*Semua data follow-up Lead ini akan ditandai DONE.</small>
+
+
+                  <div class="col-lg-6">
+                    <label class="form-label">
+                      Subject <small class="text-danger">**</small>
+                    </label>
+
+                    <input
+                      v-model="form.subject"
+                      type="text"
+                      class="form-control"
+                      placeholder="Tulis subject atau pilih template"
+                    />
+                  </div>
+
+
+                  <div class="col-lg-12">
+                    <label class="form-label">
+                      Notes <small class="text-success">(*opsional)</small>
+                    </label>
+                    <textarea v-model="form.notes" class="form-control" rows="3"></textarea>
+                  </div>
+                  </div>
                 </div>
 
-                <div v-else-if="form.status === 'PENDING'" class="p-3 border border-warning rounded bg-light">
-                  <label class="form-label text-warning fw-bold">Update Lead Category (Optional):</label>
-                  <select v-model="form.lead_category" class="form-control">
-                    <option value="">-- Keep Current Data --</option>
-                    <option value="potential_customers">Potential Customers</option>
-                    <option value="consideration_stage">Consideration Stage</option>
-                    <option value="prospective_customers">Prospective Customers</option>
-                  </select>
+                <div class="modal-footer">
+                  <button type="button" class="btn btn-link link-secondary" data-bs-dismiss="modal">Close</button>
+                <button
+                      @click="submitFollowUp"
+                      class="btn btn-primary ms-auto"
+                      :disabled="followUpStore.submittingResult"
+                    >
+                      {{ followUpStore.submittingResult ? 'Processing...' : 'Save & Sync Tables' }}
+                    </button>
                 </div>
-
-                <!-- <div v-else-if="form.status === 'CANCELED'" class="p-3 border border-danger rounded bg-light">
-                  <p class="mb-0 text-danger">
-                    <strong>Note:</strong> Status Lead akan otomatis berubah menjadi <strong>Failed</strong> di database.
-                  </p>
-                </div> -->
-              </transition>
+              </div>
             </div>
-
-
-         <div class="col-lg-6">
-            <label class="form-label">
-              Template Subject <small class="text-success">(opsional)</small>
-            </label>
-
-            <Multiselect
-              v-model="form.subject_template"
-              :options="subjectTemplates"
-              label="label"
-              valueProp="value"
-              trackBy="value"
-              placeholder="Pilih Template Subject"
-              :searchable="true"
-            />
-
           </div>
-
-
-          <div class="col-lg-6">
-            <label class="form-label">
-              Subject <small class="text-danger">**</small>
-            </label>
-
-            <input
-              v-model="form.subject"
-              type="text"
-              class="form-control"
-              placeholder="Tulis subject atau pilih template"
-            />
-          </div>
-
-
-          <div class="col-lg-12">
-            <label class="form-label">
-              Notes <small class="text-success">(*opsional)</small>
-            </label>
-
-            <textarea v-model="form.notes" class="form-control" rows="3"></textarea>
-          </div>
-          </div>
-        </div>
-
-        <div class="modal-footer">
-          <button type="button" class="btn btn-link link-secondary" data-bs-dismiss="modal">Close</button>
-          <button @click="submitFollowUp" class="btn btn-primary ms-auto" :disabled="loading">
-            {{ loading ? 'Processing...' : 'Save & Sync Tables' }}
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
 
 
 
@@ -1029,149 +1178,158 @@ const openAddModalDirect = (type) => {
 
 
 
-    <!-- code untuk modal add direct follow up -->
+    
+   <!-- MODAL : ADD DIRECT FOLLOW UP -->
+<div class="modal modal-blur fade" id="form-leads-for-direct" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-centered">
+    <div class="modal-content">
 
-    <!-- form add dan edit -->
-   <div class="modal modal-blur fade" id="form-leads-for-direct" tabindex="-1" role="dialog" aria-hidden="true">
-    <div class="modal-dialog modal-xl modal-dialog-centered" role="document">
-      <div class="modal-content">
-        <div class="modal-header">
-          <h5 class="modal-title">Form Follow Up Direct</h5>
-          <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-        </div>
+      <!-- HEADER -->
+      <div class="modal-header">
+        <h5 class="modal-title">Form Follow Up Direct</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
 
-        <div class="modal-body">
-          <div class="row g-3">
-            <div class="col-lg-6">
-              <label class="form-label">Lead <small class="text-danger">**</small></label><br>
-                <small class="text-danger">{{ errors.lead_id }}</small>
-              <Multiselect
-                v-model="form.lead_id"
-                :options="followUpStore.leadsOptions"
-                :loading="followUpStore.loadingLeadsOptions"
-                valueProp="lead_id"
-                label="company_name"
-                placeholder="Pilih Leads..."
-                
-                @open="followUpStore.fetchLeadsOptions()"
-                @search-change="followUpStore.searchLeadsOptions" 
-              >
-              
-              <!-- Dropdown List -->
-              <template #option="{ option }">
-                <div class="d-flex flex-column">
-                  <strong>{{ option.company_name }}</strong>
-                  <small class="text-muted">
-                    {{ option.contact_name }}
-                  </small>
-                  <small
-                    :class="{
-                      'text-danger': option.urgency_status === 'OVERDUE',
-                      'text-warning': option.urgency_status === 'DUE_SOON',
-                      'text-success': option.urgency_status === 'SCHEDULED'
-                    }"
-                  >
-                    ⏱ {{ option.time_remaining_text }}
-                  </small>
-                  </div>
-                </template>
+      <!-- BODY -->
+      <div class="modal-body">
+        <div class="row g-3">
 
-                      <!-- Selected Value -->
-                      <template #singlelabel="{ value }">
-                        <div>
-                          {{ value.company_name }}
-                          <small class="ms-2 text-muted">
-                            ({{ value.time_remaining_text }})
-                          </small>
-                        </div>
-                      </template>
-                    </Multiselect>
-                </div>
+          <!-- LEAD -->
+          <div class="col-lg-6">
+            <label class="form-label">
+              Lead <small class="text-danger">**</small>
+            </label>
 
+            <Multiselect
+              v-model="formDirect.lead_id"
+              :options="followUpStore.leadsOptionsDirect"
+              label="company_name"
+              valueProp="lead_id"
+              :object="false"
+              placeholder="Select Lead..."
+              :searchable="true"
+              :loading="followUpStore.loadingLeadsOptionsDirect"
+            />
+            <small class="text-danger"
+              v-if="followUpStore.errorLeadDirectToFollowUp?.lead_id">
+              {{ followUpStore.errorLeadDirectToFollowUp.lead_id[0] }}
+            </small>
+          </div>
 
+          <!-- DATE -->
+          <div class="col-lg-6">
+            <label class="form-label">
+              Follow-up Schedule <small class="text-danger">(suggestion 3-7 more days)</small>
+            </label>
 
-            <div class="col-lg-3">
-              <label class="form-label">Follow-up Date Estimate Return <small class="text-success">(*ops*)</small></label>
-              <Flatpickr
-                 v-model="form.follow_up_at"
-                 :config="fpConfig"   
-                 class="form-control"
-                 placeholder="Select date & time"
-              />
-            </div>
+            <Flatpickr
+              v-model="formDirect.follow_up_at"
+              :config="fpConfig"
+              class="form-control"
+              placeholder="Select date & time"
+            />
+            <small class="text-danger"
+              v-if="followUpStore.errorLeadDirectToFollowUp?.follow_up_at">
+              {{ followUpStore.errorLeadDirectToFollowUp.follow_up_at[0] }}
+            </small>
+          </div>
 
-            <div class="col-lg-3">
-              <label class="form-label">Type Follow UP <small class="text-danger">**</small></label>
-              <Multiselect
-                                v-model="form.follow_up_type"
-                                :options="followUpStore.typeFollowUp"
-                                label="label"
-                                valueProp="value"
-                                placeholder="Select Follow Up"
-                                @update:modelValue="() => {
-                                  if (followUpStore.error?.follow_up_type) {
-                                    followUpStore.error.follow_up_type = null
-                                  }
-                                }"
-                              />
-            </div>
+          <!-- TYPE -->
+          <div class="col-lg-6">
+            <label class="form-label">
+              Type Follow Up <small class="text-danger">**</small>
+            </label>
 
-            
+            <Multiselect
+              v-model="formDirect.follow_up_type"
+              :options="followUpStore.typeFollowUp"
+              label="label"
+              valueProp="value"
+              placeholder="Select Follow Up"
+            />
+            <small class="text-danger"
+            v-if="followUpStore.errorLeadDirectToFollowUp?.follow_up_type">
+            {{ followUpStore.errorLeadDirectToFollowUp.follow_up_type[0] }}
+          </small>
+          </div>
 
-           
-
-
-         <div class="col-lg-6">
+          <!-- TEMPLATE SUBJECT -->
+          <div class="col-lg-6">
             <label class="form-label">
               Template Subject <small class="text-success">(opsional)</small>
             </label>
 
             <Multiselect
-              v-model="form.subject_template"
-              :options="subjectTemplates"
+              v-model="formDirect.subject_template_direct"
+              :options="followUpStore.typeSubjectDirect"
               label="label"
               valueProp="value"
               trackBy="value"
               placeholder="Pilih Template Subject"
               :searchable="true"
             />
-
+            
           </div>
 
-
+          <!-- SUBJECT -->
           <div class="col-lg-6">
             <label class="form-label">
               Subject <small class="text-danger">**</small>
             </label>
 
             <input
-              v-model="form.subject"
+              v-model="formDirect.subject"
               type="text"
               class="form-control"
               placeholder="Tulis subject atau pilih template"
             />
+            <small class="text-danger"
+              v-if="followUpStore.errorLeadDirectToFollowUp?.subject">
+              {{ followUpStore.errorLeadDirectToFollowUp.subject[0] }}
+            </small>
           </div>
 
-
+          <!-- NOTES -->
           <div class="col-lg-12">
             <label class="form-label">
-              Notes <small class="text-success">(*opsional)</small>
+              Notes <small class="text-success">(opsional)</small>
             </label>
 
-            <textarea v-model="form.notes" class="form-control" rows="3"></textarea>
+            <textarea
+              v-model="formDirect.notes"
+              class="form-control"
+              rows="3"
+            ></textarea>
+            <small class="text-danger"
+              v-if="followUpStore.errorLeadDirectToFollowUp?.notes">
+              {{ followUpStore.errorLeadDirectToFollowUp.notes[0] }}
+            </small>
           </div>
-          </div>
-        </div>
 
-        <div class="modal-footer">
-          <button type="button" class="btn btn-link link-secondary" data-bs-dismiss="modal">Close</button>
-          <button @click="submitFollowUp" class="btn btn-primary ms-auto" :disabled="loading">
-            {{ loading ? 'Processing...' : 'Save & Sync Tables' }}
-          </button>
         </div>
       </div>
+
+      <!-- FOOTER -->
+      <div class="modal-footer">
+        <button class="btn btn-link link-secondary" data-bs-dismiss="modal">
+          Close
+        </button>
+
+        <button
+          @click="saveDirectFollowUp"
+          class="btn btn-primary ms-auto"
+          :disabled="followUpStore.savingLeadDirectToFollowUp"
+        >
+          {{ followUpStore.savingLeadDirectToFollowUp
+            ? 'Processing...'
+            : 'Save & Sync To Follow Up'
+          }}
+        </button>
+      </div>
+
     </div>
   </div>
+</div>
 
   </backendLayouts>
 </template>
