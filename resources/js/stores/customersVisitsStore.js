@@ -24,6 +24,13 @@ export const useDataCustomerVisitStore = defineStore("Data-Customers-Visit", () 
 
     const loading = ref(false);
 
+
+     // untuk state visit start 
+    // VISIT STATE
+        const activeVisitId = ref(null)
+        const activeCustomerId = ref(null)
+        const activeVisitStatus = ref(null)
+
     const pagination = reactive({
         current_page: 1,
         per_page: 10,
@@ -158,6 +165,40 @@ export const useDataCustomerVisitStore = defineStore("Data-Customers-Visit", () 
     };
 
 
+
+      const startVisit = async (customerId) => {
+        try {
+            savingCustomersVisit.value = true
+
+            const response = await axios.post(
+            `/api/customers/${customerId}/start`,
+            {},
+            { headers: getAuthHeader() }
+            )
+
+            const visit = response.data.data
+
+            // simpan visit aktif
+            activeVisitId.value = visit.id
+            activeCustomerId.value = visit.customer_id
+            activeVisitStatus.value = visit.visit_status
+           
+            Swal.fire({
+            icon: "success",
+            title: "Visit Start",
+            text: "Please go to the location",
+            timer: 1500,
+            showConfirmButton: false,
+            })
+             await fetchCustomersVisitStore(buildUrl())
+        } catch (err) {
+            Swal.fire("Gagal", err.response?.data?.message ?? "Error", "error")
+        } finally {
+            savingCustomersVisit.value = false
+        }
+    }
+
+
     return {
         baseUrlApi,
         customersVisitData,
@@ -182,7 +223,12 @@ export const useDataCustomerVisitStore = defineStore("Data-Customers-Visit", () 
         changeSorting,
         toggleSort,
         resetFilters,
-        goToPage
+        goToPage,
+
+        activeVisitId,
+        activeCustomerId,
+        activeVisitStatus,
+        startVisit
     }
 
 })

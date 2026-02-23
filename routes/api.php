@@ -161,9 +161,9 @@ Route::post('/follow-ups/{id}/submit-result', [FollowUp::class, 'submitResultFol
 Route::post('/follow-ups/{id}/direct-follow-up', [FollowUp::class, 'createDirectFollowUpFromLead'])->name('api.follow.up.start.follow.up');
 
 
+// api sales Visits bagian lead
 Route::get('/data-visits-leads', [Visits::class, 'getVisitLead'])->name('api.data.leads.visit');
 Route::get('/data-visits/detail/{id}', [Visits::class, 'getVisitDetail'])->name('api.data.visit.detail');
-
 Route::get('/data-leads-visit', [Visits::class, 'VisitLeads'])->name('api.data.leads.visit');
 Route::get('/data-customers-visit', [Visits::class, 'VisitCustomers'])->name('api.data.customers.visit');
 // start visit (PAKAI LEADS ID)
@@ -173,6 +173,11 @@ Route::post('/visits/{visit}/check-in', [Visits::class, 'checkInVisit']);
 // Check Out (PAKAI VISIT ID)
 Route::post('/visits/{visit}/check-out', [Visits::class, 'checkOutVisit']);
 
+
+
+// api sales Visits bagian customers
+// start visit (PAKAI CUSTOMER ID)
+Route::post('/customers/{customer}/start', [Visits::class, 'startVisitCustomer']);
 
 });
 

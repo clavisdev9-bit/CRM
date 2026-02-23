@@ -118,6 +118,10 @@ const leadStatusConfig = {
     class: 'bg-secondary',
     icon: 'fa-solid fa-handshake',
   },
+  CONVERTED: {
+    class: 'bg-success',
+    icon: 'fa-solid fa-check-double',
+  },
   OTHER: {
     class: 'bg-dark',
     icon: 'fa-solid fa-tag',
@@ -146,8 +150,6 @@ const openDetail = async (id) => {
   )
   modal.show()
 }
-
-
 
 
 // Single lead

@@ -41,8 +41,6 @@ export const useLeadsStore = defineStore("leadsStore", () => {
 
 
 
-
-
   const pagination = reactive({
     current_page: 1,
     per_page: 10,

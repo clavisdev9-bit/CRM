@@ -327,6 +327,16 @@ export const useCustomersStore = defineStore("customersStore", () => {
                                     ])
 
 
+                                     const statusCustomer = ref([
+                                    { value: 'Active', label: 'Active' },
+                                    { value: 'Inactive', label: 'Inactive' },
+                                    { value: 'Dormant', label: 'Dormant' },
+                                    { value: 'Lost', label: 'Lost' },
+                                    { value: 'Blacklist', label: 'Blacklist' },
+                                    ])
+                                    
+
+
 
 
 
@@ -371,7 +381,8 @@ export const useCustomersStore = defineStore("customersStore", () => {
 
                 storeCustomers,
                 updateCustomers,
-                deleteCustomer
+                deleteCustomer,
+                statusCustomer
 
                 
 

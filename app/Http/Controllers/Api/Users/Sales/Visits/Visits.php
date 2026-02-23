@@ -1079,4 +1079,66 @@ class Visits extends Controller
                 ], 200);
             }
 
+
+
+            // start code untuk visit ongoing bagian customer
+            public function startVisitCustomer(Request $request, $customersId)
+                {
+                    $user    = auth()->user();
+                    $salesId = $user->id_user;
+                    DB::beginTransaction();
+                    try {
+                        // Cek visit aktif (ONGOING / CHECKED_IN)
+                        $activeVisit = VisitsModel::where('sales_id', $salesId)
+                            ->whereIn('visit_status', ['ONGOING', 'CHECKED_IN'])
+                            ->lockForUpdate()
+                            ->first();
+
+                        if ($activeVisit) {
+                            return response()->json([
+                                'success' => false,
+                                'message' => 'Masih ada visit yang sedang berjalan atau belum check out'
+                            ], 422);
+                        }
+
+                        // Cek apakah customer ini sudah pernah divisit oleh sales ini
+                        $alreadyVisited = VisitsModel::where('sales_id', $salesId)
+                            ->where('customer_id', $customersId)
+                            ->lockForUpdate()
+                            ->exists();
+
+                        if ($alreadyVisited) {
+                            return response()->json([
+                                'success' => false,
+                                'message' => 'Customer ini sudah pernah kamu visit'
+                            ], 422);
+                        }
+
+                        // Insert visit baru
+                        $visit = VisitsModel::create([
+                            'visit_code'   => VisitsModel::generateVisitCode(),
+                            'sales_id'     => $salesId,
+                            'customer_id'  => $customersId,
+                            'visit_at'     => now(),
+                            'visit_status' => 'ONGOING',
+                            'created_by'   => $salesId,
+                        ]);
+
+                        DB::commit();
+
+                        return response()->json([
+                            'success' => true,
+                            'data'    => $visit
+                        ], 201);
+
+                    } catch (\Throwable $e) {
+                        DB::rollBack();
+
+                        return response()->json([
+                            'success' => false,
+                            'message' => 'Gagal memulai visit',
+                            'error'   => $e->getMessage()
+                        ], 500);
+                    }
+                }
         }

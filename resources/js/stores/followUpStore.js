@@ -201,7 +201,7 @@ const fetchLeadsOptions = async (keyword = "") => {
                   };
 
                         const typeFollowUp = ref([
-                            { value: 'Call', label: 'CALL' },
+                            { value: 'CALL', label: 'CALL' },
                             { value: 'EMAIL', label: 'EMAIL' },
                             { value: 'WHATSAPP', label: 'WHATSAPP'},
                             { value: 'MEETING', label: 'MEETING'},

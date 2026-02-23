@@ -30,6 +30,7 @@ class CostumersValidationRequest extends FormRequest
             'visibility_type'   => 'nullable|string|in:PRIVATE,PUBLIC',
             'notes'             => 'nullable|string',
             'address'           => 'nullable|string',
+            'customer_status'           => 'nullable|string',
         ];
     }
 
@@ -60,6 +61,7 @@ class CostumersValidationRequest extends FormRequest
 
         'notes.string'               => 'Notes must be a string.',
         'address.string'             => 'Address must be a string.',
+        'customer_status.string'     => 'Customer status must be a string.',
     ];
 }
 

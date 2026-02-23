@@ -231,24 +231,24 @@ const submitFollowUp = async () => {
    clearErrors()
 
  if (!form.follow_up_id) {
-  return toasts.fire({ icon: "error", title: "Follow up tidak ditemukan" })
+  return toasts.fire({ icon: "error", title: "No follow-up found" })
 }
 
 if (!form.follow_up_at) {
-  return toasts.fire({ icon: "error", title: "Tanggal follow up Belum Ada" })
+  return toasts.fire({ icon: "error", title: "Follow up date not available yet" })
 }
 
 if (!form.follow_up_type) {
-  return toasts.fire({ icon: "error", title: "Tipe follow up Belum Dipilih" })
+  return toasts.fire({ icon: "error", title: "Follow up type not selected yet" })
 }
 
 
 if (!form.status) {
-  return toasts.fire({ icon: "error", title: "Status follow up Belum Diisi" })
+  return toasts.fire({ icon: "error", title: "Status follow up not yet filled" })
 }
 
 if (!form.subject) {
-  return toasts.fire({ icon: "error", title: "Subject follow up Belum Diisi" })
+  return toasts.fire({ icon: "error", title: "Subject follow up not yet filled" })
 }
 
   let payload = {
@@ -481,9 +481,6 @@ const saveDirectFollowUp = async () => {
   }
  
 }
-
-
-
 </script>
 
 

@@ -57,16 +57,16 @@ const getStatusBadgeClass = (status) => {
     case 'New':
       return 'bg-secondary';
 
-    case 'Contacted':
+    case 'Blacklist':
       return 'bg-info text-dark';
 
-    case 'Qualified':
+    case 'Dormant':
       return 'bg-primary';
 
-    case 'Unqualified':
+    case 'Inactive':
       return 'bg-warning text-dark';
 
-    case 'Converted':
+        case 'Active':
       return 'bg-success';
 
     case 'Lost':
@@ -95,6 +95,7 @@ const form = reactive({
   lead_category_id: '',
   visibility_type: 'PRIVATE',
   notes: '',
+  customer_status: '',
   address: '',
 })
 
@@ -119,6 +120,7 @@ const openAddModal = () => {
     lead_category_id: '',
     visibility_type: 'PRIVATE',
     notes: '',
+    customer_status: '',
     address: '',
   })
 
@@ -139,6 +141,7 @@ const openEditModal = (customer) => {
     visibility_type: customer.visibility_type,
     notes: customer.notes,
     address: customer.address,
+    customer_status: customer.customer_status,
   })
 
   dataCustomer.error = null
@@ -172,6 +175,7 @@ const saveCustomers = async () => {
       visibility_type: 'PRIVATE',
       notes: '',
       address: '',
+      customer_status: '',
     })
 
     // close modal
@@ -817,8 +821,6 @@ const handleImportExcel = () => {
 </div>
 
 
-
-    <!-- Code Modal: Add Data -->
 <!-- Code Modal: Add Customer -->
 <div
   class="modal modal-blur fade"
@@ -1012,7 +1014,7 @@ const handleImportExcel = () => {
                               :class="{ 'is-invalid': dataCustomers.errorCustomer?.lead_source }"
                             >
                               <Multiselect
-                                v-model="form.lead_source"
+                                v-model="form.lead_category_id"
                                 :options="dataCustomers.leadSource"
                                 label="label"
                                 valueProp="value"
@@ -1030,7 +1032,37 @@ const handleImportExcel = () => {
                             >
                               {{ dataCustomers.errorCustomer.lead_source[0] }}
                             </div>
+                    </div>
+
+
+
+                      <div class="col-lg-6 mb-3">
+                            <label class="form-label">Status Customer <small class="text-danger">**</small></label>
+                            <div
+                              class="multiselect-wrapper"
+                              :class="{ 'is-invalid': dataCustomers.errorCustomer?.customer_status }"
+                            >
+                              <Multiselect
+                                v-model="form.customer_status"
+                                :options="dataCustomers.statusCustomer"
+                                label="label"
+                                valueProp="value"
+                                placeholder="Select Customer Status"
+                                @update:modelValue="() => {
+                                  if (dataCustomers.errorCustomer?.customer_status) {
+                                    dataCustomers.errorCustomer.customer_status = null
+                                  }
+                                }"
+                              />
+                            </div>
+                            <div
+                              v-if="dataCustomers.errorCustomer?.customer_status"
+                              class="invalid-feedback d-block"
+                            >
+                              {{ dataCustomers.errorCustomer.customer_status[0] }}
+                            </div>
                       </div>
+
 
 
                 <!-- Address -->

@@ -22,7 +22,7 @@ class LeadsValidationRequest extends FormRequest
          return [
         'company_name'     => 'required|string|max:255',
         'contact_name'     => 'required|string|max:255',
-        'email'            => 'nullable|email|max:255',
+        'email'            => 'required|email|max:255',
         'phone'            => 'required|string|max:20',
         'lead_source'      => 'required|string|max:100',
 

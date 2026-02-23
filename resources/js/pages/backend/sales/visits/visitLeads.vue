@@ -469,7 +469,7 @@ const submitCheckOut = async () => {
   }
 }
 
-
+// code for start visit
 const confirmStartVisit = (lead) => {
   Swal.fire({
     title: 'Start Visiting?',
@@ -676,7 +676,7 @@ const errors = computed(() => dataLeadsVisit.errors)
                       class="btn btn-secondary btn-sm me-1"
                       disabled
                     >
-                      <i class="fa-solid fa-car-on"></i> Visit Ongoing
+                      <i class="fa-solid fa-car-on"></i> Visits On The Way
                     </button>
 
                     <!-- SEDANG CHECK IN -->

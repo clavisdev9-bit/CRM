@@ -25,6 +25,10 @@ export const useVisitDataStore = defineStore("visitStore", () => {
 
 
 
+      
+
+
+
 
 
   const pagination = reactive({
@@ -209,8 +213,6 @@ const formatTime = (val) => {
     minute: '2-digit'
   })
 }
-
-
 
 
 
