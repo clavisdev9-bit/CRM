@@ -73,8 +73,6 @@ const changeMode = (type) => {
   followUpStore.fetchFollowUps(type)
 }
 
-
-
 const followUpStatusConfig = {
   PENDING: {
     class: 'bg-warning text-dark',
@@ -115,6 +113,7 @@ const getFollowUpStatus = (status) => {
 // start
 const loading = ref(false);
 const dataLeads = ref([]); // Isi dengan data dari API
+const formMode = ref('add') 
 const form = reactive({
   follow_up_id: null,            
   lead_id: '',
@@ -147,6 +146,7 @@ const resetForm = () => {
   form.follow_up_at = ''
   form.follow_up_type = ''
   form.subject = ''
+  form.subject_template = null
   form.lead_category = ''
   form.notes = ''
 }
@@ -197,12 +197,14 @@ watch(() => form.subject_template, (val) => {
 
 
 const openAddModal = (row) => {
-  console.log('ROW DATA:', row)
-
+   formMode.value = 'add'
+  // console.log('ROW DATA:', row)
   form.follow_up_id = row.follow_up_id   // ← ini yang benar
   form.lead_id = row.lead_id
   form.subject = row.subject
   form.follow_up_type = row.follow_up_type
+
+   
 }
 
 
@@ -227,29 +229,200 @@ const clearErrors = () => {
 }
 
 
+// code untuk update follow up
+const editFollowUpId = ref(null)
+const openEditModalFollowUp = (followUp) => {
+  formMode.value = 'edit'
+
+  // pakai ID asli record
+  editFollowUpId.value = followUp.id
+
+  form.follow_up_at = followUp.follow_up_at
+  form.notes = followUp.notes
+  form.subject = followUp.subject
+  form.subject_template = followUp.subject_template
+  followUpStore.errorFollowUp = null
+}
+
+// const submitFollowUp = async () => {
+//    clearErrors()
+
+//  if (!form.follow_up_id) {
+//   return toasts.fire({ icon: "error", title: "No follow-up found" })
+// }
+
+// if (!form.follow_up_at) {
+//   return toasts.fire({ icon: "error", title: "Follow up date not available yet" })
+// }
+
+// if (!form.follow_up_type) {
+//   return toasts.fire({ icon: "error", title: "Follow up type not selected yet" })
+// }
+
+
+// if (!form.status) {
+//   return toasts.fire({ icon: "error", title: "Status follow up not yet filled" })
+// }
+
+// if (!form.subject) {
+//   return toasts.fire({ icon: "error", title: "Subject follow up not yet filled" })
+// }
+
+//   let payload = {
+//     status: form.status,
+//     notes: form.notes,
+//   }
+
+//   /*
+//   |--------------------------------------------------------------------------
+//   | DONE FLOW
+//   |--------------------------------------------------------------------------
+//   */
+//   if (form.status === 'DONE') {
+//     if (!form.done_action) {
+//       return toasts.fire({
+//         icon: "warning",
+//         title: "Pilih action setelah DONE"
+//       })
+//     }
+
+//     payload.done_action = form.done_action
+//   }
+
+//   /*
+//   |--------------------------------------------------------------------------
+//   | PENDING FLOW (RESCHEDULE)
+//   |--------------------------------------------------------------------------
+//   */
+//   if (form.status === 'PENDING') {
+//     if (!form.follow_up_at || !form.follow_up_type || !form.subject) {
+//       return toasts.fire({
+//         icon: "warning",
+//         title: "Lengkapi jadwal follow up berikutnya"
+//       })
+//     }
+
+//     payload.follow_up_at = form.follow_up_at
+//     payload.follow_up_type = String(form.follow_up_type).toUpperCase()
+//     payload.subject = form.subject
+//     payload.lead_category = form.lead_category
+//   }
+
+//   try {
+
+//     await followUpStore.submitFollowUpResult(form.follow_up_id, payload)
+
+//     const modal = document.getElementById("form-leads")
+//     bootstrap.Modal.getInstance(modal).hide()
+
+//     toasts.fire({
+//       icon: "success",
+//       title: "Follow Up berhasil disimpan",
+//     })
+
+//     resetForm()
+
+//   }  
+//   catch (err) {
+//   if (err.response?.status === 422) {
+
+//     const backendErrors = err.response.data.errors
+
+//     clearErrors() // reset dulu
+
+//     Object.entries(backendErrors).forEach(([field, message]) => {
+//       if (field in errors) {
+//         errors[field] = message[0]
+//       }
+//     })
+
+//     return
+//   }
+
+//   toasts.fire({
+//     icon: "error",
+//     title: err.response?.data?.message || "Terjadi kesalahan",
+//   })
+// }
+// }
+
+
+
 const submitFollowUp = async () => {
-   clearErrors()
 
- if (!form.follow_up_id) {
-  return toasts.fire({ icon: "error", title: "No follow-up found" })
-}
+  /*
+  |------------------------------------------------------------------
+  | 🔵 EDIT MODE (RESCHEDULE / SIMPLE UPDATE)
+  |------------------------------------------------------------------
+  */
+  if (formMode.value === 'edit') {
 
-if (!form.follow_up_at) {
-  return toasts.fire({ icon: "error", title: "Follow up date not available yet" })
-}
+    if (!editFollowUpId.value) {
+      return toasts.fire({ icon: "error", title: "Follow up not found" })
+    }
 
-if (!form.follow_up_type) {
-  return toasts.fire({ icon: "error", title: "Follow up type not selected yet" })
-}
+    if (!form.follow_up_at) {
+      return toasts.fire({ icon: "error", title: "Follow up date is required" })
+    }
 
+    if (!form.subject) {
+      return toasts.fire({ icon: "error", title: "Subject is required" })
+    }
 
-if (!form.status) {
-  return toasts.fire({ icon: "error", title: "Status follow up not yet filled" })
-}
+    try {
+      await followUpStore.updateFollowUp(editFollowUpId.value, form)
 
-if (!form.subject) {
-  return toasts.fire({ icon: "error", title: "Subject follow up not yet filled" })
-}
+      const modal = document.getElementById("form-leads")
+      bootstrap.Modal.getInstance(modal).hide()
+
+      toasts.fire({
+        icon: "success",
+        title: "Follow Up updated successfully",
+      })
+
+      resetForm()
+      editFollowUpId.value = null
+      formMode.value = 'add'
+
+      // refresh table
+      followUpStore.fetchFollowUps(followUpStore.mode)
+
+    } catch (err) {
+      toasts.fire({
+        icon: "error",
+        title: followUpStore.errorFollowUp || "Failed update follow up",
+      })
+    }
+    return //  stop di sini supaya tidak masuk flow ADD
+  }
+
+  /*
+  |------------------------------------------------------------------
+  |  ADD / SUBMIT RESULT MODE (FLOW LAMA)
+  |------------------------------------------------------------------
+  */
+
+  clearErrors()
+
+  if (!form.follow_up_id) {
+    return toasts.fire({ icon: "error", title: "No follow-up found" })
+  }
+
+  if (!form.follow_up_at) {
+    return toasts.fire({ icon: "error", title: "Follow up date not available yet" })
+  }
+
+  if (!form.follow_up_type) {
+    return toasts.fire({ icon: "error", title: "Follow up type not selected yet" })
+  }
+
+  if (!form.status) {
+    return toasts.fire({ icon: "error", title: "Status follow up not yet filled" })
+  }
+
+  if (!form.subject) {
+    return toasts.fire({ icon: "error", title: "Subject follow up not yet filled" })
+  }
 
   let payload = {
     status: form.status,
@@ -257,9 +430,9 @@ if (!form.subject) {
   }
 
   /*
-  |--------------------------------------------------------------------------
+  |------------------------------------------------------------------
   | DONE FLOW
-  |--------------------------------------------------------------------------
+  |------------------------------------------------------------------
   */
   if (form.status === 'DONE') {
     if (!form.done_action) {
@@ -273,9 +446,9 @@ if (!form.subject) {
   }
 
   /*
-  |--------------------------------------------------------------------------
-  | PENDING FLOW (RESCHEDULE)
-  |--------------------------------------------------------------------------
+  |------------------------------------------------------------------
+  | PENDING FLOW (RESCHEDULE NEXT FOLLOW UP)
+  |------------------------------------------------------------------
   */
   if (form.status === 'PENDING') {
     if (!form.follow_up_at || !form.follow_up_type || !form.subject) {
@@ -292,7 +465,6 @@ if (!form.subject) {
   }
 
   try {
-
     await followUpStore.submitFollowUpResult(form.follow_up_id, payload)
 
     const modal = document.getElementById("form-leads")
@@ -305,28 +477,28 @@ if (!form.subject) {
 
     resetForm()
 
-  }  
-  catch (err) {
-  if (err.response?.status === 422) {
+  } catch (err) {
 
-    const backendErrors = err.response.data.errors
+    if (err.response?.status === 422) {
 
-    clearErrors() // reset dulu
+      const backendErrors = err.response.data.errors
 
-    Object.entries(backendErrors).forEach(([field, message]) => {
-      if (field in errors) {
-        errors[field] = message[0]
-      }
+      clearErrors()
+
+      Object.entries(backendErrors).forEach(([field, message]) => {
+        if (field in errors) {
+          errors[field] = message[0]
+        }
+      })
+
+      return
+    }
+
+    toasts.fire({
+      icon: "error",
+      title: err.response?.data?.message || "Terjadi kesalahan",
     })
-
-    return
   }
-
-  toasts.fire({
-    icon: "error",
-    title: err.response?.data?.message || "Terjadi kesalahan",
-  })
-}
 }
 
 
@@ -340,8 +512,6 @@ const fpConfig = {
   minuteIncrement: 5,
   allowInput: true
 }
-
-
 
 
 // code untuk delete follow up
@@ -479,8 +649,12 @@ const saveDirectFollowUp = async () => {
       title: err.response?.data?.message || "Failed to create direct follow up",
     })
   }
- 
 }
+
+
+
+
+
 </script>
 
 
@@ -733,7 +907,10 @@ const saveDirectFollowUp = async () => {
               <button
                 v-if="item.status === 'PENDING'"
                 class="btn btn-sm btn-outline-primary me-1"
-              >
+                data-bs-toggle="modal" 
+                data-bs-target="#form-leads"
+                @click="openEditModalFollowUp(item)"
+               >
                 <i class="fa-regular fa-pen-to-square"></i>
               </button>
 
@@ -753,18 +930,16 @@ const saveDirectFollowUp = async () => {
               </span>
 
 
-               <button
-                
+              <button
                 type="button"
                 data-bs-toggle="modal"
                     data-bs-target="#followUpDetailModal"
                 class="btn btn-sm btn-outline-primary me-1 mt-1 mr-1"
                 @click="openDetailFollowUp(item)"
-              >
-                <i class="fa-regular fa-eye"></i>
-            </button>
+                >
+                  <i class="fa-regular fa-eye"></i>
+              </button>
 
-            
                 <button
                     class="btn btn-outline-primary btn-sm mt-1"
                     data-bs-toggle="modal"
@@ -772,7 +947,7 @@ const saveDirectFollowUp = async () => {
                     @click="followUpStore.fetchTimeline(item.id)"
                   >
                   <i class="fa-solid fa-timeline"></i> 
-                  </button>
+                </button>
               </td>
             </tr>
           </tbody>
@@ -944,7 +1119,7 @@ const saveDirectFollowUp = async () => {
 
                 <div class="modal-body">
                   <div class="row g-3">
-                    <div class="col-lg-6">
+                    <div class="col-lg-6" v-if="formMode === 'add'">
                       <label class="form-label">Lead <small class="text-danger">**</small></label><br>
                           <Multiselect
                             v-model="form.follow_up_id"
@@ -1001,7 +1176,7 @@ const saveDirectFollowUp = async () => {
                       />
                     </div>
 
-                    <div class="col-lg-3">
+                    <div class="col-lg-3" v-if="formMode === 'add'">
                       <label class="form-label">Type Follow UP <small class="text-danger">**</small></label>
                       <Multiselect
                                         v-model="form.follow_up_type"
@@ -1017,7 +1192,7 @@ const saveDirectFollowUp = async () => {
                                       />
                     </div>
 
-                    <div class="col-lg-12">
+                    <div class="col-lg-12" v-if="formMode === 'add'">
                       <label class="form-label fw-bold">Follow Up Result Status <small class="text-danger">**</small></label>
                       <select v-model="form.status" class="form-select form-select-lg border-primary">
                         <option value="">-- Choose Status --</option>
@@ -1026,7 +1201,7 @@ const saveDirectFollowUp = async () => {
                       </select>
                     </div>
 
-                    <div class="col-lg-12">
+                    <div class="col-lg-12" v-if="formMode === 'add'">
                       <transition name="fade">
                         <div v-if="form.status === 'DONE'" class="p-3 border border-success rounded bg-light">
                           <label class="form-label text-success fw-bold">Action after Done:</label>
@@ -1056,7 +1231,7 @@ const saveDirectFollowUp = async () => {
                     </div>
 
 
-                <div class="col-lg-6">
+                <div class="col-lg-6" v-if="formMode === 'add'">
                     <label class="form-label">
                       Template Subject <small class="text-success">(opsional)</small>
                     </label>
@@ -1074,7 +1249,7 @@ const saveDirectFollowUp = async () => {
                   </div>
 
 
-                  <div class="col-lg-6">
+                  <div class="col-lg-6" v-if="formMode === 'add'">
                     <label class="form-label">
                       Subject <small class="text-danger">**</small>
                     </label>

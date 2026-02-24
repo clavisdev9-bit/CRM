@@ -17,13 +17,14 @@ class FollowUpValidationUpdate extends FormRequest
             // TARGET (wajib salah satu)
             // 'lead_id'     => 'nullable|integer|exists:leads,id',
             // 'customer_id' => 'nullable|integer|exists:customers,id',
-            'status' => 'nullable|in:PENDING,DONE,CANCELED',
+            // 'status' => 'nullable|in:PENDING,DONE,CANCELED',
 
             // DATA UTAMA
             // 'subject'        => 'required|string|max:255',
             'follow_up_at' => 'nullable|date_format:Y-m-d H:i',
             // 'follow_up_type' => 'nullable|in:CALL,MEETING,WHATSAPP,EMAIL',
             'notes'          => 'nullable|string',
+            'subject'          => 'nullable|string',
         ];
     }
 

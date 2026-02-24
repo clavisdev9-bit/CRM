@@ -294,7 +294,7 @@ class FollowUp extends Controller
                 ->update([
                     'follow_up_at' => $data['follow_up_at'],
                     'notes'        => $data['notes'] ?? null,
-                    'status'       => $data['status'] ?? null,
+                    'subject'       => $data['subject'] ?? null,
                     'updated_at'   => now(),
                 ]);
 
@@ -749,6 +749,7 @@ class FollowUp extends Controller
                         'follow_up_at'   => $request->follow_up_at,
                         'status'         => 'PENDING',
                         'created_by'     => $salesId,
+                        'notes'          => $request->notes,
                         'created_at'     => now(),
                         'updated_at'     => now(),
                     ]);

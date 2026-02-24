@@ -48,7 +48,12 @@ const errorLeadDirectToFollowUp = ref(null)
 const submittingResult = ref(false)
 const errorSubmitResult = ref(null)
 
-  const pagination = reactive({
+//state update follow up data
+const updatingFollowUp = ref(false)
+const errorFollowUp = ref(null)
+
+
+const pagination = reactive({
     current_page: 1,
     per_page: 10,
     last_page: 1,
@@ -404,6 +409,38 @@ const fetchLeadsOptions = async (keyword = "") => {
                             }
 
 
+                              const updateFollowUp = async (id, form) => {
+                                updatingFollowUp.value = true
+                                errorFollowUp.value = null
+
+                                try {
+                                  const payload = {
+                                    follow_up_at: form.follow_up_at,
+                                    notes: form.notes ?? null,
+                                    subject: form.subject ?? null,
+                                  }
+
+                                  const res = await axios.put(
+                                    `/api/follow-up/update/${id}`,
+                                    payload,
+                                    { headers: getAuthHeader() }  
+                                  )
+
+                                  // optional kalau mau auto refresh table juga
+                                  await fetchFollowUps()
+
+                                  return res.data
+                                } catch (err) {
+                                  errorFollowUp.value =
+                                    err.response?.data?.message || 'Failed to update follow up'
+
+                                  throw err
+                                } finally {
+                                  updatingFollowUp.value = false
+                                }
+}
+
+
 
   return {
     followUp,
@@ -456,9 +493,12 @@ const fetchLeadsOptions = async (keyword = "") => {
     storeLeadDirectForFollowUp,
 
      submitFollowUpResult,
-  submittingResult,
-  errorSubmitResult,
+     submittingResult,
+     errorSubmitResult,
 
+    updatingFollowUp,
+    errorFollowUp,
+    updateFollowUp
 
   };
 });
