@@ -97,11 +97,13 @@ const confirmStartVisit = (customer) => {
 
 
 
-const selectedCustomerscheckIn = ref(null)
+const selectedCustomersCheckIn = ref(null)
 const openVisitModalCheckIn = (customer) => {
-  selectedCustomerscheckIn.value = customer
+  selectedCustomersCheckIn.value = customer
   startCamera();
-  console.log('this is modal for check in customer');
+
+  console.log('Target Visit ID:', customer.active_visit_id); // Cek di console
+  
 }
 
 
@@ -120,6 +122,7 @@ const accuracy = ref(15);
 const locationStatus = ref('Waiting photo...');
 const address = ref('');
 const locationName = ref('');
+const errors = ref({});
 
 // const currentDate = ref('');
 // const currentTime = ref('');
@@ -327,6 +330,107 @@ const resetVisitState = () => {
 
 };
 
+
+
+const submitCheckIn = async () => {
+  if (!selectedCustomersCheckIn.value) return
+  errors.value = {}
+
+  if (!photoBlob.value) {
+    errors.value.photo = ['Photo evidence is required']
+    return
+  }
+
+  if (!latitude.value || !longitude.value) {
+    errors.value.latitude = ['Location not detected']
+    return
+  }
+
+  if (!address.value) {
+    errors.value.gps_snapshot = ['GPS snapshot is required']
+    return
+  }
+  
+
+  try {
+     await dataCustomerVisit.checkInVisit({
+      visitId: selectedCustomersCheckIn.value.active_visit_id,
+      latitude: latitude.value,
+      longitude: longitude.value,
+      gps_snapshot: address.value,
+      photoBlob: photoBlob.value
+    })
+
+    resetVisitState()
+
+    const modal = document.getElementById("modal-input-check-in")
+    const instance =
+      bootstrap.Modal.getInstance(modal) ||
+      new bootstrap.Modal(modal)
+
+    instance.hide()
+
+    modal.addEventListener(
+      "hidden.bs.modal",
+      () => {
+        Swal.fire({
+          icon: "success",
+          title: "Check In Successful",
+          text: "Location & photo saved successfully",
+          timer: 1500,
+          showConfirmButton: false
+        })
+      },
+      { once: true }
+    )
+
+  } catch (err) {
+    Swal.fire(
+      "Check In Failed",
+      err.response?.data?.message ?? "There is an error",
+      "error"
+    )
+  }
+}
+
+
+// ==============================
+// CHECK OUT STATE
+// ==============================
+const selectedCustomerCheckOut = ref(null)
+const form = reactive({
+  notes: '',
+  status: ''
+})
+
+const statusOptions = [
+  { value: 'Relationship Check', label: 'Relationship Check' },
+  { value: 'Product Availability Check', label: 'Product Availability Check' },
+  { value: 'Monitoring Usage / Consumption', label: 'Monitoring Usage / Consumption' },
+  { value: 'Update Informasi Perusahaan', label: 'Update Informasi Perusahaan' },
+  { value: 'No Issue Found', label: 'No Issue Found' },
+  { value: 'Complaint Received', label: 'Complaint Received' },
+  { value: 'Product Issue Investigation', label: 'Product Issue Investigation' },
+  { value: 'Service Support Provided', label: 'Service Support Provided' },
+  { value: 'Replacement / Adjustment Needed', label: 'Replacement / Adjustment Needed' },
+]
+
+// ==============================
+// OPEN MODAL
+// ==============================
+const openVisitModalCheckOut = (leads) => {
+  selectedCustomerCheckOut.value = leads
+  form.notes = ''
+  form.status = ''
+  errors.value = {}
+
+  const modalEl = document.getElementById('modal-input-check-out')
+  const instance =
+    bootstrap.Modal.getInstance(modalEl) ||
+    new bootstrap.Modal(modalEl)
+
+  instance.show()
+}
 
 </script>
 
@@ -547,13 +651,15 @@ const resetVisitState = () => {
                       <i class="fa-solid fa-building-circle-arrow-right"></i> Check In
                     </button>
 
+                    
+
                     <!-- CHECK OUT -->
                     <button
                       class="btn btn-sm btn-success"
                    
                       data-bs-toggle="modal"
                       data-bs-target="#modal-input-check-out"
-                     
+                      @click="openVisitModalCheckOut(cvd)"
                     >
                       <i class="fa-solid fa-building-circle-check"></i> Check Out
                     </button>
@@ -607,8 +713,7 @@ const resetVisitState = () => {
 
 
 
-     <!-- Modal: Visit Input check  IN -->
-    <div class="modal modal-blur fade" id="modal-input-check-in" tabindex="-1" aria-hidden="true">
+           <div class="modal modal-blur fade" id="modal-input-check-in" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-lg modal-dialog-centered">
         <div class="modal-content">
           <div class="modal-header">
@@ -621,14 +726,14 @@ const resetVisitState = () => {
           <div class="modal-body">
 
             <!-- ERROR VALIDATION -->
-            <!-- <div v-if="Object.keys(errors).length" class="alert alert-danger mt-2">
+            <div v-if="Object.keys(errors).length" class="alert alert-danger mt-2">
               <ul class="mb-0 ps-3">
                 <li v-if="errors.latitude">{{ errors.latitude[0] }}</li>
                 <li v-if="errors.longitude">{{ errors.longitude[0] }}</li>
                 <li v-if="errors.gps_snapshot">{{ errors.gps_snapshot[0] }}</li>
                 <li v-if="errors.photo">{{ errors.photo[0] }}</li>
               </ul>
-            </div> -->
+            </div>
 
             <div class="row g-3">
               <!-- Left: Camera -->
@@ -663,7 +768,7 @@ const resetVisitState = () => {
                   <div class="d-flex align-items-center mb-2">
                     <i class="fa-regular fa-calendar-check text-primary me-2"></i>
                     <div>
-                      <div class="fw-bold" style="font-size:.7rem; color:#666;">CUSTOMER VISIT DATE <small class="text-danger">**</small></div>
+                      <div class="fw-bold" style="font-size:.7rem; color:#666;">LEAD VISIT DATE <small class="text-danger">**</small></div>
                       <div class="small fw-semibold text-dark">{{ currentDate }} - {{ currentTime }}</div>
                     </div>
                   </div>
@@ -671,7 +776,7 @@ const resetVisitState = () => {
                   <div class="d-flex align-items-start">
                     <i class="fa-solid fa-location-dot text-danger me-2 mt-1"></i>
                     <div style="word-break:break-word;">
-                      <div class="fw-bold" style="font-size:.7rem; color:#666;">CUSTOMER LOCATION SNAPSHOT <small class="text-danger">**</small></div>
+                      <div class="fw-bold" style="font-size:.7rem; color:#666;">LEAD LOCATION SNAPSHOT <small class="text-danger">**</small></div>
                       <div class="small text-muted" style="font-size:11px; line-height:1.3;">{{ address || 'Detecting address...' }}</div>
                      <div
                         v-if="photoBlob && locationStatus !== 'Location detected'"
@@ -698,38 +803,137 @@ const resetVisitState = () => {
           <div class="modal-footer">
           <button
               class="btn btn-success ms-auto"
-                
-            > Submit
+              :disabled="
+                !photoBlob ||
+                !isLocationReady ||
+                isProcessingPhoto ||
+                dataCustomerVisit.checkingInVisit
+              "
+              @click="submitCheckIn"
+            >
               <!-- loading -->
-              <!-- <span
-              
+              <span
+                v-if="dataCustomerVisit.checkingInVisit"
                 class="spinner-border spinner-border-sm me-2"
-              ></span> -->
+              ></span>
 
               <!-- icon normal -->
-              <!-- <i
+              <i
                 v-else
                 class="fa-solid fa-cloud-arrow-up me-2"
-              ></i> -->
+              ></i>
 
               <!-- text logic -->
-              <!-- <span v-if="dataLeadsVisit.checkingInVisit">
+              <span v-if="dataCustomerVisit.checkingInVisit">
                 Saving...
-              </span> -->
+              </span>
 
-              <!-- 🔥 ganti pakai isLocationReady -->
-              <!-- <span v-else-if="photoBlob && !isLocationReady">
+              <!--  ganti pakai isLocationReady -->
+              <span v-else-if="photoBlob && !isLocationReady">
                 Detecting location...
-              </span> -->
+              </span>
 
-              <!-- <span v-else>
+              <span v-else>
                 Submit Check-In
-              </span>  -->
-          </button>
+              </span>
+            </button>
           </div>
           </div>
           </div>
           </div>
+
+
+
+
+
+           <!-- Modal: Visit Input check OUT -->
+        <div class="modal modal-blur fade" id="modal-input-check-out" tabindex="-1" aria-hidden="true">
+          <div class="modal-dialog modal-lg modal-dialog-centered">
+            <div class="modal-content">
+              <div class="modal-header">
+                <h5 class="modal-title">
+                Check OUT Customer
+                </h5>
+              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+              </div>
+              <hr>
+              <div class="modal-body">
+                <div class="row g-3">
+                
+
+                  
+                  <!-- Notes & Status -->
+                  <div class="col-12">
+                    <div class="mb-3">
+                      <label class="form-label fw-bold">Notes on Visit Results <small class="text-danger">**</small></label>
+                      <textarea class="form-control"
+                      v-model="form.notes" rows="5"
+                      placeholder="Write a note here..."
+                      :class="{ 'is-invalid': errors?.notes }"
+                        ></textarea>
+                    <div v-if="errors?.notes" class="invalid-feedback d-block">
+                        {{ errors.notes[0] }}
+                      </div>
+                    </div>
+                    </div>
+
+
+                    <label class="form-label fw-bold">Update Data Status (Response Customer) <small class="text-danger">**</small></label>
+                      <div
+                        class="row g-2 border rounded p-2"
+                        :class="{ 'border-danger': errors?.customer_response }"
+                      >
+                        <div
+                          class="col-12 col-sm-4"
+                          v-for="status in statusOptions"
+                          :key="status.value"
+                        >
+                          <div class="input-group">
+                            <div class="input-group-text">
+                              <input
+                                type="radio"
+                                class="form-check-input mt-0"
+                                v-model="form.status"
+                                :value="status.value"
+                                :id="'status-' + status.value"
+                              >
+                            </div>
+                            <label
+                              class="form-control bg-white cursor-pointer"
+                              :for="'status-' + status.value"
+                            >
+                              {{ status.label }}
+                            </label>
+                          </div>
+                        </div>
+                      </div>
+                      <!--  ERROR DI BAWAH GROUP -->
+                      <div v-if="errors?.customer_response" class="invalid-feedback d-block mt-1">
+                        {{ errors.customer_response[0] }}
+                      </div>
+                  </div>
+              </div>
+              <hr>
+              <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" >Cancel</button>
+                <button
+                  class="btn btn-success ms-auto"
+                
+                >
+                  <!-- <span
+                  
+                    class="spinner-border spinner-border-sm me-2"
+                  ></span> -->
+                  <i class="fa-solid fa-cloud-arrow-up me-2"></i>
+                  Save
+                </button>
+
+              </div>
+              </div>
+              </div>
+              </div>
+
+
 
 
   </backendLayouts>

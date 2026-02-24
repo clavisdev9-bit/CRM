@@ -8,7 +8,6 @@ import { toasts } from "@/utils/toasts";
 import { useRoute, useRouter } from "vue-router";
 import Swal from 'sweetalert2';
 
-
 const PagesTitle = 'Data Leads Ready To Visit';
 
 // ==============================
@@ -80,9 +79,6 @@ const selectedLeadscheckIn = ref(null)
 const openVisitModalCheckIn = (leads) => {
   selectedLeadscheckIn.value = leads
   startCamera();
-
-  console.log('this is modal for check in');
-  
 }
 // ==============================
 // Camera & Location State
@@ -303,24 +299,24 @@ const resetVisitState = () => {
 
 };
 
-const canSubmitCheckIn = computed(() => {
-  return (
-    photoBlob.value &&
-    latitude.value !== null &&
-    longitude.value !== null &&
-    !isProcessingPhoto.value
-  )
-})
+// const canSubmitCheckIn = computed(() => {
+//   return (
+//     photoBlob.value &&
+//     latitude.value !== null &&
+//     longitude.value !== null &&
+//     !isProcessingPhoto.value
+//   )
+// })
 
-const cancelCheckIn = () => {
-  if (dataLeadsVisit.checkingInVisit) return // safety
+// const cancelCheckIn = () => {
+//   if (dataLeadsVisit.checkingInVisit) return // safety
 
-  resetVisitState()
+//   resetVisitState()
 
-  const modalEl = document.getElementById('modal-input-check-in')
-  const instance = bootstrap.Modal.getOrCreateInstance(modalEl)
-  instance.hide()
-}
+//   const modalEl = document.getElementById('modal-input-check-in')
+//   const instance = bootstrap.Modal.getOrCreateInstance(modalEl)
+//   instance.hide()
+// }
 
 
 const submitCheckIn = async () => {

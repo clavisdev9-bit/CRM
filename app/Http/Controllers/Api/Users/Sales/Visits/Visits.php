@@ -713,12 +713,23 @@ class Visits extends Controller
                     'ind.name as industry_name',
                     'owner.fullname as owner_name',
                     'sales.fullname as assigned_name',
+                    'v.id as active_visit_id',
+                    'v.visit_status as visit_status',
+                    'v.check_in_at as active_check_in_at',
                 ])
                 ->leftJoin('lead_categories as cat', 'cat.id', '=', 'c.lead_category_id')
                 ->leftJoin('lead_industries as ind', 'ind.id', '=', 'c.industry_id')
                 ->leftJoin('ms_users as owner', 'owner.id_user', '=', 'c.id_user')
                 ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'c.assigned_to')
-                ->whereNull('c.deleted_at')
+
+                ->leftJoinSub(
+                        DB::table('visits')
+                            ->select('id', 'customer_id', 'visit_status', 'check_in_at')
+                            ->whereIn('visit_status', ['ONGOING', 'CHECKED_IN']),
+                        'v',
+                        'v.customer_id', '=', 'c.id'
+                    )
+                            ->whereNull('c.deleted_at')
 
                 /**
                  * VISIBILITY USER
@@ -1081,6 +1092,8 @@ class Visits extends Controller
 
 
 
+
+
             // start code untuk visit ongoing bagian customer
             public function startVisitCustomer(Request $request, $customersId)
                 {
@@ -1141,4 +1154,73 @@ class Visits extends Controller
                         ], 500);
                     }
                 }
+
+
+
+                  public function checkInVisitCustomer(Request $request, $visitId)
+            {
+               
+                $request->validate([
+                    'latitude' => [
+                        'required',
+                        'numeric',
+                        'between:-90,90'
+                    ],
+
+                    'longitude' => [
+                        'required',
+                        'numeric',
+                        'between:-180,180'
+                    ],
+
+                    'gps_snapshot' => [
+                        'required',
+                        'string',
+                        'max:5000' // batasi agar tidak kirim string besar
+                    ],
+
+                    'photo' => [
+                        'required',
+                        'image',
+                        'mimes:jpg,jpeg,png',
+                        'max:4096' // 4MB
+                    ],
+                ]);
+
+                $userId = auth()->user()->id_user;
+
+                $visit = VisitsModel::where('id', $visitId)
+                    ->where('sales_id', $userId)
+                    ->where('visit_status', 'ONGOING')
+                    ->firstOrFail();
+
+                DB::beginTransaction();
+                try {
+                    // upload photo
+                    $path = $request->file('photo')->store('visits/checkin', 'public');
+
+                    $visit->update([
+                        'check_in_at'  => now(),
+                        'latitude'     => $request->latitude,
+                        'longitude'    => $request->longitude,
+                        'gps_snapshot' => $request->gps_snapshot,
+                        'photo'        => $path,
+                        'visit_status' => 'CHECKED_IN',
+                    ]);
+
+                    DB::commit();
+
+                    return response()->json([
+                        'success' => true,
+                        'data' => $visit
+                    ]);
+                } catch (\Throwable $e) {
+                    DB::rollBack();
+                    return response()->json([
+                        'success' => false,
+                        'message' => $e->getMessage()
+                    ], 500);
+                }
+            }
+
         }

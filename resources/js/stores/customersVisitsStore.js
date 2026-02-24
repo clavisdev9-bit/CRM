@@ -23,6 +23,9 @@ export const useDataCustomerVisitStore = defineStore("Data-Customers-Visit", () 
     let searchTimeoutCustomersVisit = null;
 
     const loading = ref(false);
+    const errors = ref({});
+    
+
 
 
      // untuk state visit start 
@@ -30,6 +33,9 @@ export const useDataCustomerVisitStore = defineStore("Data-Customers-Visit", () 
         const activeVisitId = ref(null)
         const activeCustomerId = ref(null)
         const activeVisitStatus = ref(null)
+
+    // CHECK IN STATE
+    const checkingInVisit = ref(false)
 
     const pagination = reactive({
         current_page: 1,
@@ -199,6 +205,39 @@ export const useDataCustomerVisitStore = defineStore("Data-Customers-Visit", () 
     }
 
 
+     const checkInVisit = async ({ visitId, latitude, longitude, gps_snapshot, photoBlob }) => {
+        try {
+            checkingInVisit.value = true
+            errors.value = {}
+
+            const formData = new FormData()
+            formData.append('latitude', latitude)
+            formData.append('longitude', longitude)
+            formData.append('gps_snapshot', gps_snapshot)
+            formData.append('photo', photoBlob)
+
+            // await axios.post(`/api/visits/${visitId}/check-in`, formData, {
+            await axios.post(`/api/visits/${visitId}/check-in`, formData, {
+            headers: {
+                ...getAuthHeader(),
+                'Content-Type': 'multipart/form-data'
+            }
+            })
+
+            await fetchCustomersVisitStore(buildUrl())
+            return true
+
+        } catch (err) {
+            if (err.response?.status === 422) {
+            errors.value = err.response.data.errors   
+            }
+            throw err
+        } finally {
+            checkingInVisit.value = false
+        }
+        }
+
+
     return {
         baseUrlApi,
         customersVisitData,
@@ -228,7 +267,9 @@ export const useDataCustomerVisitStore = defineStore("Data-Customers-Visit", () 
         activeVisitId,
         activeCustomerId,
         activeVisitStatus,
-        startVisit
+        startVisit,
+        checkingInVisit,
+        checkInVisit,
     }
 
 })

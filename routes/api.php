@@ -178,6 +178,8 @@ Route::post('/visits/{visit}/check-out', [Visits::class, 'checkOutVisit']);
 // api sales Visits bagian customers
 // start visit (PAKAI CUSTOMER ID)
 Route::post('/customers/{customer}/start', [Visits::class, 'startVisitCustomer']);
+// Check In (PAKAI VISIT ID)
+Route::post('/visits/customers/{visit}/check-in', [Visits::class, 'checkInVisitCustomer']);
 
 });
 

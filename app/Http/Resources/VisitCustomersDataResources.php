@@ -47,10 +47,21 @@ class VisitCustomersDataResources extends JsonResource
             'converted_at' => $this->converted_at ? Carbon::parse($this->converted_at)->format('Y-m-d H:i:s') : null,
 
             // =========================
+            // ID JOIN
+             'active_visit_id' => $this->active_visit_id,
+             'visit_status' => $this->visit_status,
+             'active_check_in_at' => $this->active_check_in_at,
+            // =========================
+
+
+            // =========================
             // AUDIT
             // =========================
             'created_at' => $this->created_at ? Carbon::parse($this->created_at)->format('Y-m-d H:i:s') : null,
             'updated_at' => $this->updated_at ? Carbon::parse($this->updated_at)->format('Y-m-d H:i:s') : null,
+
+
+           
         ];
     }
 }
