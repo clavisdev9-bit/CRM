@@ -74,6 +74,24 @@ onMounted(async () => {
 
 
 
+// code for see more address in modal
+const selectedAddress = ref('')
+const openAddressModal = (cvd) => {
+  selectedAddress.value = cvd.address
+
+  const modalEl = document.getElementById('modal-address')
+  const instance =
+    bootstrap.Modal.getInstance(modalEl) ||
+    new bootstrap.Modal(modalEl)
+
+  instance.show()
+}
+
+const openGoogleMaps = (address) => {
+  const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`
+  window.open(url, '_blank')
+}
+
 // start code for check In
 const selectedLeadscheckIn = ref(null)
 const openVisitModalCheckIn = (leads) => {
@@ -636,17 +654,15 @@ const errors = computed(() => dataLeadsVisit.errors)
                     <td>{{ lvd.company_name }}</td>
                     <td>{{ lvd.contact_name }}</td>
                     <td>
-                      <!-- Desktop -->
-                      <textarea
-                        class="form-control d-none d-md-block"
-                        rows="2"
-                        readonly
-                      >{{ lvd.address }}</textarea>
-
-                      <!-- Mobile -->
-                      <div class="d-block d-md-none small text-muted text-wrap">
-                        {{ lvd.address }}
-                      </div>
+                     <td>
+                        <span 
+                          class="text-primary fw-bold fs-6" 
+                          style="cursor: pointer; font-size: 11px;"
+                          @click="openAddressModal(lvd)"
+                        >
+                          <i class="fa-solid fa-arrow-right"></i> See More Address
+                        </span>
+                    </td>
                     </td>
                     <td>{{ lvd.phone }}</td>
                   <td>
@@ -746,6 +762,40 @@ const errors = computed(() => dataLeadsVisit.errors)
         </div>
       </div>
     </div>
+
+
+          <!-- Modal  untuk alamat-->
+             <!-- Modal -->
+          <div class="modal fade" id="modal-address" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h6 class="modal-title">Complete address</h6>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                  <p class="mb-0">{{ selectedAddress }}</p>
+                </div>
+                <div class="modal-footer">
+                  <button 
+                    type="button" 
+                    class="btn btn-secondary btn-sm" 
+                    data-bs-dismiss="modal"
+                  >
+                    Close
+                  </button>
+                  <button 
+                    type="button" 
+                    class="btn btn-primary btn-sm"
+                    @click="openGoogleMaps(selectedAddress)"
+                  >
+                    <i class="fa-solid fa-map-location-dot"></i> Open in Google Maps
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
 
 
     

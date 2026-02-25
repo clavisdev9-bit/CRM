@@ -7,6 +7,7 @@ import { useRoute, useRouter } from "vue-router"
 import { toasts } from "@/utils/toasts"
 import Swal from 'sweetalert2';
 
+
 // ======================================================
 // BASIC
 // ======================================================
@@ -69,6 +70,25 @@ onMounted(async () => {
 
 
 
+// code for see more address in modal
+const selectedAddress = ref('')
+const openAddressModal = (cvd) => {
+  selectedAddress.value = cvd.address
+
+  const modalEl = document.getElementById('modal-address')
+  const instance =
+    bootstrap.Modal.getInstance(modalEl) ||
+    new bootstrap.Modal(modalEl)
+
+  instance.show()
+}
+
+const openGoogleMaps = (address) => {
+  const url = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(address)}`
+  window.open(url, '_blank')
+}
+
+
 // code for start visit
 const confirmStartVisit = (customer) => {
   Swal.fire({
@@ -123,30 +143,6 @@ const locationStatus = ref('Waiting photo...');
 const address = ref('');
 const locationName = ref('');
 const errors = ref({});
-
-// const currentDate = ref('');
-// const currentTime = ref('');
-// let timer = null;
-
-
-// ==============================
-// Date Time
-// ==============================
-// const updateDateTime = () => {
-//   const now = new Date();
-//   currentDate.value = now.toLocaleDateString('en-GB', {
-//     weekday: 'long',
-//     day: '2-digit',
-//     month: 'long',
-//     year: 'numeric'
-//   }).replace(',', ' /');
-
-//   currentTime.value = now.toLocaleTimeString('en-GB', {
-//     hour: '2-digit',
-//     minute: '2-digit',
-//     second: '2-digit'
-//   });
-// };
 
 // ==============================
 // Camera
@@ -432,6 +428,8 @@ const openVisitModalCheckOut = (leads) => {
   instance.show()
 }
 
+
+
 </script>
 
 
@@ -580,17 +578,13 @@ const openVisitModalCheckOut = (leads) => {
                     <td>{{ cvd.company_name }}</td>
                     <td>{{ cvd.contact_name }}</td>
                     <td>
-                      <!-- Desktop -->
-                      <textarea
-                        class="form-control d-none d-md-block"
-                        rows="2"
-                        readonly
-                      >{{ cvd.address }}</textarea>
-
-                      <!-- Mobile -->
-                      <div class="d-block d-md-none small text-muted text-wrap">
-                        {{ cvd.address }}
-                      </div>
+                        <span 
+                          class="text-primary fw-bold fs-6" 
+                          style="cursor: pointer; font-size: 11px;"
+                          @click="openAddressModal(cvd)"
+                        >
+                          <i class="fa-solid fa-arrow-right"></i> See More Address
+                        </span>
                     </td>
                     <td>{{ cvd.phone }}</td>
                    <td>
@@ -616,7 +610,7 @@ const openVisitModalCheckOut = (leads) => {
                       <td>
                     <!-- VISIT NOW -->
                     <button
-                  
+                       v-if="!cvd.active_visit_id"
                       class="btn btn-primary btn-sm me-1"
                        @click="confirmStartVisit(cvd)"
                     >
@@ -625,7 +619,7 @@ const openVisitModalCheckOut = (leads) => {
 
                     <!-- ONGOING (BELUM CHECK IN) -->
                     <button
-                     
+                      v-else-if="cvd.visit_status === 'ONGOING'"
                       class="btn btn-secondary btn-sm me-1"
                       disabled
                     >
@@ -634,7 +628,7 @@ const openVisitModalCheckOut = (leads) => {
 
                     <!-- SEDANG CHECK IN -->
                     <button
-                     
+                      v-else-if="cvd.visit_status === 'CHECKED_IN'"
                       class="btn btn-warning btn-sm me-1"
                       disabled
                     >
@@ -644,6 +638,7 @@ const openVisitModalCheckOut = (leads) => {
                     <!-- CHECK IN -->
                     <button
                       class="btn btn-sm btn-primary me-1"
+                      :disabled="cvd.visit_status !== 'ONGOING'"
                       data-bs-toggle="modal"
                       data-bs-target="#modal-input-check-in"
                       @click="openVisitModalCheckIn(cvd)"
@@ -656,7 +651,7 @@ const openVisitModalCheckOut = (leads) => {
                     <!-- CHECK OUT -->
                     <button
                       class="btn btn-sm btn-success"
-                   
+                      :disabled="cvd.visit_status !== 'CHECKED_IN'"
                       data-bs-toggle="modal"
                       data-bs-target="#modal-input-check-out"
                       @click="openVisitModalCheckOut(cvd)"
@@ -709,6 +704,40 @@ const openVisitModalCheckOut = (leads) => {
         </div>
       </div>
     </div>
+
+
+
+            <!-- Modal  untuk alamat-->
+             <!-- Modal -->
+          <div class="modal fade" id="modal-address" tabindex="-1">
+            <div class="modal-dialog modal-dialog-centered">
+              <div class="modal-content">
+                <div class="modal-header">
+                  <h6 class="modal-title">Complete address</h6>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                  <p class="mb-0">{{ selectedAddress }}</p>
+                </div>
+                <div class="modal-footer">
+                  <button 
+                    type="button" 
+                    class="btn btn-secondary btn-sm" 
+                    data-bs-dismiss="modal"
+                  >
+                    Close
+                  </button>
+                  <button 
+                    type="button" 
+                    class="btn btn-primary btn-sm"
+                    @click="openGoogleMaps(selectedAddress)"
+                  >
+                    <i class="fa-solid fa-map-location-dot"></i> Open in Google Maps
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
 
 
 
