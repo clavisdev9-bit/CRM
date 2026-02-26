@@ -7,6 +7,7 @@ import Swal from "sweetalert2";
 export const useFollowUpsStore = defineStore("followUpStore", () => {
 
   const endpoints = {
+    customers: "/api/follow-up-customers",
     leads: "/api/follow-up-leads",
     timeline: (id) => `/api/follow-up/${id}/timeline`,
       leadsSelect: "/api/follow-up/get-sales/leads",
@@ -15,7 +16,7 @@ export const useFollowUpsStore = defineStore("followUpStore", () => {
 
   /* ================= STATE ================= */
   const followUp = ref([]); // ← singular (dipakai di UI)
-  const mode = ref("leads");
+  const mode = ref("customers");
   const loading = ref(false);
 
   const search = ref("");
@@ -70,6 +71,9 @@ const pagination = reactive({
   });
 
   const buildUrl = () => {
+
+     console.log('MODE:', mode.value)           // cek mode
+  console.log('ENDPOINT:', endpoints[mode.value]) 
     const params = new URLSearchParams();
 
     params.append("page", pagination.current_page);
@@ -449,6 +453,7 @@ const fetchLeadsOptions = async (keyword = "") => {
     search,
     pagination,
     sort,
+    mode,
 
     fetchFollowUps,
     searchWithDelay,

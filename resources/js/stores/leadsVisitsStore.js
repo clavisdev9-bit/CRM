@@ -37,7 +37,7 @@ export const useDataLeadsVisitStore = defineStore("Data-Leads-Visit", () => {
     // CHECK IN STATE
     const checkingInVisit = ref(false)
 
-    // CHECK IN STATE
+    // CHECK OUT STATE
     const checkingOutVisit = ref(false)
 
 

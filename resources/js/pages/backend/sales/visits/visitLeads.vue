@@ -474,7 +474,6 @@ const submitCheckOut = async () => {
       errors.value = err.response.data.errors
       return
     }
-
     //  ERROR LAIN (SERVER / LOGIC)
     toasts.fire({
       icon: "error",

@@ -19,10 +19,10 @@ const route = useRoute()
 const router = useRouter()
 
 /* ================= LOAD DATA FIRST TIME ================= */
+
 onMounted(() => {
-  // hard lock ke LEADS dulu
-  followUpStore.fetchFollowUps("leads")
-    
+  followUpStore.mode = 'customers'
+  followUpStore.fetchFollowUps("customers")
 })
 
 /* ================= SEARCH WATCH ================= */
@@ -243,108 +243,6 @@ const openEditModalFollowUp = (followUp) => {
   form.subject_template = followUp.subject_template
   followUpStore.errorFollowUp = null
 }
-
-// const submitFollowUp = async () => {
-//    clearErrors()
-
-//  if (!form.follow_up_id) {
-//   return toasts.fire({ icon: "error", title: "No follow-up found" })
-// }
-
-// if (!form.follow_up_at) {
-//   return toasts.fire({ icon: "error", title: "Follow up date not available yet" })
-// }
-
-// if (!form.follow_up_type) {
-//   return toasts.fire({ icon: "error", title: "Follow up type not selected yet" })
-// }
-
-
-// if (!form.status) {
-//   return toasts.fire({ icon: "error", title: "Status follow up not yet filled" })
-// }
-
-// if (!form.subject) {
-//   return toasts.fire({ icon: "error", title: "Subject follow up not yet filled" })
-// }
-
-//   let payload = {
-//     status: form.status,
-//     notes: form.notes,
-//   }
-
-//   /*
-//   |--------------------------------------------------------------------------
-//   | DONE FLOW
-//   |--------------------------------------------------------------------------
-//   */
-//   if (form.status === 'DONE') {
-//     if (!form.done_action) {
-//       return toasts.fire({
-//         icon: "warning",
-//         title: "Pilih action setelah DONE"
-//       })
-//     }
-
-//     payload.done_action = form.done_action
-//   }
-
-//   /*
-//   |--------------------------------------------------------------------------
-//   | PENDING FLOW (RESCHEDULE)
-//   |--------------------------------------------------------------------------
-//   */
-//   if (form.status === 'PENDING') {
-//     if (!form.follow_up_at || !form.follow_up_type || !form.subject) {
-//       return toasts.fire({
-//         icon: "warning",
-//         title: "Lengkapi jadwal follow up berikutnya"
-//       })
-//     }
-
-//     payload.follow_up_at = form.follow_up_at
-//     payload.follow_up_type = String(form.follow_up_type).toUpperCase()
-//     payload.subject = form.subject
-//     payload.lead_category = form.lead_category
-//   }
-
-//   try {
-
-//     await followUpStore.submitFollowUpResult(form.follow_up_id, payload)
-
-//     const modal = document.getElementById("form-leads")
-//     bootstrap.Modal.getInstance(modal).hide()
-
-//     toasts.fire({
-//       icon: "success",
-//       title: "Follow Up berhasil disimpan",
-//     })
-
-//     resetForm()
-
-//   }  
-//   catch (err) {
-//   if (err.response?.status === 422) {
-
-//     const backendErrors = err.response.data.errors
-
-//     clearErrors() // reset dulu
-
-//     Object.entries(backendErrors).forEach(([field, message]) => {
-//       if (field in errors) {
-//         errors[field] = message[0]
-//       }
-//     })
-
-//     return
-//   }
-
-//   toasts.fire({
-//     icon: "error",
-//     title: err.response?.data?.message || "Terjadi kesalahan",
-//   })
-// }
-// }
 
 
 
@@ -654,7 +552,46 @@ const saveDirectFollowUp = async () => {
 
 
 
+const getStatusMeta = (item) => {
+  // kalau lagi lihat customer → pakai customer_status
+  if (followUpStore.mode === 'customers') {
+    const key = normalizeStatus(item.customer_status)
+    return StatusConfigFromCustomers[key]
+  }
 
+  // kalau leads → pakai lead_status
+  const key = normalizeStatus(item.lead_status)
+  return StatusConfigFromLeads[key]
+}
+
+
+const StatusConfigFromCustomers = {
+  ACTIVE: {
+    class: 'bg-success',
+    icon: 'fa-solid fa-handshake',
+    label: 'Active Customer'
+  },
+  DORMANT: {
+    class: 'bg-warning text-dark',
+    icon: 'fa-solid fa-clock',
+    label: 'Dormant'
+  },
+  AT_RISK: {
+    class: 'bg-danger',
+    icon: 'fa-solid fa-triangle-exclamation',
+    label: 'At Risk'
+  },
+  LOYAL: {
+    class: 'bg-primary',
+    icon: 'fa-solid fa-star',
+    label: 'Loyal'
+  },
+  CHURNED: {
+    class: 'bg-dark',
+    icon: 'fa-solid fa-user-slash',
+    label: 'Churned'
+  }
+}
 </script>
 
 
@@ -722,15 +659,12 @@ const saveDirectFollowUp = async () => {
                 <i class="fa fa-plus"></i> Add Follow Up (Leads)
               </button>
 
-                     <!-- Kanan --> 
-                <button class="btn btn-success btn-sm me-1" data-bs-toggle="modal"
-                       data-bs-target="#modal-add-data" @click="openAddModal('customer')" >
-                        <i class="fa fa-plus"></i> Add Follow Up (Customer) 
-                </button> 
-
-                 <button class="btn btn-danger btn-sm" data-bs-toggle="modal"
+              <button class="btn btn-primary btn-sm me-1" data-bs-toggle="modal"
                        data-bs-target="#form-leads-for-direct" @click="openAddModalDirect('leads')" >
-                        <i class="fa fa-plus"></i> Add Follow Up (DIRECT) </button> 
+                  <i class="fa fa-plus"></i> Add Follow Up (DIRECT) 
+              </button> 
+
+
                 
                 </div>
 
@@ -738,11 +672,12 @@ const saveDirectFollowUp = async () => {
 
                 <div class="d-flex gap-2 align-items-center">
                     <label class="mb-0 fw-semibold">Filter Follow UP By:</label>
-                  <select class="form-select w-auto"
-                          @change="changeMode($event.target.value)">
+                 <select class="form-select w-auto"
+                    v-model="followUpStore.mode"
+                    @change="changeMode($event.target.value)">
                     <option value="leads">Leads</option>
                     <option value="customers">Customer</option>
-                  </select>
+                 </select>
                 </div>
                 </div>
 
@@ -785,12 +720,12 @@ const saveDirectFollowUp = async () => {
               <table class="table card-table table-vcenter">
             <thead>
               <tr>
-                   <th :colspan="followUpStore.mode === 'Leads' ? 11 : 11"
+                   <th :colspan="followUpStore.mode == 'customers' ? 11 : 11"
                         class="bg-light fw-bold text-primary">
                       <i class="fa fa-table me-2"></i>
-                      {{ followUpStore.mode === 'customers'
-                          ? 'Data Follow Up Customer'
-                          : 'Data Follow Up Leads'
+                      {{ followUpStore.mode === 'leads'
+                          ? 'Data Follow Up Leads'
+                          : 'Data Follow Up Customers'
                       }}
                     </th>
                   </tr>
@@ -874,8 +809,21 @@ const saveDirectFollowUp = async () => {
               </span>
             </td>
 
-            <!-- LEAD STATUS -->
             <td>
+  <span
+  v-if="getStatusMeta(item)"
+  class="badge d-inline-flex align-items-center gap-1 px-2 py-1"
+  :class="getStatusMeta(item).class"
+>
+  <i :class="getStatusMeta(item).icon"></i>
+  {{ followUpStore.mode === 'customers'
+      ? item.customer_status
+      : item.lead_status }}
+</span>
+</td>
+
+            <!-- LEAD STATUS -->
+            <!-- <td>
                       <span
                         class="badge d-inline-flex align-items-center gap-1 px-2 py-1"
                         :class="StatusConfigFromLeads[normalizeStatus(item.lead_status)]?.class || 'bg-light text-dark'"
@@ -885,8 +833,22 @@ const saveDirectFollowUp = async () => {
                         ></i>
                         {{ item.lead_status }}
                       </span>
-            </td>
+            </td> -->
+            <!-- LEAD STATUS / CUSTOMER STATUS -->
 
+            <!-- <td>
+              <span
+                class="badge d-inline-flex align-items-center gap-1 px-2 py-1"
+                :class="StatusConfigFromLeads[normalizeStatus(
+                  followUpStore.mode === 'customers' ? item.customer_status : item.lead_status
+                )]?.class || 'bg-light text-dark'"
+              >
+                <i :class="StatusConfigFromLeads[normalizeStatus(
+                  followUpStore.mode === 'customers' ? item.customer_status : item.lead_status
+                )]?.icon || 'fa-solid fa-circle-info'"></i>
+                {{ followUpStore.mode === 'customers' ? item.customer_status : item.lead_status }}
+              </span>
+            </td> -->
 
             <!-- CREATED -->
             <td class="fw-bold">{{  followUpStore.formatDate(item.created_at) }}</td>
@@ -904,6 +866,7 @@ const saveDirectFollowUp = async () => {
 
             <!-- ACTION -->
             <td>
+             
               <button
                 v-if="item.status === 'PENDING'"
                 class="btn btn-sm btn-outline-primary me-1"
@@ -948,7 +911,34 @@ const saveDirectFollowUp = async () => {
                   >
                   <i class="fa-solid fa-timeline"></i> 
                 </button>
-              </td>
+
+                <div class="dropdown mt-1">
+                    <a class="btn btn-outline-primary dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+                      <i class="fa-solid fa-ellipsis"></i>
+                    </a>
+
+                    <ul class="dropdown-menu">
+                     <li>
+                        <a class="dropdown-item" @click="createVisitFromFollowUp(item)">
+                          <i class="fa fa-map-marker me-1"></i> Visit Customer
+                        </a>
+                      </li>
+                      <!-- Opsi 2: Direct Follow Up -->
+                      <li>
+                        <a class="dropdown-item" @click="openDirectFollowUp(item)">
+                          <i class="fa fa-phone me-1"></i> Direct Follow Up
+                        </a>
+                      </li>
+
+                      <!-- Opsi 3: Selesaikan -->
+                      <li>
+                        <a class="dropdown-item" @click="openSubmitResult(item)">
+                          <i class="fa fa-check me-1"></i> Submit Result
+                        </a>
+                      </li>
+                    </ul>
+                </div>
+                </td>
             </tr>
           </tbody>
              </table>
@@ -1003,7 +993,7 @@ const saveDirectFollowUp = async () => {
                 <!-- BODY -->
                 <div class="modal-body">
 
-                  LOADING
+                  <!-- LOADING -->
                   <div v-if="followUpStore.loadingDetail" class="text-center py-5">
                     <div class="spinner-border text-primary"></div>
                   </div>
@@ -1070,7 +1060,7 @@ const saveDirectFollowUp = async () => {
                           readonly>
                       </div>
 
-                      <div class="col-md-6">
+                      <!-- <div class="col-md-6">
                         <label class="form-label">Lead Company</label>
                         <input class="form-control"
                           :value="followUpStore.followUpDetail.lead_company_name"
@@ -1082,7 +1072,27 @@ const saveDirectFollowUp = async () => {
                         <input class="form-control"
                           :value="followUpStore.followUpDetail.lead_status"
                           readonly>
-                      </div>
+                      </div> -->
+                      <!-- Ganti bagian Lead Company & Lead Status -->
+<div class="col-md-6">
+  <label class="form-label">
+    {{ followUpStore.followUpDetail?.customer_id ? 'Customer Company' : 'Lead Company' }}
+  </label>
+  <input class="form-control"
+    :value="followUpStore.followUpDetail?.customer_company_name 
+         ?? followUpStore.followUpDetail?.lead_company_name"
+    readonly>
+</div>
+
+<div class="col-md-6">
+  <label class="form-label">
+    {{ followUpStore.followUpDetail?.customer_id ? 'Customer Status' : 'Lead Status' }}
+  </label>
+  <input class="form-control"
+    :value="followUpStore.followUpDetail?.customer_status 
+         ?? followUpStore.followUpDetail?.lead_status"
+    readonly>
+</div>
 
                     </div>
                   </div>

@@ -396,28 +396,63 @@ const submitCheckIn = async () => {
 const selectedCustomerCheckOut = ref(null)
 const form = reactive({
   notes: '',
-  status: ''
+  status: '',
+  has_complaint: false,
+  complaint_detail: '',
+  has_potential_order: false,
+  potential_order_detail: '',
+  follow_up_date: '',
+  follow_up_type: '',
+  follow_up_notes: '',
 })
 
 const statusOptions = [
-  { value: 'Relationship Check', label: 'Relationship Check' },
-  { value: 'Product Availability Check', label: 'Product Availability Check' },
-  { value: 'Monitoring Usage / Consumption', label: 'Monitoring Usage / Consumption' },
-  { value: 'Update Informasi Perusahaan', label: 'Update Informasi Perusahaan' },
-  { value: 'No Issue Found', label: 'No Issue Found' },
-  { value: 'Complaint Received', label: 'Complaint Received' },
-  { value: 'Product Issue Investigation', label: 'Product Issue Investigation' },
-  { value: 'Service Support Provided', label: 'Service Support Provided' },
-  { value: 'Replacement / Adjustment Needed', label: 'Replacement / Adjustment Needed' },
+  {
+    value: 'maintained',
+    label: 'Relationship Maintained (Routine Visit / Engagement)'
+  },
+  {
+    value: 'improved',
+    label: 'Relationship Improved / Positive Development'
+  },
+  {
+    value: 'upsell_identified',
+    label: 'Upsell / Additional Opportunity Identified'
+  },
+  {
+    value: 'renewal_discussed',
+    label: 'Contract Renewal / Continuation Discussed'
+  },
+  {
+    value: 'complaint_handled',
+    label: 'Complaint Addressed / Issue Resolved'
+  },
+  {
+    value: 'at_risk',
+    label: 'Customer At Risk (Low Usage / Negative Signal)'
+  },
+  {
+    value: 'no_progress',
+    label: 'No Significant Progress'
+  }
 ]
 
 // ==============================
 // OPEN MODAL
 // ==============================
-const openVisitModalCheckOut = (leads) => {
-  selectedCustomerCheckOut.value = leads
+const openVisitModalCheckOut = (customers) => {
+  selectedCustomerCheckOut.value = customers
+
   form.notes = ''
   form.status = ''
+  form.has_complaint = false
+  form.complaint_detail = ''
+  form.has_potential_order = false
+  form.potential_order_detail = ''
+  form.follow_up_date = ''
+  form.follow_up_type = ''
+  form.follow_up_notes = ''
+
   errors.value = {}
 
   const modalEl = document.getElementById('modal-input-check-out')
@@ -429,6 +464,57 @@ const openVisitModalCheckOut = (leads) => {
 }
 
 
+
+// ==============================
+// SUBMIT CHECK OUT
+// ==============================
+
+const submitCheckOut = async () => {
+  if (!selectedCustomerCheckOut.value) return
+
+  try {
+    errors.value = {} //  reset error dulu
+
+    await dataCustomerVisit.checkOutVisit({
+      visitId: selectedCustomerCheckOut.value.active_visit_id,
+      notes: form.notes,
+      customer_response: form.status,
+      has_complaint: form.has_complaint,
+      complaint_detail: form.complaint_detail,
+      has_potential_order: form.has_potential_order,
+      potential_order_detail: form.potential_order_detail,
+      follow_up_at: form.follow_up_date,
+      follow_up_type: form.follow_up_type,
+      follow_up_notes: form.follow_up_notes
+    })
+
+    // tutup modal
+    const modalEl = document.getElementById('modal-input-check-out')
+    const instance = bootstrap.Modal.getInstance(modalEl)
+    instance.hide()
+
+    Swal.fire({
+      icon: 'success',
+      title: 'Check Out Successful',
+      text: 'Visit completed successfully',
+      timer: 1500,
+      showConfirmButton: false
+    })
+
+  } catch (err) {
+    //  AMBIL ERROR VALIDASI
+    if (err.response?.status === 422) {
+      errors.value = err.response.data.errors
+      return
+    }
+
+    //  ERROR LAIN (SERVER / LOGIC)
+    toasts.fire({
+      icon: "error",
+      title: err.response?.data?.message || "Failed to save data",
+    })
+  }
+}
 
 </script>
 
@@ -876,93 +962,221 @@ const openVisitModalCheckOut = (leads) => {
 
 
            <!-- Modal: Visit Input check OUT -->
-        <div class="modal modal-blur fade" id="modal-input-check-out" tabindex="-1" aria-hidden="true">
-          <div class="modal-dialog modal-lg modal-dialog-centered">
-            <div class="modal-content">
-              <div class="modal-header">
-                <h5 class="modal-title">
-                Check OUT Customer
-                </h5>
-              <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-              </div>
-              <hr>
-              <div class="modal-body">
-                <div class="row g-3">
-                
+   <!-- Modal: Visit Input check OUT -->
+<div class="modal modal-blur fade" id="modal-input-check-out" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
 
-                  
-                  <!-- Notes & Status -->
-                  <div class="col-12">
-                    <div class="mb-3">
-                      <label class="form-label fw-bold">Notes on Visit Results <small class="text-danger">**</small></label>
-                      <textarea class="form-control"
-                      v-model="form.notes" rows="5"
-                      placeholder="Write a note here..."
-                      :class="{ 'is-invalid': errors?.notes }"
-                        ></textarea>
-                    <div v-if="errors?.notes" class="invalid-feedback d-block">
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fa-solid fa-building-circle-check me-2 text-success"></i>
+          Check OUT Customer
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <hr>
+
+      <div class="modal-body">
+        <div class="row g-3">
+
+          <!-- 1. Notes Visit -->
+          <div class="col-12">
+            <label class="form-label fw-bold">
+              <i class="fa-solid fa-note-sticky text-primary me-1"></i>
+              Notes on Visit Results <small class="text-danger">**</small>
+            </label>
+            <textarea
+              class="form-control"
+              v-model="form.notes"
+              rows="4"
+              placeholder="Write a note here..."
+              :class="{ 'is-invalid': errors?.notes }"
+            ></textarea>
+           <div v-if="errors?.notes" class="invalid-feedback d-block">
                         {{ errors.notes[0] }}
                       </div>
-                    </div>
-                    </div>
+          </div>
 
-
-                    <label class="form-label fw-bold">Update Data Status (Response Customer) <small class="text-danger">**</small></label>
-                      <div
-                        class="row g-2 border rounded p-2"
-                        :class="{ 'border-danger': errors?.customer_response }"
-                      >
-                        <div
-                          class="col-12 col-sm-4"
-                          v-for="status in statusOptions"
-                          :key="status.value"
-                        >
-                          <div class="input-group">
-                            <div class="input-group-text">
-                              <input
-                                type="radio"
-                                class="form-check-input mt-0"
-                                v-model="form.status"
-                                :value="status.value"
-                                :id="'status-' + status.value"
-                              >
-                            </div>
-                            <label
-                              class="form-control bg-white cursor-pointer"
-                              :for="'status-' + status.value"
-                            >
-                              {{ status.label }}
-                            </label>
-                          </div>
-                        </div>
-                      </div>
-                      <!--  ERROR DI BAWAH GROUP -->
-                      <div v-if="errors?.customer_response" class="invalid-feedback d-block mt-1">
-                        {{ errors.customer_response[0] }}
-                      </div>
+          <!-- 2. Status Response -->
+          <div class="col-12">
+            <label class="form-label fw-bold">
+              <i class="fa-solid fa-clipboard-check text-primary me-1"></i>
+              Update Data Status (Response Customer) <small class="text-danger">**</small>
+            </label>
+            <div
+              class="row g-2 border rounded p-2"
+              :class="{ 'border-danger': errors?.customer_response }"
+            >
+              <div
+                class="col-12 col-sm-4"
+                v-for="status in statusOptions"
+                :key="status.value"
+              >
+                <div class="input-group">
+                  <div class="input-group-text">
+                    <input
+                      type="radio"
+                      class="form-check-input mt-0"
+                      v-model="form.status"
+                      :value="status.value"
+                      :id="'status-' + status.value"
+                    >
                   </div>
+                  <label
+                    class="form-control bg-white cursor-pointer"
+                    :for="'status-' + status.value"
+                  >
+                    {{ status.label }}
+                  </label>
+                </div>
               </div>
-              <hr>
-              <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal" >Cancel</button>
-                <button
-                  class="btn btn-success ms-auto"
-                
+            </div>
+            <div v-if="errors?.customer_response" class="invalid-feedback d-block mt-1">
+              {{ errors.customer_response[0] }}
+            </div>
+          </div>
+
+          <!-- 3. Complaint -->
+          <div class="col-12">
+            <div class="border rounded p-3">
+              <div class="form-check form-switch mb-2">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="hasComplaint"
+                  v-model="form.has_complaint"
                 >
-                  <!-- <span
-                  
-                    class="spinner-border spinner-border-sm me-2"
-                  ></span> -->
-                  <i class="fa-solid fa-cloud-arrow-up me-2"></i>
-                  Save
-                </button>
+                <label class="form-check-label fw-bold" for="hasComplaint">
+                  <i class="fa-solid fa-triangle-exclamation text-danger me-1"></i> Any Complaint?
+                </label>
+              </div>
+              <div v-if="form.has_complaint">
+                <textarea
+                  class="form-control"
+                  v-model="form.complaint_detail"
+                  rows="2"
+                  placeholder="Describe the complaint..."
+                  :class="{ 'is-invalid': errors?.complaint_detail }"
+                ></textarea>
+                <div v-if="errors?.complaint_detail" class="invalid-feedback d-block">
+                  {{ errors.complaint_detail[0] }}
+                </div>
+              </div>
+            </div>
+          </div>
 
+          <!-- 4. Potential Order -->
+          <div class="col-12">
+            <div class="border rounded p-3">
+              <div class="form-check form-switch mb-2">
+                <input
+                  class="form-check-input"
+                  type="checkbox"
+                  id="hasPotentialOrder"
+                  v-model="form.has_potential_order"
+                >
+                <label class="form-check-label fw-bold" for="hasPotentialOrder">
+                  <i class="fa-solid fa-sack-dollar text-success me-1"></i> Potential Order / Upsell?
+                </label>
               </div>
+              <div v-if="form.has_potential_order">
+                <textarea
+                  class="form-control"
+                  v-model="form.potential_order_detail"
+                  rows="2"
+                  placeholder="Describe the potential order..."
+                  :class="{ 'is-invalid': errors?.potential_order_detail }"
+                ></textarea>
+                <div v-if="errors?.potential_order_detail" class="invalid-feedback d-block">
+                  {{ errors.potential_order_detail[0] }}
+                </div>
               </div>
-              </div>
+            </div>
+          </div>
+
+          <!-- 5. Next Follow Up -->
+          <div class="col-12">
+            <label class="form-label fw-bold">
+              <i class="fa-solid fa-calendar-check text-primary me-1"></i>
+              Next Follow Up <small class="text-danger">**</small>
+            </label>
+            <div class="row g-2">
+
+              <!-- Tanggal -->
+              <div class="col-12 col-sm-6">
+                <label class="form-label small text-muted">Date</label>
+                <input
+                  type="date"
+                  class="form-control"
+                  v-model="form.follow_up_date"
+                  :min="new Date().toISOString().split('T')[0]"
+                  :class="{ 'is-invalid': errors?.follow_up_at }"
+                >
+                <div v-if="errors?.follow_up_at" class="invalid-feedback d-block">
+                  {{ errors.follow_up_at[0] }}
+                </div>
               </div>
 
+              <!-- Type -->
+              <div class="col-12 col-sm-6">
+                <label class="form-label small text-muted">Type</label>
+                <select
+                  class="form-select"
+                  v-model="form.follow_up_type"
+                  :class="{ 'is-invalid': errors?.follow_up_type }"
+                >
+                  <option value="">-- Select Type --</option>
+                  <option value="CALL">📞 Call</option>
+                  <option value="VISIT">🏢 Visit</option>
+                  <option value="WHATSAPP">💬 WhatsApp</option>
+                  <option value="EMAIL">📧 Email</option>
+                  <option value="MEETING">🏢 Meeting</option>
+                  <option value="OTHER">📦 Other</option>
+                </select>
+                <div v-if="errors?.follow_up_type" class="invalid-feedback d-block">
+                  {{ errors.follow_up_type[0] }}
+                </div>
+              </div>
 
+              <!-- Notes Follow Up -->
+              <div class="col-12">
+                <label class="form-label small text-muted">
+                  Follow Up Notes <span class="text-muted">(optional)</span>
+                </label>
+                <textarea
+                  class="form-control"
+                  v-model="form.follow_up_notes"
+                  rows="2"
+                  placeholder="e.g. Discuss new product offer..."
+                ></textarea>
+              </div>
+
+            </div>
+          </div>
+
+        </div>
+      </div>
+
+      <hr>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button
+          class="btn btn-success"
+          @click="submitCheckOut"
+          :disabled="dataCustomerVisit.checkingOutVisit"
+        >
+          <span
+            v-if="dataCustomerVisit.checkingOutVisit"
+            class="spinner-border spinner-border-sm me-2"
+          ></span>
+          <i v-else class="fa-solid fa-cloud-arrow-up me-2"></i>
+          {{ dataCustomerVisit.checkingOutVisit ? 'Saving...' : 'Save' }}
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
 
 
   </backendLayouts>

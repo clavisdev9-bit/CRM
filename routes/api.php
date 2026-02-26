@@ -149,6 +149,7 @@ Route::get('/customers/{customerId}/follow-ups',[Costumers::class, 'customerFoll
 
 // api sales Follow Up
 Route::get('/follow-up-leads', [FollowUp::class, 'followUpSalesByLeads'])->name('api.follow.up.master');
+Route::get('/follow-up-customers', [FollowUp::class, 'followUpSalesByCustomers'])->name('api.follow.up.customers');
 Route::get('/follow-up/show/{id}', [FollowUp::class, 'showFollowUp'])->name('api.follow.up.show');
 // Route::post('/follow-up/store', [FollowUp::class, 'storeFollowUp'])->name('api.follow.up.store');
 Route::get('/follow-up/get-sales/leads', [FollowUp::class, 'getLeadsNeedFollowUp'])->name('api.get.sales.leads');
@@ -180,7 +181,8 @@ Route::post('/visits/{visit}/check-out', [Visits::class, 'checkOutVisit']);
 Route::post('/customers/{customer}/start', [Visits::class, 'startVisitCustomer']);
 // Check In (PAKAI VISIT ID)
 Route::post('/visits/customers/{visit}/check-in', [Visits::class, 'checkInVisitCustomer']);
-
+// Check Out (PAKAI VISIT ID)
+Route::post('/visits/customers/{visit}/check-out', [Visits::class, 'checkOutCustomer']);
 });
 
 // untuk data map external

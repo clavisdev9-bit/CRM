@@ -13,9 +13,9 @@ return new class extends Migration
             $table->bigIncrements('id');
 
             // KODE KUNJUNGAN
-          $table->string('visit_code', 30)
-          ->unique()
-          ->comment('Unique visit code (VIS-YYYYMM-XXXXX)');
+            $table->string('visit_code', 30)
+                ->unique()
+                ->comment('Unique visit code (VIS-YYYYMM-XXXXX)');
 
             // =========================
             // RELATION (LEAD / CUSTOMER)
@@ -63,22 +63,41 @@ return new class extends Migration
             // VISIT RESULT
             // =========================
             $table->string('visit_result', 50)
-                        ->nullable()
-                        ->comment('Result of visit');
-            /*
-              PROSPECTIVE
-              CONSIDERATION
-              POTENTIAL
-              CONVERTED
-              FAILED
-            */
+                  ->nullable()
+                  ->comment('Result of visit: lead result OR customer result');
 
-              $table->string('visit_status', 20)
+            $table->string('visit_status', 20)
                   ->default('ONGOING')
                   ->comment('ONGOING, CHECKED_IN, DONE, CANCELED');
 
+            // =========================
+            // CUSTOMER RESPONSE
+            // =========================
+            $table->text('customer_response')
+                  ->nullable()
+                  ->comment('Response/activity during visit');
 
-            $table->text('customer_response')->nullable();
+            // =========================
+            // COMPLAINT
+            // =========================
+            $table->boolean('has_complaint')
+                  ->default(false)
+                  ->comment('Flag if customer has complaint');
+
+            $table->text('complaint_detail')
+                  ->nullable()
+                  ->comment('Detail of complaint from customer');
+
+            // =========================
+            // POTENTIAL ORDER / UPSELL
+            // =========================
+            $table->boolean('has_potential_order')
+                  ->default(false)
+                  ->comment('Flag if there is potential order or upsell');
+
+            $table->text('potential_order_detail')
+                  ->nullable()
+                  ->comment('Detail of potential order or upsell');
 
             // =========================
             // AUDIT
@@ -95,6 +114,8 @@ return new class extends Migration
             $table->index('sales_id');
             $table->index('visit_at');
             $table->index('visit_result');
+            $table->index('has_complaint');
+            $table->index('has_potential_order');
 
             // =========================
             // FOREIGN KEY
@@ -131,32 +152,74 @@ return new class extends Migration
             )
         ");
 
-        // valid visit result
-       // CHECK visit result
-            DB::statement("
+        // visit result untuk LEAD
+        DB::statement("
             ALTER TABLE visits
-            ADD CONSTRAINT chk_visits_result
+            ADD CONSTRAINT chk_visits_result_lead
             CHECK (
-                  visit_result IS NULL OR visit_result IN (
-                        'prospective_customers',
-                        'consideration_stage',
-                        'potential_customers',
-                        'convert_to_customer',
-                        'failed'
-                  )
+                customer_id IS NOT NULL
+                OR
+                visit_result IS NULL
+                OR visit_result IN (
+                    'prospective_customers',
+                    'consideration_stage',
+                    'potential_customers',
+                    'convert_to_customer',
+                    'failed'
+                )
             )
-            ");
+        ");
 
+        // visit result untuk CUSTOMER
+        DB::statement("
+            ALTER TABLE visits
+            ADD CONSTRAINT chk_visits_result_customer
+            CHECK (
+                lead_id IS NOT NULL
+                OR
+                visit_result IS NULL
+                OR visit_result IN (
+                    'maintained',
+                    'improved',
+                    'at_risk',
+                    'complaint_handled',
+                    'upsell_identified',
+                    'renewal_discussed',
+                    'no_progress'
+                )
+            )
+        ");
 
-            DB::statement("
+        // visit status
+        DB::statement("
             ALTER TABLE visits
             ADD CONSTRAINT chk_visits_status
             CHECK (
-                  visit_status IN ('ONGOING', 'CHECKED_IN', 'DONE', 'CANCELED')
+                visit_status IN ('ONGOING', 'CHECKED_IN', 'DONE', 'CANCELED')
             )
-            ");
+        ");
 
+        // complaint detail wajib jika has_complaint = true
+        DB::statement("
+            ALTER TABLE visits
+            ADD CONSTRAINT chk_visits_complaint
+            CHECK (
+                (has_complaint = false)
+                OR
+                (has_complaint = true AND complaint_detail IS NOT NULL)
+            )
+        ");
 
+        // potential order detail wajib jika has_potential_order = true
+        DB::statement("
+            ALTER TABLE visits
+            ADD CONSTRAINT chk_visits_potential_order
+            CHECK (
+                (has_potential_order = false)
+                OR
+                (has_potential_order = true AND potential_order_detail IS NOT NULL)
+            )
+        ");
     }
 
     public function down(): void

@@ -114,6 +114,49 @@ const visitResultMeta = {
     class: 'text-primary',
     label: 'Prospective Customers',
   },
+
+  maintained: {
+    icon: 'fa-arrows-spin',
+    class: 'text-primary',
+    label: 'Maintained Customers',
+  },
+
+  improved: {
+    icon: 'fa-arrow-up-right-dots',
+    class: 'text-primary',
+    label: 'Improved Customers',
+  },
+
+  upsell_identified: {
+    icon: 'fa-arrow-up-wide-short',
+    class: 'text-primary',
+    label: 'Upsell Identified',
+  },
+
+  renewal_discussed: {
+    icon: 'fa-arrow-up-wide-short',
+    class: 'text-primary',
+    label: 'Renewal Discussed',
+  },
+
+   complaint_handled: {
+    icon: 'fa-arrow-up-wide-short',
+    class: 'text-danger',
+    label: 'Complaint Handled',
+  },
+
+   at_risk: {
+    icon: 'fa-arrow-up-wide-short',
+    class: 'text-danger',
+    label: 'At Risk',
+  },
+
+   no_progress: {
+    icon: 'fa-arrow-up-wide-short',
+    class: 'text-danger',
+    label: 'No Progress',
+  },
+
 };
 
 const visitDetail = computed(() => dataVisit.visitDetail)

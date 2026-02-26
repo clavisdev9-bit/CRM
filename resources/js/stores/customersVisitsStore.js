@@ -37,6 +37,9 @@ export const useDataCustomerVisitStore = defineStore("Data-Customers-Visit", () 
     // CHECK IN STATE
     const checkingInVisit = ref(false)
 
+      // CHECK OUT STATE
+    const checkingOutVisit = ref(false)
+
     const pagination = reactive({
         current_page: 1,
         per_page: 10,
@@ -238,6 +241,46 @@ export const useDataCustomerVisitStore = defineStore("Data-Customers-Visit", () 
         }
 
 
+        const checkOutVisit = async (payload) => {
+    try {
+        checkingOutVisit.value = true
+        errors.value = {}
+
+        const formData = new FormData()
+
+        formData.append('notes', payload.notes)
+        formData.append('customer_response', payload.customer_response)
+        formData.append('has_complaint', payload.has_complaint ? 1 : 0)
+        formData.append('complaint_detail', payload.complaint_detail ?? '')
+        formData.append('has_potential_order', payload.has_potential_order ? 1 : 0)
+        formData.append('potential_order_detail', payload.potential_order_detail ?? '')
+        formData.append('follow_up_at', payload.follow_up_at)
+        formData.append('follow_up_type', payload.follow_up_type ?? 'CALL')
+        formData.append('follow_up_notes', payload.follow_up_notes ?? '')
+
+        await axios.post(
+            `/api/visits/customers/${payload.visitId}/check-out`,
+            formData,
+            {
+                headers: {
+                    ...getAuthHeader(),
+                    'Content-Type': 'multipart/form-data'
+                }
+            }
+        )
+
+        await fetchCustomersVisitStore(buildUrl())
+        return true
+
+    } catch (err) {
+        errors.value = err.response?.data?.errors ?? {}
+        throw err
+    } finally {
+        checkingOutVisit.value = false
+    }
+}
+
+
     return {
         baseUrlApi,
         customersVisitData,
@@ -270,6 +313,9 @@ export const useDataCustomerVisitStore = defineStore("Data-Customers-Visit", () 
         startVisit,
         checkingInVisit,
         checkInVisit,
+
+        checkingOutVisit,
+        checkOutVisit
     }
 
 })
