@@ -30,6 +30,7 @@ class FollowUpCustomerResources extends JsonResource
 
             /* ===== SALES ===== */
             'sales_name' => $this->sales_name,
+            // 'visit_result' => $this->visit_result,
 
             /* ===== DATE FORMAT ===== */
             'follow_up_at' => optional($this->follow_up_at)

@@ -159,6 +159,7 @@ class FollowUp extends Controller
                         'c.customer_status',
 
                         'sales.fullname as sales_name',
+                     
 
                         DB::raw("CASE WHEN {$overdueCondition} THEN 1 ELSE 0 END as is_overdue"),
                         DB::raw("CASE WHEN {$overdueCondition} THEN 'OVERDUE' ELSE follow_ups.status END as computed_status"),
@@ -572,6 +573,7 @@ class FollowUp extends Controller
                                 // Customer (optional, kalau ada)
                                 'c.company_name as customer_company_name',
                                 'c.contact_name as customer_contact_name',
+                                'c.customer_status as customer_status',
 
                                 // Sales
                                 'sales.fullname as sales_name',

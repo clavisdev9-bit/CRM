@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, watch, reactive  } from 'vue'
+import { ref, onMounted, watch, reactive, computed  } from 'vue'
 import backendLayouts from "../../../../layouts/backendLayouts.vue";
 import { useFollowUpsStore } from '../../../../stores/followUpStore';
 import { useMenuStore } from "@/stores/menuStore";
@@ -36,6 +36,11 @@ watch(
 // untuk tampilan status lead di tabel follow up
 const normalizeStatus = (status) => {
   return status?.toUpperCase().replaceAll(' ', '_')
+}
+
+const normalizeStatusCus = (val) => {
+  if (!val) return ''
+  return val.toString().toLowerCase().replace(/\s+/g, '_')
 }
 
 const StatusConfigFromLeads = {
@@ -549,49 +554,8 @@ const saveDirectFollowUp = async () => {
   }
 }
 
-
-
-
-const getStatusMeta = (item) => {
-  // kalau lagi lihat customer → pakai customer_status
-  if (followUpStore.mode === 'customers') {
-    const key = normalizeStatus(item.customer_status)
-    return StatusConfigFromCustomers[key]
-  }
-
-  // kalau leads → pakai lead_status
-  const key = normalizeStatus(item.lead_status)
-  return StatusConfigFromLeads[key]
-}
-
-
-const StatusConfigFromCustomers = {
-  ACTIVE: {
-    class: 'bg-success',
-    icon: 'fa-solid fa-handshake',
-    label: 'Active Customer'
-  },
-  DORMANT: {
-    class: 'bg-warning text-dark',
-    icon: 'fa-solid fa-clock',
-    label: 'Dormant'
-  },
-  AT_RISK: {
-    class: 'bg-danger',
-    icon: 'fa-solid fa-triangle-exclamation',
-    label: 'At Risk'
-  },
-  LOYAL: {
-    class: 'bg-primary',
-    icon: 'fa-solid fa-star',
-    label: 'Loyal'
-  },
-  CHURNED: {
-    class: 'bg-dark',
-    icon: 'fa-solid fa-user-slash',
-    label: 'Churned'
-  }
-}
+const showVisitColumn = computed(() => followUpStore.mode !== 'customers')
+const showActionColumn = computed(() => followUpStore.mode !== 'leads')
 </script>
 
 
@@ -675,8 +639,8 @@ const StatusConfigFromCustomers = {
                  <select class="form-select w-auto"
                     v-model="followUpStore.mode"
                     @change="changeMode($event.target.value)">
-                    <option value="leads">Leads</option>
-                    <option value="customers">Customer</option>
+                    <option value="leads" class="fw-bold">Leads</option>
+                    <option value="customers" class="fw-bold">Customers</option>
                  </select>
                 </div>
                 </div>
@@ -739,7 +703,8 @@ const StatusConfigFromCustomers = {
                     <div>Lead / Customer</div>
                   </th>
                 <th>Status Follow UP</th>
-                <th>Status From Visit</th>
+                <!-- <th>Status From Visit</th> -->
+                <th  v-if="showVisitColumn">Status From Visit</th>
                 <th>Date Visit / Created</th>
                 <th>Estimated Follow Up return</th>
                 <th style="width:10%">Actions</th>
@@ -782,7 +747,7 @@ const StatusConfigFromCustomers = {
             <!-- NO -->
             <td>{{ index + 1 }}</td>
             <!-- CODE -->
-            <td>{{ item.follow_up_code }}</td>
+            <td class="fw-bold">{{ item.follow_up_code }}</td>
             <!-- TYPE -->
             <td>{{ item.follow_up_type }}</td>
             <!-- SUBJECT -->
@@ -809,21 +774,8 @@ const StatusConfigFromCustomers = {
               </span>
             </td>
 
-            <td>
-  <span
-  v-if="getStatusMeta(item)"
-  class="badge d-inline-flex align-items-center gap-1 px-2 py-1"
-  :class="getStatusMeta(item).class"
->
-  <i :class="getStatusMeta(item).icon"></i>
-  {{ followUpStore.mode === 'customers'
-      ? item.customer_status
-      : item.lead_status }}
-</span>
-</td>
-
-            <!-- LEAD STATUS -->
-            <!-- <td>
+             <!-- LEAD STATUS / CUSTOMER STATUS -->
+            <td v-if="showVisitColumn">
                       <span
                         class="badge d-inline-flex align-items-center gap-1 px-2 py-1"
                         :class="StatusConfigFromLeads[normalizeStatus(item.lead_status)]?.class || 'bg-light text-dark'"
@@ -833,22 +785,10 @@ const StatusConfigFromCustomers = {
                         ></i>
                         {{ item.lead_status }}
                       </span>
-            </td> -->
-            <!-- LEAD STATUS / CUSTOMER STATUS -->
+            </td>
+          
 
-            <!-- <td>
-              <span
-                class="badge d-inline-flex align-items-center gap-1 px-2 py-1"
-                :class="StatusConfigFromLeads[normalizeStatus(
-                  followUpStore.mode === 'customers' ? item.customer_status : item.lead_status
-                )]?.class || 'bg-light text-dark'"
-              >
-                <i :class="StatusConfigFromLeads[normalizeStatus(
-                  followUpStore.mode === 'customers' ? item.customer_status : item.lead_status
-                )]?.icon || 'fa-solid fa-circle-info'"></i>
-                {{ followUpStore.mode === 'customers' ? item.customer_status : item.lead_status }}
-              </span>
-            </td> -->
+          
 
             <!-- CREATED -->
             <td class="fw-bold">{{  followUpStore.formatDate(item.created_at) }}</td>
@@ -912,9 +852,9 @@ const StatusConfigFromCustomers = {
                   <i class="fa-solid fa-timeline"></i> 
                 </button>
 
-                <div class="dropdown mt-1">
+                <div class="dropdown mt-1" v-if="showActionColumn">
                     <a class="btn btn-outline-primary dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
-                      <i class="fa-solid fa-ellipsis"></i>
+                      <i class="fa-solid fa-person-chalkboard"></i>
                     </a>
 
                     <ul class="dropdown-menu">
@@ -1060,39 +1000,27 @@ const StatusConfigFromCustomers = {
                           readonly>
                       </div>
 
-                      <!-- <div class="col-md-6">
-                        <label class="form-label">Lead Company</label>
-                        <input class="form-control"
-                          :value="followUpStore.followUpDetail.lead_company_name"
-                          readonly>
-                      </div>
+          
+                        <div class="col-md-6">
+                          <label class="form-label">
+                            {{ followUpStore.followUpDetail?.customer_id ? 'Customer Company' : 'Lead Company' }}
+                          </label>
+                          <input class="form-control"
+                            :value="followUpStore.followUpDetail?.customer_company_name 
+                                ?? followUpStore.followUpDetail?.lead_company_name"
+                            readonly>
+                        </div>
 
-                      <div class="col-md-6">
-                        <label class="form-label">Lead Status</label>
-                        <input class="form-control"
-                          :value="followUpStore.followUpDetail.lead_status"
-                          readonly>
-                      </div> -->
-                      <!-- Ganti bagian Lead Company & Lead Status -->
-<div class="col-md-6">
-  <label class="form-label">
-    {{ followUpStore.followUpDetail?.customer_id ? 'Customer Company' : 'Lead Company' }}
-  </label>
-  <input class="form-control"
-    :value="followUpStore.followUpDetail?.customer_company_name 
-         ?? followUpStore.followUpDetail?.lead_company_name"
-    readonly>
-</div>
+                        <div class="col-md-6">
+                          <label class="form-label">
+                            {{ followUpStore.followUpDetail?.customer_id ? 'Customer Status' : 'Lead Status' }}
+                          </label>
+                          <input class="form-control"
+                            :value="followUpStore.followUpDetail?.customer_status 
+                                ?? followUpStore.followUpDetail?.lead_status"
+                            readonly>
+                        </div>
 
-<div class="col-md-6">
-  <label class="form-label">
-    {{ followUpStore.followUpDetail?.customer_id ? 'Customer Status' : 'Lead Status' }}
-  </label>
-  <input class="form-control"
-    :value="followUpStore.followUpDetail?.customer_status 
-         ?? followUpStore.followUpDetail?.lead_status"
-    readonly>
-</div>
 
                     </div>
                   </div>

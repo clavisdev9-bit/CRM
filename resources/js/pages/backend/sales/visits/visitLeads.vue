@@ -317,25 +317,6 @@ const resetVisitState = () => {
 
 };
 
-// const canSubmitCheckIn = computed(() => {
-//   return (
-//     photoBlob.value &&
-//     latitude.value !== null &&
-//     longitude.value !== null &&
-//     !isProcessingPhoto.value
-//   )
-// })
-
-// const cancelCheckIn = () => {
-//   if (dataLeadsVisit.checkingInVisit) return // safety
-
-//   resetVisitState()
-
-//   const modalEl = document.getElementById('modal-input-check-in')
-//   const instance = bootstrap.Modal.getOrCreateInstance(modalEl)
-//   instance.hide()
-// }
-
 
 const submitCheckIn = async () => {
   if (!selectedLeadscheckIn.value) return
@@ -366,7 +347,7 @@ const submitCheckIn = async () => {
 
     resetVisitState()
 
-    // ✅ CLOSE MODAL (STYLE KAMU)
+    // CLOSE MODAL (STYLE KAMU)
     const modal = document.getElementById("modal-input-check-in")
     const instance =
       bootstrap.Modal.getInstance(modal) ||
@@ -374,7 +355,7 @@ const submitCheckIn = async () => {
 
     instance.hide()
 
-    // ✅ ALERT SETELAH MODAL BENAR-BENAR TUTUP
+    // ALERT SETELAH MODAL BENAR-BENAR TUTUP
     modal.addEventListener(
       "hidden.bs.modal",
       () => {

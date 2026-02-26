@@ -102,7 +102,7 @@ const visitResultMeta = {
   potential_customers: {
     icon: 'fa-user-plus',
     class: 'text-info',
-    label: 'Potential Customers',
+    label: 'Potential Lead Customers',
   },
   consideration_stage: {
     icon: 'fa-clock',
@@ -112,47 +112,47 @@ const visitResultMeta = {
   prospective_customers: {
     icon: 'fa-user-clock',
     class: 'text-primary',
-    label: 'Prospective Customers',
+    label: 'Prospective Lead Customers',
   },
 
   maintained: {
-    icon: 'fa-arrows-spin',
+    icon: 'fa-person-circle-exclamation',
     class: 'text-primary',
     label: 'Maintained Customers',
   },
 
   improved: {
-    icon: 'fa-arrow-up-right-dots',
+    icon: 'fa-people-arrows',
     class: 'text-primary',
     label: 'Improved Customers',
   },
 
   upsell_identified: {
-    icon: 'fa-arrow-up-wide-short',
+    icon: 'fa-people-carry-box',
     class: 'text-primary',
     label: 'Upsell Identified',
   },
 
   renewal_discussed: {
-    icon: 'fa-arrow-up-wide-short',
+    icon: 'fa-people-robbery',
     class: 'text-primary',
     label: 'Renewal Discussed',
   },
 
    complaint_handled: {
-    icon: 'fa-arrow-up-wide-short',
+    icon: 'fa-person-burst',
     class: 'text-danger',
     label: 'Complaint Handled',
   },
 
    at_risk: {
-    icon: 'fa-arrow-up-wide-short',
+    icon: 'fa-person-walking-dashed-line-arrow-right',
     class: 'text-danger',
     label: 'At Risk',
   },
 
    no_progress: {
-    icon: 'fa-arrow-up-wide-short',
+    icon: 'fa-person-circle-xmark',
     class: 'text-danger',
     label: 'No Progress',
   },
