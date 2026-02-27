@@ -117,90 +117,207 @@ class FollowUp extends Controller
 
 
             //code untuk menampilkan list follow up berdasarkan customer (dengan fitur search, filter tanggal, sorting, pagination, dan computed column overdue)
-            public function followUpSalesByCustomers(FollowUpValidationIndex $request)
-            {
-                $validated = $request->validated();
-                $user = auth()->user();
-                $search    = $validated['search'] ?? null;
-                $perPage   = $validated['per_page'] ?? 10;
-                $startDate = $validated['start_date'] ?? null;
-                $endDate   = $validated['end_date'] ?? null;
+            // public function followUpSalesByCustomers(FollowUpValidationIndex $request)
+            // {
+            //     $validated = $request->validated();
+            //     $user = auth()->user();
+            //     $search    = $validated['search'] ?? null;
+            //     $perPage   = $validated['per_page'] ?? 10;
+            //     $startDate = $validated['start_date'] ?? null;
+            //     $endDate   = $validated['end_date'] ?? null;
 
-                /* ================= SAFE SORTING ================= */
-                $allowedSorts = [
-                    'follow_up_at' => 'follow_ups.follow_up_at',
-                    'created_at'   => 'follow_ups.created_at',
-                    'company_name' => 'c.company_name',
-                    'status'       => 'follow_ups.status',
-                ];
-                $sortKey = $validated['sort_by'] ?? 'follow_up_at';
-                $sortBy  = $allowedSorts[$sortKey] ?? 'follow_ups.follow_up_at';
-                $sortDir = $validated['sort_dir'] ?? 'desc';
+            //     /* ================= SAFE SORTING ================= */
+            //     $allowedSorts = [
+            //         'follow_up_at' => 'follow_ups.follow_up_at',
+            //         'created_at'   => 'follow_ups.created_at',
+            //         'company_name' => 'c.company_name',
+            //         'status'       => 'follow_ups.status',
+            //     ];
+            //     $sortKey = $validated['sort_by'] ?? 'follow_up_at';
+            //     $sortBy  = $allowedSorts[$sortKey] ?? 'follow_ups.follow_up_at';
+            //     $sortDir = $validated['sort_dir'] ?? 'desc';
 
-                /* ================= OVERDUE LOGIC ================= */
-                $overdueCondition = "
-                    follow_ups.follow_up_at < NOW()
-                    AND follow_ups.status = 'PENDING'
-                ";
+            //     /* ================= OVERDUE LOGIC ================= */
+            //     $overdueCondition = "
+            //         follow_ups.follow_up_at < NOW()
+            //         AND follow_ups.status = 'PENDING'
+            //     ";
 
-                $query = $this->MsFollowUp->query()
-                    ->select([
-                        'follow_ups.id',
-                        'follow_ups.customer_id',
-                        'follow_ups.follow_up_type',
-                        'follow_ups.subject',
-                        'follow_ups.notes',
-                        'follow_ups.follow_up_at',
-                        'follow_ups.status',
-                        'follow_ups.created_at',
-                        'follow_ups.follow_up_code',
+            //     $query = $this->MsFollowUp->query()
+            //         ->select([
+            //             'follow_ups.id',
+            //             'follow_ups.customer_id',
+            //             'follow_ups.follow_up_type',
+            //             'follow_ups.subject',
+            //             'follow_ups.notes',
+            //             'follow_ups.follow_up_at',
+            //             'follow_ups.status',
+            //             'follow_ups.created_at',
+            //             'follow_ups.follow_up_code',
 
-                        'c.company_name as customer_company_name',
-                        'c.customer_status',
+            //             'c.company_name as customer_company_name',
+            //             'c.customer_status',
 
-                        'sales.fullname as sales_name',
+            //             'sales.fullname as sales_name',
                      
 
-                        DB::raw("CASE WHEN {$overdueCondition} THEN 1 ELSE 0 END as is_overdue"),
-                        DB::raw("CASE WHEN {$overdueCondition} THEN 'OVERDUE' ELSE follow_ups.status END as computed_status"),
-                    ])
-                    ->join('customers as c', 'c.id', '=', 'follow_ups.customer_id')
-                    ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'follow_ups.created_by')
-                    ->where('follow_ups.created_by', $user->id_user)
-                    ->whereNotNull('follow_ups.customer_id')
-                    ->whereNull('follow_ups.lead_id')
-                    ->whereNull('follow_ups.deleted_at');
+            //             DB::raw("CASE WHEN {$overdueCondition} THEN 1 ELSE 0 END as is_overdue"),
+            //             DB::raw("CASE WHEN {$overdueCondition} THEN 'OVERDUE' ELSE follow_ups.status END as computed_status"),
+            //         ])
+            //         ->join('customers as c', 'c.id', '=', 'follow_ups.customer_id')
+            //         ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'follow_ups.created_by')
+            //         ->where('follow_ups.created_by', $user->id_user)
+            //         ->whereNotNull('follow_ups.customer_id')
+            //         ->whereNull('follow_ups.lead_id')
+            //         ->whereNull('follow_ups.deleted_at');
 
-                /* ================= SEARCH ================= */
-                if ($search) {
-                    $query->where(function ($q) use ($search) {
-                        $q->where('follow_ups.follow_up_code', 'ILIKE', "%{$search}%")
-                        ->orWhere('c.company_name', 'ILIKE', "%{$search}%")
-                        ->orWhere('follow_ups.status', 'ILIKE', "%{$search}%");
-                    });
-                }
+            //     /* ================= SEARCH ================= */
+            //     if ($search) {
+            //         $query->where(function ($q) use ($search) {
+            //             $q->where('follow_ups.follow_up_code', 'ILIKE', "%{$search}%")
+            //             ->orWhere('c.company_name', 'ILIKE', "%{$search}%")
+            //             ->orWhere('follow_ups.status', 'ILIKE', "%{$search}%");
+            //         });
+            //     }
 
-                /* ================= DATE FILTER ================= */
-                if ($startDate) {
-                    $query->whereDate('follow_ups.follow_up_at', '>=', $startDate);
-                }
+            //     /* ================= DATE FILTER ================= */
+            //     if ($startDate) {
+            //         $query->whereDate('follow_ups.follow_up_at', '>=', $startDate);
+            //     }
 
-                if ($endDate) {
-                    $query->whereDate('follow_ups.follow_up_at', '<=', $endDate);
-                }
+            //     if ($endDate) {
+            //         $query->whereDate('follow_ups.follow_up_at', '<=', $endDate);
+            //     }
 
-                /* ================= SORT ================= */
-                $query->orderBy($sortBy, $sortDir);
+            //     /* ================= SORT ================= */
+            //     $query->orderBy($sortBy, $sortDir);
 
-                $results = $query->paginate($perPage);
+            //     $results = $query->paginate($perPage);
 
-                return ApiResponse::success(
-                    new FollowUpCustomerResourcesCollection($results),
-                    $results->isEmpty()
-                        ? "Data Follow Up Customer tidak ditemukan"
-                        : "Success Get Follow Up Customer"
-                );
+            //     return ApiResponse::success(
+            //         new FollowUpCustomerResourcesCollection($results),
+            //         $results->isEmpty()
+            //             ? "Data Follow Up Customer tidak ditemukan"
+            //             : "Success Get Follow Up Customer"
+            //     );
+            // }
+
+            public function followUpSalesByCustomers(FollowUpValidationIndex $request)
+{
+    $validated = $request->validated();
+    $user = auth()->user();
+
+    $search    = $validated['search'] ?? null;
+    $perPage   = $validated['per_page'] ?? 10;
+    $startDate = $validated['start_date'] ?? null;
+    $endDate   = $validated['end_date'] ?? null;
+
+    /* ================= SAFE SORTING ================= */
+    $allowedSorts = [
+        'follow_up_at' => 'follow_ups.follow_up_at',
+        'created_at'   => 'follow_ups.created_at',
+        'company_name' => 'c.company_name',
+        'status'       => 'follow_ups.status',
+    ];
+
+    $sortKey = $validated['sort_by'] ?? 'follow_up_at';
+    $sortBy  = $allowedSorts[$sortKey] ?? 'follow_ups.follow_up_at';
+    $sortDir = $validated['sort_dir'] ?? 'desc';
+
+    /* ================= OVERDUE LOGIC ================= */
+    $overdueCondition = "
+        follow_ups.follow_up_at < NOW()
+        AND follow_ups.status = 'PENDING'
+    ";
+
+    $query = $this->MsFollowUp->query()
+        ->select([
+            'follow_ups.id',
+            'follow_ups.customer_id',
+            'follow_ups.lead_id', // tetap diambil untuk histori
+            'follow_ups.follow_up_type',
+            'follow_ups.subject',
+            'follow_ups.notes',
+            'follow_ups.follow_up_at',
+            'follow_ups.status',
+            'follow_ups.created_at',
+            'follow_ups.follow_up_code',
+
+            'c.company_name as customer_company_name',
+            'c.contact_name as customer_contact_name',
+            'c.customer_status',
+
+            'sales.fullname as sales_name',
+
+            DB::raw("CASE WHEN {$overdueCondition} THEN 1 ELSE 0 END as is_overdue"),
+            DB::raw("CASE WHEN {$overdueCondition} THEN 'OVERDUE' ELSE follow_ups.status END as computed_status"),
+        ])
+
+        /* ================= JOIN ================= */
+        ->join('customers as c', 'c.id', '=', 'follow_ups.customer_id')
+        ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'follow_ups.created_by')
+
+        /* ================= OWNERSHIP ================= */
+        ->where('follow_ups.created_by', $user->id_user)
+
+        /* ================= PENTING !!!
+           Jangan filter lead_id NULL
+           Karena follow up lama bisa punya lead_id + customer_id
+        ================= */
+        ->whereNotNull('follow_ups.customer_id')
+
+        ->whereNull('follow_ups.deleted_at');
+
+    /* ================= SEARCH ================= */
+    if ($search) {
+        $query->where(function ($q) use ($search) {
+            $q->where('follow_ups.follow_up_code', 'ILIKE', "%{$search}%")
+              ->orWhere('c.company_name', 'ILIKE', "%{$search}%")
+              ->orWhere('follow_ups.subject', 'ILIKE', "%{$search}%")
+              ->orWhere('follow_ups.status', 'ILIKE', "%{$search}%");
+        });
+    }
+
+    /* ================= DATE FILTER =================
+       Jangan sampai overdue hilang karena filter tanggal.
+       Maka overdue tetap ikut walau di luar range.
+    ================= */
+    if ($startDate || $endDate) {
+        $query->where(function ($q) use ($startDate, $endDate, $overdueCondition) {
+
+            if ($startDate) {
+                $q->whereDate('follow_ups.follow_up_at', '>=', $startDate);
             }
+
+            if ($endDate) {
+                $q->whereDate('follow_ups.follow_up_at', '<=', $endDate);
+            }
+
+            // overdue tetap tampil (CRM BEHAVIOUR)
+            $q->orWhereRaw($overdueCondition);
+        });
+    }
+
+    /* ================= SORT ================= */
+    $query->orderByRaw("
+    CASE 
+        WHEN {$overdueCondition} THEN 0   -- paling atas (OVERDUE)
+        WHEN follow_ups.follow_up_at <= NOW() + INTERVAL '1 day' THEN 1
+        ELSE 2
+    END
+");
+
+$query->orderBy('follow_ups.follow_up_at', 'asc');
+
+    $results = $query->paginate($perPage);
+
+    return ApiResponse::success(
+        new FollowUpCustomerResourcesCollection($results),
+        $results->isEmpty()
+            ? "Data Follow Up Customer tidak ditemukan"
+            : "Success Get Follow Up Customer"
+    );
+}
 
 
                 // code untuk menampilkan list follow up untuk form follow Up (hanya follow up yang masih aktif, dengan info lead, dan computed column overdue)

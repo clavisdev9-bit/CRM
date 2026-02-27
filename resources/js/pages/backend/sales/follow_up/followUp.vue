@@ -554,8 +554,40 @@ const saveDirectFollowUp = async () => {
   }
 }
 
+// const createVisitFromFollowUp = (item) => {
+//   router.push({
+//     path: '/sales-visit-customers',
+//     query: {
+//       customer_id: item.customer_id,
+//       company_name: item.target_name,
+//       from_followup: item.follow_up_code
+//     }
+//   })
+// }
+const createVisitFromFollowUp = (item) => {
+  if (!item.customer_id) {
+    toasts.fire({
+      icon: 'warning',
+      title: 'Customer tidak ditemukan untuk follow up ini'
+    })
+    return
+  }
+
+  router.push({
+    path: '/sales-visit-customers',
+    query: {
+      customer_id: item.customer_id,
+      company_name: item.target_name,
+      from_followup: item.follow_up_code
+    }
+  })
+}
+
 const showVisitColumn = computed(() => followUpStore.mode !== 'customers')
 const showActionColumn = computed(() => followUpStore.mode !== 'leads')
+const isActionable = (item) => {
+  return !['DONE', 'CLOSED', 'CANCELLED'].includes(item.status)
+}
 </script>
 
 
@@ -684,8 +716,8 @@ const showActionColumn = computed(() => followUpStore.mode !== 'leads')
               <table class="table card-table table-vcenter">
             <thead>
               <tr>
-                   <th :colspan="followUpStore.mode == 'customers' ? 11 : 11"
-                        class="bg-light fw-bold text-primary">
+                   <th  :colspan="followUpStore.mode == 'customers' ? 11 : 11"
+                        class="bg-light fw-bolder text-primary text-uppercase">
                       <i class="fa fa-table me-2"></i>
                       {{ followUpStore.mode === 'leads'
                           ? 'Data Follow Up Leads'
@@ -852,14 +884,24 @@ const showActionColumn = computed(() => followUpStore.mode !== 'leads')
                   <i class="fa-solid fa-timeline"></i> 
                 </button>
 
-                <div class="dropdown mt-1" v-if="showActionColumn">
+                <!-- <div class="dropdown mt-1" v-if="showActionColumn"> -->
+                  <div class="dropdown mt-1" v-if="showActionColumn && isActionable(item)">
                     <a class="btn btn-outline-primary dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
                       <i class="fa-solid fa-person-chalkboard"></i>
                     </a>
 
                     <ul class="dropdown-menu">
-                     <li>
+                     <!-- <li>
                         <a class="dropdown-item" @click="createVisitFromFollowUp(item)">
+                          <i class="fa fa-map-marker me-1"></i> Visit Customer
+                        </a>
+                      </li> -->
+                      <li>
+                        <a 
+                          class="dropdown-item" 
+                          @click="createVisitFromFollowUp(item)"
+                          style="cursor: pointer;"
+                        >
                           <i class="fa fa-map-marker me-1"></i> Visit Customer
                         </a>
                       </li>

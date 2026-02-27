@@ -43,7 +43,7 @@ class CustomerSeeder extends Seeder
                 'created_by' => $lead->created_by,
                 'visibility_type' => 'PRIVATE',
 
-                'customer_status' => 'Converted',
+                'customer_status' => 'Active',
                 'address' => $lead->address,
                 'notes' => $lead->notes,
 

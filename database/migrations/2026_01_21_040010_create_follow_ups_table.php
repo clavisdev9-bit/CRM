@@ -15,8 +15,7 @@ return new class extends Migration
             // =====================
             // IDENTIFIER (PUBLIC)
             // =====================
-            $table->string('follow_up_code', 30)
-                  ->unique(); // 👈 kode unik, berdiri sendiri
+            $table->string('follow_up_code', 30)->unique();
 
             // =====================
             // RELATION
@@ -42,6 +41,12 @@ return new class extends Migration
             $table->string('status', 50)->default('PENDING');
             $table->string('result', 50)->nullable();
             $table->timestamp('completed_at')->nullable();
+
+            // =====================
+            // AUTO CLOSE (SYSTEM)
+            // =====================
+            $table->timestamp('closed_at')->nullable();
+            $table->string('closed_reason', 100)->nullable();
 
             // =====================
             // USER
@@ -82,11 +87,13 @@ return new class extends Migration
             $table->index('status');
             $table->index('result');
             $table->index('assigned_to');
+            $table->index('closed_at');
         });
 
         /**
          * CHECK CONSTRAINTS (PostgreSQL)
          */
+
         DB::statement("
             ALTER TABLE follow_ups
             ADD CONSTRAINT chk_followups_owner
@@ -116,7 +123,8 @@ return new class extends Migration
             CHECK (status IN (
                 'PENDING',
                 'DONE',
-                'CANCELLED'
+                'CANCELLED',
+                'CLOSED'
             ))
         ");
 

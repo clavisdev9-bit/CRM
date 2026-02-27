@@ -8,6 +8,7 @@ import { toasts } from "@/utils/toasts"
 import Swal from 'sweetalert2';
 
 
+
 // ======================================================
 // BASIC
 // ======================================================
@@ -516,6 +517,23 @@ const submitCheckOut = async () => {
   }
 }
 
+
+
+
+
+// ini  untuk highlight customer yang diarahkan dari follow up
+const highlightedCustomerId = ref(null)
+onMounted(async () => {
+  await fetchVisitCustomers()
+  // Kalau ada query dari follow up, auto scroll / highlight
+  if (route.query.customer_id) {
+    highlightedCustomerId.value = Number(route.query.customer_id)
+  }
+})
+// Ubah dari
+highlightedCustomerId.value = Number(route.query.customer_id)
+
+
 </script>
 
 
@@ -547,6 +565,14 @@ const submitCheckOut = async () => {
             </div>
           </div>
         </div>
+      </div>
+
+
+
+      <div v-if="$route.query.from_followup" class="alert alert-info mb-3">
+        <i class="fa fa-info-circle me-1"></i>
+        Diarahkan dari Follow Up: <strong>{{ $route.query.from_followup }}</strong>
+        — Silakan klik <strong>Visit Now</strong> pada customer yang di-highlight.
       </div>
 
       <!-- Page Body -->
@@ -659,7 +685,8 @@ const submitCheckOut = async () => {
                 </tbody>
 
                   <tbody v-else>
-                  <tr v-for="(cvd, index) in dataCustomerVisit.customersVisitData" :key="cvd.id">
+                  <tr v-for="(cvd, index) in dataCustomerVisit.customersVisitData" :key="cvd.id" :class="{ 'table-primary': highlightedCustomerId === cvd.id }">
+                    
                     <td>{{ index + 1 + dataCustomerVisit.pagination.per_page * (dataCustomerVisit.pagination.current_page - 1) }}.</td>
                     <td>{{ cvd.company_name }}</td>
                     <td>{{ cvd.contact_name }}</td>
