@@ -233,6 +233,17 @@ const fetchLeadsOptions = async (keyword = "") => {
                           ])
 
 
+                          const resultSubmit = ref([
+                            { value: 'success', label: 'Follow Up Ditutup (Tidak Ada Respons dari Customer)' },
+                            { value: 'need_followup', label: 'Perlu Follow Up Lagi' },
+                            { value: 'reschedule', label: 'Jadwal Ulang'},
+                            { value: 'no_meet', label: 'Tidak Berhasil Follow UP / Tidak Bertemu Customer(PIC)' },
+                            { value: 'dealing', label: 'Sedang Proses Deal / Negotiation Stage ' },
+                            { value: 'closed', label: 'Selesai / Closed' },
+                            { value: 'cancelled', label: 'Dibatalkan' },
+                            ])
+
+
                           //  format tanggal untuk tabel
                           const formatDate = (value) => {
                             if (!value) return "-"
@@ -384,9 +395,6 @@ const fetchLeadsOptions = async (keyword = "") => {
                             }
 
 
-
-                            
-
                             const submitFollowUpResult = async (followUpId, payload) => {
                               submittingResult.value = true
                               errorSubmitResult.value = null
@@ -442,7 +450,36 @@ const fetchLeadsOptions = async (keyword = "") => {
                                 } finally {
                                   updatingFollowUp.value = false
                                 }
-}
+                      }
+
+
+                      // ===============================
+                      // SUBMIT RESULT FOLLOW UP CUSTOMER
+                      // ===============================
+                      const submitFollowUpResultCustomer = async (followUpId, payload) => {
+                        submittingResult.value = true
+                        errorSubmitResult.value = null
+
+                        try {
+                          const res = await axios.post(
+                            `/api/follow-ups/${followUpId}/submit-result/customer`,
+                            payload,
+                            { headers: getAuthHeader() }
+                          )
+
+                          // refresh data setelah submit supaya timeline & status langsung update
+                          await fetchFollowUps()
+
+                          return res.data
+                        } catch (err) {
+                          console.error('Submit Result Customer Error:', err)
+                          errorSubmitResult.value =
+                            err.response?.data?.message || 'Gagal submit result customer'
+                          throw err
+                        } finally {
+                          submittingResult.value = false
+                        }
+                      }
 
 
 
@@ -478,6 +515,7 @@ const fetchLeadsOptions = async (keyword = "") => {
     loadingLeadsOptions,
     fetchLeadsOptions,
     searchLeadsOptions,
+    resultSubmit,
 
     formatDate,
 
@@ -492,7 +530,6 @@ const fetchLeadsOptions = async (keyword = "") => {
     fetchLeadsSelectDirectSubject,
     loadingLeadsOptionsDirect,
 
-
     savingLeadDirectToFollowUp,
     errorLeadDirectToFollowUp,
     storeLeadDirectForFollowUp,
@@ -503,7 +540,9 @@ const fetchLeadsOptions = async (keyword = "") => {
 
     updatingFollowUp,
     errorFollowUp,
-    updateFollowUp
+    updateFollowUp,
+
+    submitFollowUpResultCustomer
 
   };
 });

@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Storage;
 use App\Models\MsFollowUp;
 use App\Models\MsLeadsModel;
 use App\Models\MsCustomers;
+use App\Models\FollowUpActivity;
 use App\Helpers\ApiResponse;
 Use App\Http\Requests\FollowUpValidationIndex;
 use App\Http\Requests\FollowUpValidationRequest;
@@ -19,6 +20,7 @@ use App\Http\Resources\FollowUpLeadResources;
 use App\Http\Resources\FollowUpCustomerResourcesCollection;
 use App\Http\Resources\FollowUpCustomerResources;
 use Carbon\Carbon;
+use App\Http\Requests\SubmitFollowUpResultRequest;
 
 
 
@@ -116,91 +118,7 @@ class FollowUp extends Controller
             }
 
 
-            //code untuk menampilkan list follow up berdasarkan customer (dengan fitur search, filter tanggal, sorting, pagination, dan computed column overdue)
-            // public function followUpSalesByCustomers(FollowUpValidationIndex $request)
-            // {
-            //     $validated = $request->validated();
-            //     $user = auth()->user();
-            //     $search    = $validated['search'] ?? null;
-            //     $perPage   = $validated['per_page'] ?? 10;
-            //     $startDate = $validated['start_date'] ?? null;
-            //     $endDate   = $validated['end_date'] ?? null;
-
-            //     /* ================= SAFE SORTING ================= */
-            //     $allowedSorts = [
-            //         'follow_up_at' => 'follow_ups.follow_up_at',
-            //         'created_at'   => 'follow_ups.created_at',
-            //         'company_name' => 'c.company_name',
-            //         'status'       => 'follow_ups.status',
-            //     ];
-            //     $sortKey = $validated['sort_by'] ?? 'follow_up_at';
-            //     $sortBy  = $allowedSorts[$sortKey] ?? 'follow_ups.follow_up_at';
-            //     $sortDir = $validated['sort_dir'] ?? 'desc';
-
-            //     /* ================= OVERDUE LOGIC ================= */
-            //     $overdueCondition = "
-            //         follow_ups.follow_up_at < NOW()
-            //         AND follow_ups.status = 'PENDING'
-            //     ";
-
-            //     $query = $this->MsFollowUp->query()
-            //         ->select([
-            //             'follow_ups.id',
-            //             'follow_ups.customer_id',
-            //             'follow_ups.follow_up_type',
-            //             'follow_ups.subject',
-            //             'follow_ups.notes',
-            //             'follow_ups.follow_up_at',
-            //             'follow_ups.status',
-            //             'follow_ups.created_at',
-            //             'follow_ups.follow_up_code',
-
-            //             'c.company_name as customer_company_name',
-            //             'c.customer_status',
-
-            //             'sales.fullname as sales_name',
-                     
-
-            //             DB::raw("CASE WHEN {$overdueCondition} THEN 1 ELSE 0 END as is_overdue"),
-            //             DB::raw("CASE WHEN {$overdueCondition} THEN 'OVERDUE' ELSE follow_ups.status END as computed_status"),
-            //         ])
-            //         ->join('customers as c', 'c.id', '=', 'follow_ups.customer_id')
-            //         ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'follow_ups.created_by')
-            //         ->where('follow_ups.created_by', $user->id_user)
-            //         ->whereNotNull('follow_ups.customer_id')
-            //         ->whereNull('follow_ups.lead_id')
-            //         ->whereNull('follow_ups.deleted_at');
-
-            //     /* ================= SEARCH ================= */
-            //     if ($search) {
-            //         $query->where(function ($q) use ($search) {
-            //             $q->where('follow_ups.follow_up_code', 'ILIKE', "%{$search}%")
-            //             ->orWhere('c.company_name', 'ILIKE', "%{$search}%")
-            //             ->orWhere('follow_ups.status', 'ILIKE', "%{$search}%");
-            //         });
-            //     }
-
-            //     /* ================= DATE FILTER ================= */
-            //     if ($startDate) {
-            //         $query->whereDate('follow_ups.follow_up_at', '>=', $startDate);
-            //     }
-
-            //     if ($endDate) {
-            //         $query->whereDate('follow_ups.follow_up_at', '<=', $endDate);
-            //     }
-
-            //     /* ================= SORT ================= */
-            //     $query->orderBy($sortBy, $sortDir);
-
-            //     $results = $query->paginate($perPage);
-
-            //     return ApiResponse::success(
-            //         new FollowUpCustomerResourcesCollection($results),
-            //         $results->isEmpty()
-            //             ? "Data Follow Up Customer tidak ditemukan"
-            //             : "Success Get Follow Up Customer"
-            //     );
-            // }
+         
 
             public function followUpSalesByCustomers(FollowUpValidationIndex $request)
 {
@@ -907,12 +825,12 @@ $query->orderBy('follow_ups.follow_up_at', 'asc');
 
                 /*
                 |--------------------------------------------------------------------------
-                | 🔵 CASE A : STATUS = PENDING (LANJUT FOLLOW-UP)
+                |  CASE A : STATUS = PENDING (LANJUT FOLLOW-UP)
                 |--------------------------------------------------------------------------
                 */
                 if ($request->status === 'PENDING') {
 
-                    // 1️⃣ Close Follow-Up Lama
+                    // 1️ Close Follow-Up Lama
                     DB::table('follow_ups')
                         ->where('id', $follow_up_id)
                         ->update([
@@ -933,7 +851,7 @@ $query->orderBy('follow_ups.follow_up_at', 'asc');
                         'created_at'    => now(),
                     ]);
 
-                    // 2️⃣ Update Lead Progress
+                    // 2️ Update Lead Progress
                     $leadUpdate = [
                         'last_contacted_at' => now(),
                         'updated_at'        => now(),
@@ -947,7 +865,7 @@ $query->orderBy('follow_ups.follow_up_at', 'asc');
                         ->where('id', $followUp->lead_id)
                         ->update($leadUpdate);
 
-                    // 3️⃣ Create Follow-Up Baru
+                    // 3️ Create Follow-Up Baru
                     $newFollowUpId = DB::table('follow_ups')->insertGetId([
                         'follow_up_code' => $this->generateFollowUpCode(),
                         'lead_id'        => $followUp->lead_id,
@@ -972,7 +890,7 @@ $query->orderBy('follow_ups.follow_up_at', 'asc');
                         'created_at'    => now(),
                     ]);
 
-                    // 🔥 SCHEDULE activity (bukan future activity!)
+                    //  SCHEDULE activity (bukan future activity!)
                     DB::table('follow_up_activities')->insert([
                         'follow_up_id'  => $newFollowUpId,
                         'title'         => 'Next Follow Up Scheduled',
@@ -996,7 +914,7 @@ $query->orderBy('follow_ups.follow_up_at', 'asc');
 
                 /*
                 |--------------------------------------------------------------------------
-                | 🟢 CASE B : STATUS = DONE (FINAL)
+                |  CASE B : STATUS = DONE (FINAL)
                 |--------------------------------------------------------------------------
                 */
 
@@ -1216,5 +1134,403 @@ public function createDirectFollowUpFromLead(Request $request, $leadId)
 }
 
 
+
+
+// start code follow up bagian customer
+   //ini code untuk submit result customer
+//   public function submitResultCustomers(SubmitFollowUpResultRequest $request, $id)
+//     {
+//         return DB::transaction(function () use ($request, $id) {
+
+//             $followUp = MsFollowUp::lockForUpdate()->findOrFail($id);
+
+//             if ($followUp->status === 'DONE') {
+//                 return response()->json([
+//                     'message' => 'Follow up already closed'
+//                 ], 422);
+//             }
+
+//             // 1️⃣ Close Current Follow Up
+//             $followUp->update([
+//                 // 'result'        => $request->result,
+//                 'result'        => 'DONE',
+//                 'notes'         => $request->notes,
+//                 'status'        => 'DONE',
+//                 'completed_at'  => now(),
+//                 'closed_at'     => now(),
+//                 'closed_reason' => $this->mapClosedReason($request->result)
+//             ]);
+
+//             // 2️⃣ Decision Engine
+//             $this->handleResultDecision($followUp, $request);
+
+//             return response()->json([
+//                 'message' => 'Result submitted successfully'
+//             ]);
+//         });
+//     }
+
+//     protected function mapClosedReason(string $result): string
+// {
+//     return match ($result) {
+
+//         'success'        => 'activity_completed',
+//         'need_followup'  => 'continued_to_next_followup',
+//         'reschedule'     => 'rescheduled',
+//         'no_meet'        => 'failed_to_meet',
+//         'dealing'        => 'moved_to_negotiation',
+//         'closed'         => 'converted_to_deal',
+//         'cancelled'      => 'opportunity_lost',
+
+//         default          => 'unknown'
+//     };
+// }
+
+
+//     protected function handleResultDecision($followUp, $request)
+// {
+//     switch ($request->result) {
+
+//         case 'need_followup':
+//         case 'reschedule':
+//             $this->createNextFollowUp($followUp, $request->next_follow_up_at);
+//             break;
+
+//         case 'closed':
+//             $this->closeAllOpenFollowUps($followUp);
+//             $this->markCustomerWon($followUp);
+//             break;
+
+//         case 'cancelled':
+//             $this->cancelAllOpenFollowUps($followUp);
+//             break;
+
+//         case 'success':
+//         case 'no_meet':
+//         case 'dealing':
+//             // hanya close activity, tidak buat baru
+//             break;
+//     }
+// }
+
+
+// protected function createNextFollowUp($followUp, $date)
+// {
+//     MsFollowUp::create([
+//         'follow_up_code' => $this->generateFollowUpCode(),
+//         'customer_id'   => $followUp->customer_id,
+//         'lead_id'       => $followUp->lead_id,
+//         'follow_up_at'  => $date,
+//         'subject'       => 'Auto Follow Up',
+//         'status'        => 'PENDING',
+//         'created_by'    => auth()->id(),
+//         'follow_up_type'    =>'WHATSAPP'
+//         // 'parent_id'     => $followUp->id
+//     ]);
+// }
+
+
+// protected function closeAllOpenFollowUps($followUp)
+// {
+//     MsFollowUp::where('customer_id', $followUp->customer_id)
+//         ->where('status', 'open')
+//         ->update([
+//             'status' => 'done',
+//             'closed_at' => now(),
+//             'closed_reason' => 'auto_closed_after_deal'
+//         ]);
+// }
+
+
+// protected function cancelAllOpenFollowUps($followUp)
+// {
+//     MsFollowUp::where('customer_id', $followUp->customer_id)
+//         ->where('status', 'open')
+//         ->update([
+//             'status' => 'cancelled',
+//             'closed_at' => now(),
+//             'closed_reason' => 'opportunity_lost'
+//         ]);
+// }
+
+
+// protected function markCustomerWon($followUp)
+// {
+//     if ($followUp->customer) {
+//         $followUp->customer->update([
+//             'lifecycle_status' => 'active',
+//             'last_deal_at' => now()
+//         ]);
+//     }
+// }
+
+
+
+// end code follow up bagian customer
+
+ public function submitResultCustomers(SubmitFollowUpResultRequest $request, $id)
+    {
+        return DB::transaction(function () use ($request, $id) {
+
+            $followUp = MsFollowUp::lockForUpdate()->findOrFail($id);
+
+            if ($followUp->status === 'DONE') {
+                return response()->json([
+                    'message' => 'Follow up already closed'
+                ], 422);
+            }
+
+            // 1️⃣ Close Current Follow Up
+            $followUp->update([
+                'result'        => 'DONE',
+                'notes'         => $request->notes,
+                'status'        => 'DONE',
+                'completed_at'  => now(),
+                'closed_at'     => now(),
+                'closed_reason' => $this->mapClosedReason($request->result)
+            ]);
+
+            // 🔥 Record Activity
+            $this->recordActivity(
+                $followUp,
+                'RESULT_SUBMITTED',
+                'Follow Up Completed',
+                $request->notes
+            );
+
+            // 2️⃣ Decision Engine
+            $this->handleResultDecision($followUp, $request);
+
+            return response()->json([
+                'message' => 'Result submitted successfully'
+            ]);
+        });
+    }
+
+    protected function mapClosedReason(string $result): string
+    {
+        return match ($result) {
+            'success'        => 'activity_completed',
+            'need_followup'  => 'continued_to_next_followup',
+            'reschedule'     => 'rescheduled',
+            'no_meet'        => 'failed_to_meet',
+            'dealing'        => 'moved_to_negotiation',
+            'closed'         => 'converted_to_deal',
+            'cancelled'      => 'opportunity_lost',
+            default          => 'unknown'
+        };
+    }
+
+    protected function handleResultDecision($followUp, $request)
+    {
+        switch ($request->result) {
+
+            case 'need_followup':
+                $this->recordActivity(
+                    $followUp,
+                    'NEED_FOLLOW_UP',
+                    'Need Another Follow Up',
+                    'Customer requires further follow up',
+                    $request->next_follow_up_at
+                );
+
+                $this->createNextFollowUp($followUp, $request->next_follow_up_at);
+                break;
+
+            case 'reschedule':
+                $this->recordActivity(
+                    $followUp,
+                    'RESCHEDULED',
+                    'Follow Up Rescheduled',
+                    'Rescheduled by sales',
+                    $request->next_follow_up_at
+                );
+
+                $this->createNextFollowUp($followUp, $request->next_follow_up_at);
+                break;
+
+            case 'closed':
+                $this->recordActivity(
+                    $followUp,
+                    'DEAL_CLOSED',
+                    'Deal Closed Successfully',
+                    'Customer converted to deal'
+                );
+
+                $this->closeAllOpenFollowUps($followUp);
+                $this->markCustomerWon($followUp);
+                break;
+
+            case 'cancelled':
+                $this->recordActivity(
+                    $followUp,
+                    'OPPORTUNITY_LOST',
+                    'Opportunity Lost',
+                    $request->notes
+                );
+
+                $this->cancelAllOpenFollowUps($followUp);
+                break;
+
+            case 'success':
+            $this->recordActivity(
+                $followUp,
+                'SUCCESS',
+                'Follow Up Diselesaikan',
+                $request->notes ?? 'Aktivitas selesai, belum ada respons dari customer'
+            );
+            break;
+
+        // case 'no_meet':
+        //     $this->recordActivity(
+        //         $followUp,
+        //         'NO_MEET',
+        //         'Tidak Berhasil Bertemu Customer',
+        //         $request->notes ?? 'Customer tidak dapat ditemui / dihubungi'
+        //     );
+        //     break;
+
+        case 'no_meet':
+            $this->recordActivity(
+                $followUp,
+                'NO_MEET',
+                'Tidak Berhasil Bertemu Customer',
+                $request->notes ?? 'Customer tidak dapat ditemui / dihubungi'
+            );
+
+            // Jika sales set next date → otomatis buat follow up baru
+            if ($request->next_follow_up_at) {
+                $this->createNextFollowUp($followUp, $request->next_follow_up_at);
+            }
+            break;
+
+
+        case 'dealing':
+            $this->recordActivity(
+                $followUp,
+                'DEALING',
+                'Masuk Tahap Negosiasi',
+                $request->notes ?? 'Sedang dalam proses pembahasan / penawaran'
+            );
+
+            // Wajib ada next follow up — karena negosiasi butuh tindak lanjut
+            if ($request->next_follow_up_at) {
+                $this->createNextFollowUp($followUp, $request->next_follow_up_at);
+            }
+
+            break;
+        }
+    }
+
+
+    protected function createNextFollowUp($followUp, $date)
+    {
+        $newFollowUp = MsFollowUp::create([
+            'follow_up_code' => $this->generateFollowUpCode(),
+            'customer_id'    => $followUp->customer_id,
+            'lead_id'        => $followUp->lead_id,
+            'notes'          => $followUp->notes,
+            'follow_up_at'   => $date,
+            'subject'        => 'Auto Follow Up',
+            'status'         => 'PENDING',
+            'created_by'     => auth()->id(),
+            'follow_up_type' => 'WHATSAPP'
+        ]);
+
+        // Log di follow up lama
+        $this->recordActivity(
+            $followUp,
+            'NEXT_FOLLOW_UP_CREATED',
+            'Next Follow Up Scheduled',
+            'System created next follow up',
+            $date
+        );
+
+        // Log di follow up baru
+        $this->recordActivity(
+            $newFollowUp,
+            'FOLLOW_UP_CREATED',
+            'New Follow Up Created',
+            'Generated automatically',
+            $date
+        );
+    }
+
+    protected function closeAllOpenFollowUps($followUp)
+    {
+        $items = MsFollowUp::where('customer_id', $followUp->customer_id)
+            ->where('status', 'open')
+            ->get();
+
+        foreach ($items as $item) {
+
+            $item->update([
+                'status' => 'done',
+                'closed_at' => now(),
+                'closed_reason' => 'auto_closed_after_deal'
+            ]);
+
+            $this->recordActivity(
+                $item,
+                'AUTO_CLOSED',
+                'Follow Up Closed Automatically',
+                'Closed because another deal was achieved'
+            );
+        }
+    }
+
+    protected function cancelAllOpenFollowUps($followUp)
+    {
+        $items = MsFollowUp::where('customer_id', $followUp->customer_id)
+            ->where('status', 'open')
+            ->get();
+
+        foreach ($items as $item) {
+
+            $item->update([
+                'status' => 'cancelled',
+                'closed_at' => now(),
+                'closed_reason' => 'opportunity_lost'
+            ]);
+
+            $this->recordActivity(
+                $item,
+                'AUTO_CANCELLED',
+                'Follow Up Cancelled',
+                'Opportunity lost'
+            );
+        }
+    }
+
+    protected function markCustomerWon($followUp)
+    {
+        if ($followUp->customer) {
+            $followUp->customer->update([
+                'lifecycle_status' => 'active',
+                'last_deal_at' => now()
+            ]);
+        }
+    }
+
+    /**
+     * 🔥 CENTRAL ACTIVITY LOGGER
+     */
+    protected function recordActivity(
+        MsFollowUp $followUp,
+        string $type,
+        string $title,
+        ?string $description = null,
+        $scheduledFor = null
+    ) {
+        FollowUpActivity::create([
+            'follow_up_id'  => $followUp->id,
+            'activity_type' => $type,
+            'title'         => $title,
+            'description'   => $description,
+            'activity_at'   => now(),
+            'scheduled_for' => $scheduledFor,
+            'created_by'    => auth()->id(),
+        ]);
+    }
 
 }

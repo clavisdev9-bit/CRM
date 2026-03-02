@@ -11,6 +11,7 @@ import 'flatpickr/dist/flatpickr.css'
 import { toasts } from "@/utils/toasts"
 const PagesTitle = 'Data Follow Up';
 
+
 /* ================= STORE ================= */
 const followUpStore = useFollowUpsStore()
 const menuStore = useMenuStore()
@@ -20,6 +21,7 @@ const router = useRouter()
 
 /* ================= LOAD DATA FIRST TIME ================= */
 
+// start code untuk handle leads follow up
 onMounted(() => {
   followUpStore.mode = 'customers'
   followUpStore.fetchFollowUps("customers")
@@ -553,17 +555,13 @@ const saveDirectFollowUp = async () => {
     })
   }
 }
+// end code untuk handle leads follow up
 
-// const createVisitFromFollowUp = (item) => {
-//   router.push({
-//     path: '/sales-visit-customers',
-//     query: {
-//       customer_id: item.customer_id,
-//       company_name: item.target_name,
-//       from_followup: item.follow_up_code
-//     }
-//   })
-// }
+
+
+// start untuk code visit langsung dari follow up (customer)
+
+// ini untuk buat visit langsung dari follow up, jadi kalau misal dari follow up liat ada customer yang butuh di follow up dengan cara di visit, bisa langsung buat visit dari follow upnya
 const createVisitFromFollowUp = (item) => {
   if (!item.customer_id) {
     toasts.fire({
@@ -583,10 +581,200 @@ const createVisitFromFollowUp = (item) => {
   })
 }
 
+// helper tombol
 const showVisitColumn = computed(() => followUpStore.mode !== 'customers')
 const showActionColumn = computed(() => followUpStore.mode !== 'leads')
 const isActionable = (item) => {
   return !['DONE', 'CLOSED', 'CANCELLED'].includes(item.status)
+}
+
+// untuk modal Direct Follow Up Customer
+const selectedFollowUpId = ref(null)
+
+const directForm = reactive({
+  result: '',
+  notes: '',
+  need_follow_up: false,
+  follow_up_at: null
+})
+
+const openDirectFollowUp = (item) => {
+  selectedFollowUpId.value = item.id
+
+  directForm.result = ''
+  directForm.notes = ''
+  directForm.need_follow_up = false
+  directForm.follow_up_at = null
+
+  const modal = new bootstrap.Modal('#directFollowUpModal')
+  modal.show()
+}
+
+const submitDirectFollowUp = async () => {
+  console.log("oke");
+  
+}
+
+
+// untuk modal Modal Submit Result
+// const selectedFollowUpId = ref(null)
+const submittingResult = ref(false)
+
+
+const resultForm = ref({
+  result: "",
+  notes: "",
+  next_follow_up_at: "",
+  follow_up_type: ""
+})
+
+
+// Di store atau computed
+// const showNextFollowUp = computed(() => {
+//   return (
+//     resultForm.value.result === "need_followup" ||
+//     resultForm.value.result === "reschedule"  ||
+//     resultForm.value.result === "dealing"      // ← tambahkan ini
+//   )
+// })
+
+const showNextFollowUp = computed(() => {
+  return ['need_followup', 'reschedule', 'dealing', 'no_meet'].includes(resultForm.value.result)
+})
+
+// Tambah computed baru untuk cek apakah field tanggal WAJIB atau OPSIONAL
+const isNextFollowUpRequired = computed(() => {
+  return ['need_followup', 'reschedule', 'dealing'].includes(resultForm.value.result)
+})
+
+const openSubmitResult = (item) => {
+  selectedFollowUpId.value = item.id
+
+  // reset form
+  resultForm.value = {
+    result: "",
+    notes: "",
+    next_follow_up_at: "",
+    follow_up_type: ""
+  }
+}
+
+
+// const submitResult = async () => {
+//   // Validasi
+//   if (!resultForm.value.result) {
+//     return toasts.fire({ icon: "warning", title: "Pilih result terlebih dahulu" })
+//   }
+
+//   if (showNextFollowUp.value && !resultForm.value.next_follow_up_at) {
+//     return toasts.fire({ icon: "warning", title: "Tanggal follow up berikutnya wajib diisi" })
+//   }
+
+//   submittingResult.value = true
+
+//   try {
+//     const payload = {
+//       result: resultForm.value.result,
+//       notes: resultForm.value.notes ?? null,
+//       ...(showNextFollowUp.value && {
+//         next_follow_up_at: resultForm.value.next_follow_up_at,
+//         follow_up_type: resultForm.value.follow_up_type ?? null,
+//       })
+//     }
+
+//     await followUpStore.submitFollowUpResultCustomer(selectedFollowUpId.value, payload)
+
+//     // Tutup modal
+//     const modalEl = document.getElementById('submitResultModal')
+//     bootstrap.Modal.getInstance(modalEl)?.hide()
+
+//     // Reset form
+//     resultForm.value = {
+//       result: "",
+//       notes: "",
+//       next_follow_up_at: "",
+//       follow_up_type: ""
+//     }
+//     selectedFollowUpId.value = null
+
+//     toasts.fire({
+//       icon: "success",
+//       title: "Result berhasil di-submit!"
+//     })
+
+//     // Refresh tabel
+//     followUpStore.fetchFollowUps(followUpStore.mode)
+
+//   } catch (err) {
+//     const message = err.response?.data?.message || "Gagal submit result"
+
+//     if (err.response?.status === 422) {
+//       toasts.fire({ icon: "warning", title: message })
+//     } else {
+//       toasts.fire({ icon: "error", title: message })
+//     }
+
+//   } finally {
+//     submittingResult.value = false
+//   }
+// }
+
+const submitResult = async () => {
+  if (!resultForm.value.result) {
+    return toasts.fire({ icon: "warning", title: "Pilih result terlebih dahulu" })
+  }
+
+  // Wajib jika dealing / need_followup / reschedule
+  // Opsional jika no_meet
+  if (isNextFollowUpRequired.value && !resultForm.value.next_follow_up_at) {
+    return toasts.fire({ icon: "warning", title: "Tanggal follow up berikutnya wajib diisi" })
+  }
+
+    if (resultForm.value.result === 'no_meet' && !resultForm.value.next_follow_up_at) {
+    const { isConfirmed } = await Swal.fire({
+      icon: 'warning',
+      title: 'Tanggal tidak diisi',
+      text: 'Customer ini tidak akan punya jadwal follow up berikutnya. Lanjutkan?',
+      showCancelButton: true,
+      confirmButtonText: 'Ya, lanjutkan',
+      cancelButtonText: 'Isi tanggal dulu',
+      reverseButtons: true,
+    })
+
+    if (!isConfirmed) return  // Sales balik isi tanggal
+  }
+
+  submittingResult.value = true
+
+  try {
+    const payload = {
+      result: resultForm.value.result,
+      notes: resultForm.value.notes ?? null,
+      ...(resultForm.value.next_follow_up_at && {
+        next_follow_up_at: resultForm.value.next_follow_up_at,
+        follow_up_type: resultForm.value.follow_up_type ?? null,
+      })
+    }
+
+    await followUpStore.submitFollowUpResultCustomer(selectedFollowUpId.value, payload)
+
+    const modalEl = document.getElementById('submitResultModal')
+    bootstrap.Modal.getInstance(modalEl)?.hide()
+
+    resultForm.value = { result: "", notes: "", next_follow_up_at: "", follow_up_type: "" }
+    selectedFollowUpId.value = null
+
+    toasts.fire({ icon: "success", title: "Result berhasil di-submit!" })
+    followUpStore.fetchFollowUps(followUpStore.mode)
+
+  } catch (err) {
+    toasts.fire({
+      icon: "error",
+      title: err.response?.data?.message || "Gagal submit result"
+    })
+  } finally {
+    submittingResult.value = false
+  }
 }
 </script>
 
@@ -648,16 +836,16 @@ const isActionable = (item) => {
                 </div>
 
                 <!-- Tombol add -->
-                 <div class="d-flex justify-content-between align-items-center mb-2"> 
+                 <div v-if="showVisitColumn" class="d-flex justify-content-between align-items-center mb-2"> 
                 <!-- Kiri --> 
               <button class="btn btn-primary btn-sm me-1" data-bs-toggle="modal" 
                    data-bs-target="#form-leads" @click="openAddModal('lead')" >
-                <i class="fa fa-plus"></i> Add Follow Up (Leads)
+                <i class="fa fa-plus"></i> Add Follow Up (LEADS)
               </button>
 
               <button class="btn btn-primary btn-sm me-1" data-bs-toggle="modal"
                        data-bs-target="#form-leads-for-direct" @click="openAddModalDirect('leads')" >
-                  <i class="fa fa-plus"></i> Add Follow Up (DIRECT) 
+                  <i class="fa fa-plus"></i> Add Follow Up (DIRECT LEADS) 
               </button> 
 
 
@@ -736,7 +924,7 @@ const isActionable = (item) => {
                   </th>
                 <th>Status Follow UP</th>
                 <!-- <th>Status From Visit</th> -->
-                <th  v-if="showVisitColumn">Status From Visit</th>
+                <th v-if="showVisitColumn">Status From Visit</th>
                 <th>Date Visit / Created</th>
                 <th>Estimated Follow Up return</th>
                 <th style="width:10%">Actions</th>
@@ -876,6 +1064,7 @@ const isActionable = (item) => {
               </button>
 
                 <button
+                    v-if="showVisitColumn"
                     class="btn btn-outline-primary btn-sm mt-1"
                     data-bs-toggle="modal"
                     data-bs-target="#timeLineModal"
@@ -891,11 +1080,6 @@ const isActionable = (item) => {
                     </a>
 
                     <ul class="dropdown-menu">
-                     <!-- <li>
-                        <a class="dropdown-item" @click="createVisitFromFollowUp(item)">
-                          <i class="fa fa-map-marker me-1"></i> Visit Customer
-                        </a>
-                      </li> -->
                       <li>
                         <a 
                           class="dropdown-item" 
@@ -914,7 +1098,9 @@ const isActionable = (item) => {
 
                       <!-- Opsi 3: Selesaikan -->
                       <li>
-                        <a class="dropdown-item" @click="openSubmitResult(item)">
+                        <a class="dropdown-item" data-bs-toggle="modal"
+                          data-bs-target="#submitResultModal"
+                          @click="openSubmitResult(item)">
                           <i class="fa fa-check me-1"></i> Submit Result
                         </a>
                       </li>
@@ -1331,7 +1517,7 @@ const isActionable = (item) => {
 
 
     
-   <!-- MODAL : ADD DIRECT FOLLOW UP -->
+   <!-- MODAL : ADD DIRECT FOLLOW UP LEAD-->
 <div class="modal modal-blur fade" id="form-leads-for-direct" tabindex="-1">
   <div class="modal-dialog modal-xl modal-dialog-centered">
     <div class="modal-content">
@@ -1476,6 +1662,221 @@ const isActionable = (item) => {
             ? 'Processing...'
             : 'Save & Sync To Follow Up'
           }}
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+
+
+<!-- modal untuk  direct customer follow up -->
+<div class="modal fade" id="directFollowUpModal" tabindex="-1">
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title">Execute Direct Follow Up</h5>
+        <button class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+        <!-- Result -->
+        <div class="mb-3">
+          <label class="form-label">Result *</label>
+          <select v-model="directForm.result" class="form-select">
+            <option value="">-- Select Result --</option>
+            <option value="NO_RESPONSE">No Response</option>
+            <option value="STILL_CONSIDERING">Still Considering</option>
+            <option value="INTERESTED">Interested</option>
+            <option value="NOT_INTERESTED">Not Interested</option>
+            <option value="DEAL">Deal</option>
+          </select>
+        </div>
+
+        <!-- Notes -->
+        <div class="mb-3">
+          <label class="form-label">Notes *</label>
+          <textarea v-model="directForm.notes" class="form-control" rows="4"/>
+        </div>
+
+        <!-- Need Next Follow Up -->
+        <div class="form-check mb-2">
+          <input type="checkbox" v-model="directForm.need_follow_up" class="form-check-input">
+          <label class="form-check-label">
+            Schedule Next Follow Up
+          </label>
+        </div>
+
+        <div v-if="directForm.need_follow_up">
+          <label class="form-label">Next Follow Up Date</label>
+          <input type="datetime-local" v-model="directForm.follow_up_at" class="form-control">
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button class="btn btn-primary" @click="submitDirectFollowUp">
+          Submit Result
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+
+
+
+<!-- ini untuk modal submit Result -->
+<!-- Submit Result Modal -->
+<!-- Modal Submit Result Customer -->
+<div
+  class="modal fade"
+  id="submitResultModal"
+  tabindex="-1"
+  aria-labelledby="submitResultModalLabel"
+  aria-hidden="true"
+>
+  <div class="modal-dialog modal-lg">
+    <div class="modal-content">
+
+      <div class="modal-header">
+        <h5 class="modal-title">
+          <i class="fa-solid fa-clipboard-check me-2 text-primary"></i>
+          Submit Follow Up Result
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+
+      <div class="modal-body">
+
+        <!-- RESULT -->
+        <div class="mb-3">
+          <label class="form-label fw-bold">
+            Result <small class="text-danger">**</small>
+          </label>
+          <Multiselect
+            v-model="resultForm.result"
+            :options="followUpStore.resultSubmit"
+            label="label"
+            valueProp="value"
+            trackBy="value"
+            placeholder="Pilih Result Follow Up..."
+            :searchable="true"
+          />
+        </div>
+
+        <!-- NOTES -->
+        <div class="mb-3">
+          <label class="form-label fw-bold">
+            Notes <small class="text-success">(opsional)</small>
+          </label>
+          <textarea
+            v-model="resultForm.notes"
+            class="form-control"
+            rows="3"
+            placeholder="Tulis catatan hasil follow up..."
+          ></textarea>
+        </div>
+
+        <!-- NEXT FOLLOW UP SECTION -->
+        <transition name="fade">
+          <div
+            v-if="showNextFollowUp"
+            class="p-3 border rounded mt-3"
+            :class="isNextFollowUpRequired ? 'border-primary bg-light' : 'border-secondary bg-light'"
+          >
+            <p
+              class="fw-bold mb-2"
+              :class="isNextFollowUpRequired ? 'text-primary' : 'text-secondary'"
+            >
+              <i class="fa-regular fa-calendar-plus me-1"></i>
+              Jadwalkan Follow Up Berikutnya
+              <small v-if="!isNextFollowUpRequired" class="fw-normal">(opsional)</small>
+            </p>
+
+            <div class="row g-3">
+              <div class="col-md-6">
+                <label class="form-label">
+                  Tanggal Follow Up
+                  <small v-if="isNextFollowUpRequired" class="text-danger">**</small>
+                  <small v-else class="text-success">(opsional)</small>
+                </label>
+                <Flatpickr
+                  v-model="resultForm.next_follow_up_at"
+                  :config="fpConfig"
+                  class="form-control"
+                  placeholder="Pilih tanggal & waktu"
+                />
+              </div>
+
+              <div class="col-md-6">
+                <label class="form-label">
+                  Type Follow Up <small class="text-success">(opsional)</small>
+                </label>
+                <Multiselect
+                  v-model="resultForm.follow_up_type"
+                  :options="followUpStore.typeFollowUp"
+                  label="label"
+                  valueProp="value"
+                  trackBy="value"
+                  placeholder="Pilih Type Follow Up"
+                  :searchable="true"
+                />
+              </div>
+            </div>
+          </div>
+        </transition>
+
+        <!-- INFO BADGES -->
+        <transition name="fade">
+          <div v-if="resultForm.result === 'dealing'" class="alert alert-warning mt-3">
+            <i class="fa-solid fa-handshake me-1"></i>
+            <strong>Negotiation Stage!</strong>
+            Jadwalkan follow up lanjutan untuk monitoring proses negosiasi.
+          </div>
+
+          <div v-else-if="resultForm.result === 'no_meet'" class="alert alert-secondary mt-3">
+            <i class="fa-solid fa-phone-slash me-1"></i>
+            <strong>Tidak Berhasil Dihubungi.</strong>
+            Isi tanggal jika ingin retry follow up otomatis, atau kosongkan jika akan dijadwal manual.
+          </div>
+
+          <div v-else-if="resultForm.result === 'closed'" class="alert alert-success mt-3">
+            <i class="fa-solid fa-circle-check me-1"></i>
+            <strong>Deal Closed!</strong>
+            Semua follow up aktif akan ditutup otomatis & status customer menjadi <strong>Active</strong>.
+          </div>
+
+          <div v-else-if="resultForm.result === 'cancelled'" class="alert alert-danger mt-3">
+            <i class="fa-solid fa-triangle-exclamation me-1"></i>
+            <strong>Opportunity Lost!</strong>
+            Semua follow up aktif customer ini akan dibatalkan otomatis.
+          </div>
+        </transition>
+
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">
+          <i class="fa fa-times me-1"></i> Cancel
+        </button>
+
+        <button
+          class="btn btn-primary ms-auto"
+          :disabled="submittingResult || followUpStore.submittingResult"
+          @click="submitResult"
+        >
+          <span v-if="submittingResult || followUpStore.submittingResult">
+            <span class="spinner-border spinner-border-sm me-1"></span>
+            Submitting...
+          </span>
+          <span v-else>
+            <i class="fa-solid fa-paper-plane me-1"></i>
+            Submit Result
+          </span>
         </button>
       </div>
 

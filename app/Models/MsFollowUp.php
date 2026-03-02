@@ -91,4 +91,9 @@ public function activities()
 }
 
 
+public function logs()
+{
+    return $this->hasMany(FollowUpActivity::class, 'follow_up_id');
+}
+
 }
