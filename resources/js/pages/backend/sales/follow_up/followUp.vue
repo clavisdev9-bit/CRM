@@ -776,6 +776,22 @@ const submitResult = async () => {
     submittingResult.value = false
   }
 }
+
+
+// const getFollowUpStatus = (status) => {
+//   switch (status) {
+//     case "OVERDUE":
+//       return { label: "Overdue", class: "bg-danger" }
+//     case "PENDING":
+//       return { label: "Pending", class: "bg-warning text-dark" }
+//     case "COMPLETED":
+//       return { label: "Completed", class: "bg-success" }
+//     case "CLOSED":
+//       return { label: "Closed", class: "bg-secondary" }
+//     default:
+//       return { label: status, class: "bg-light text-dark" }
+//   }
+// }
 </script>
 
 
@@ -1146,130 +1162,240 @@ const submitResult = async () => {
 
 
           <!-- code modal detail -->
-              <div class="modal fade" id="followUpDetailModal" tabindex="-1">
-            <div class="modal-dialog modal-xl ">
-              <div class="modal-content">
+            <!-- DETAIL FOLLOW UP MODAL -->
+<div class="modal fade" id="followUpDetailModal" tabindex="-1">
+  <div class="modal-dialog modal-xl">
+    <div class="modal-content">
 
-                <!-- HEADER -->
-                <div class="modal-header">
-                  <h5 class="modal-title">
-                    Detail Follow Up
-                  </h5>
-                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
+      <!-- HEADER -->
+      <div class="modal-header">
+        <h5 class="modal-title">
+          Detail Follow Up
+        </h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
 
-                <!-- BODY -->
-                <div class="modal-body">
+      <!-- BODY -->
+      <div class="modal-body">
 
-                  <!-- LOADING -->
-                  <div v-if="followUpStore.loadingDetail" class="text-center py-5">
-                    <div class="spinner-border text-primary"></div>
+        <!-- LOADING -->
+        <div v-if="followUpStore.loadingDetail" class="text-center py-5">
+          <div class="spinner-border text-primary"></div>
+        </div>
+
+        <!-- DATA -->
+        <div v-else-if="followUpStore.followUpDetail">
+
+          <!-- HEADER INFO -->
+          <div class="alert alert-primary d-flex justify-content-between align-items-center">
+            <div>
+              <strong>{{ followUpStore.followUpDetail.follow_up_code }}</strong><br>
+              <small>
+                {{ followUpStore.followUpDetail?.customer_company_name 
+                    ?? followUpStore.followUpDetail?.lead_company_name }}
+              </small>
+            </div>
+
+            <span
+              class="badge rounded-pill"
+              :class="getFollowUpStatus(followUpStore.followUpDetail.computed_status).class"
+            >
+              {{ getFollowUpStatus(followUpStore.followUpDetail.computed_status).label }}
+            </span>
+          </div>
+
+          <!-- MAIN INFO -->
+          <div class="row g-3">
+
+            <div class="col-md-6">
+              <label class="form-label">Follow Up Type</label>
+              <input class="form-control"
+                :value="followUpStore.followUpDetail.follow_up_type"
+                readonly>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Sales</label>
+              <input class="form-control"
+                :value="followUpStore.followUpDetail.sales_name"
+                readonly>
+            </div>
+
+            <div class="col-md-12">
+              <label class="form-label">Subject</label>
+              <input class="form-control"
+                :value="followUpStore.followUpDetail.subject"
+                readonly>
+            </div>
+
+            <div class="col-md-12">
+              <label class="form-label">Notes</label>
+              <textarea class="form-control" rows="3" readonly>
+                  {{ followUpStore.followUpDetail.notes }}
+              </textarea>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Follow Up Estimate</label>
+              <input class="form-control"
+                :value="followUpStore.formatDates(followUpStore.followUpDetail.follow_up_at)"
+                readonly>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">Created Date</label>
+              <input class="form-control"
+                :value="followUpStore.formatDates(followUpStore.followUpDetail.created_at)"
+                readonly>
+            </div>
+
+            <div class="col-md-6">
+              <label class="form-label">
+                {{ followUpStore.followUpDetail?.customer_id ? 'Customer Status' : 'Lead Status' }}
+              </label>
+              <input class="form-control"
+                :value="followUpStore.followUpDetail?.customer_status 
+                    ?? followUpStore.followUpDetail?.lead_status"
+                readonly>
+            </div>
+
+          </div>
+
+          <!-- ================= COMPLAINT SECTION ================= -->
+            <div
+              class="mt-5"
+              v-if="followUpStore.followUpDetail.complaint_details?.some(c => c.complaint_detail)"
+            >
+
+              <h6 class="mb-3 text-danger">
+                <i class="fa-solid fa-triangle-exclamation me-2"></i>
+                Complaint From Visits
+              </h6>
+
+              <div
+                v-for="complaint in followUpStore.followUpDetail.complaint_details.filter(c => c.complaint_detail)"
+                :key="'complaint-' + complaint.visit_id"
+                class="card mb-3 border-danger"
+              >
+                <div class="card-body">
+
+                  <div class="d-flex justify-content-between mb-2">
+                    <strong>{{ complaint.visit_code }}</strong>
+                    <small class="text-muted">
+                      {{ followUpStore.formatDates(complaint.created_at) }}
+                    </small>
                   </div>
 
-                  <!-- DATA -->
-                  <div v-else-if="followUpStore.followUpDetail">
+                  <span class="badge bg-danger mb-2">Complaint</span>
 
-                    <!-- CODE -->
-                    <div class="alert alert-primary d-flex justify-content-between">
-                      <div>
-                        <strong>{{ followUpStore.followUpDetail.follow_up_code }}</strong><br>
-                        {{ followUpStore.followUpDetail.target_name }}
-                      </div>
+                  <p class="mb-2">
+                    {{ complaint.complaint_detail }}
+                  </p>
 
-                    <span
-                        class="badge badge-pill"
-                        :class="getFollowUpStatus(followUpStore.followUpDetail.status).class"
-                      >
-                        {{ getFollowUpStatus(followUpStore.followUpDetail.status).label }}
-                      </span>
+                  <small class="text-muted">
+                    Check In: {{ followUpStore.formatDates(complaint.check_in_at) }}
+                    |
+                    Check Out: {{ followUpStore.formatDates(complaint.check_out_at) }}
+                  </small>
+
+                </div>
+              </div>
+
+            </div>
+
+
+              <!-- ================= POTENTIAL ORDER SECTION ================= -->
+              <div
+                class="mt-5"
+                v-if="followUpStore.followUpDetail.complaint_details?.some(c => c.has_potential_order)"
+              >
+
+                <h6 class="mb-3 text-success">
+                  <i class="fa-solid fa-box me-2"></i>
+                  Potential Order From Visits
+                </h6>
+
+                <div
+                  v-for="visit in followUpStore.followUpDetail.complaint_details.filter(c => c.has_potential_order)"
+                  :key="'potential-' + visit.visit_id"
+                  class="card mb-3 border-success"
+                >
+                  <div class="card-body">
+
+                    <div class="d-flex justify-content-between mb-2">
+                      <strong>{{ visit.visit_code }}</strong>
+                      <small class="text-muted">
+                        {{ followUpStore.formatDates(visit.created_at) }}
+                      </small>
                     </div>
 
-                    <div class="row g-3">
+                    <span class="badge bg-success mb-2">
+                      Potential Order
+                    </span>
 
-                      <div class="col-md-6">
-                        <label class="form-label">Follow Up Type</label>
-                        <input class="form-control"
-                          :value="followUpStore.followUpDetail.follow_up_type"
-                          readonly>
-                      </div>
+                    <p class="mb-2">
+                      {{ visit.potential_order_detail }}
+                    </p>
 
-                      <div class="col-md-6">
-                        <label class="form-label">Sales</label>
-                        <input class="form-control"
-                          :value="followUpStore.followUpDetail.sales_name"
-                          readonly>
-                      </div>
+                    <small class="text-muted">
+                      Check In: {{ followUpStore.formatDates(visit.check_in_at) }}
+                      |
+                      Check Out: {{ followUpStore.formatDates(visit.check_out_at) }}
+                    </small>
 
-                      <div class="col-md-12">
-                        <label class="form-label">Subject</label>
-                        <input class="form-control"
-                          :value="followUpStore.followUpDetail.subject"
-                          readonly>
-                      </div>
-
-                      <div class="col-md-12">
-                        <label class="form-label">Notes</label>
-                        <textarea class="form-control" rows="4" readonly>
-                          {{ followUpStore.followUpDetail.notes }}
-                        </textarea>
-                      </div>
-
-                      <div class="col-md-6">
-                        <label class="form-label">Follow Up Retun Estimate</label>
-                        <input class="form-control"
-                          :value="followUpStore.formatDates(followUpStore.followUpDetail.follow_up_at)"
-                          readonly>
-                      </div>
-
-                      <div class="col-md-6">
-                        <label class="form-label">Created Date</label>
-                        <input class="form-control"
-                          :value="followUpStore.formatDates(followUpStore.followUpDetail.created_at)"
-                          readonly>
-                      </div>
-
-          
-                        <div class="col-md-6">
-                          <label class="form-label">
-                            {{ followUpStore.followUpDetail?.customer_id ? 'Customer Company' : 'Lead Company' }}
-                          </label>
-                          <input class="form-control"
-                            :value="followUpStore.followUpDetail?.customer_company_name 
-                                ?? followUpStore.followUpDetail?.lead_company_name"
-                            readonly>
-                        </div>
-
-                        <div class="col-md-6">
-                          <label class="form-label">
-                            {{ followUpStore.followUpDetail?.customer_id ? 'Customer Status' : 'Lead Status' }}
-                          </label>
-                          <input class="form-control"
-                            :value="followUpStore.followUpDetail?.customer_status 
-                                ?? followUpStore.followUpDetail?.lead_status"
-                            readonly>
-                        </div>
-
-
-                    </div>
                   </div>
-
-                  <!-- EMPTY -->
-                  <div v-else class="text-center text-muted py-5">
-                    Data tidak ditemukan
-                  </div>
-
-                </div>
-
-                <!-- FOOTER -->
-                <div class="modal-footer">
-                  <button class="btn btn-secondary" data-bs-dismiss="modal">
-                    Close
-                  </button>
                 </div>
 
               </div>
-            </div>
+
+          <!-- ================= ACTIVITY SECTION ================= -->
+          <div class="mt-5" v-if="followUpStore.followUpDetail.activities?.length">
+
+            <h6 class="mb-3 text-primary">
+              <i class="fa-solid fa-clock-rotate-left me-2"></i>
+              Activity Timeline
+            </h6>
+
+            <ul class="list-group">
+              <li
+                v-for="activity in followUpStore.followUpDetail.activities"
+                :key="activity.id"
+                class="list-group-item"
+              >
+                <div class="d-flex justify-content-between">
+                  <strong>{{ activity.title }}</strong>
+                  <small>
+                    {{ followUpStore.formatDates(activity.activity_at) }}
+                  </small>
+                </div>
+
+                <div class="text-muted mt-1">
+                  {{ activity.description }}
+                </div>
+              </li>
+            </ul>
+
           </div>
+
+        </div>
+
+        <!-- EMPTY -->
+        <div v-else class="text-center text-muted py-5">
+          Data tidak ditemukan
+        </div>
+
+      </div>
+
+      <!-- FOOTER -->
+      <div class="modal-footer">
+        <button class="btn btn-secondary" data-bs-dismiss="modal">
+          Close
+        </button>
+      </div>
+
+    </div>
+  </div>
+</div>
 
 
 

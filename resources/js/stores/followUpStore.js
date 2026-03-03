@@ -10,7 +10,7 @@ export const useFollowUpsStore = defineStore("followUpStore", () => {
     customers: "/api/follow-up-customers",
     leads: "/api/follow-up-leads",
     timeline: (id) => `/api/follow-up/${id}/timeline`,
-      leadsSelect: "/api/follow-up/get-sales/leads",
+    leadsSelect: "/api/follow-up/get-sales/leads",
 
   };
 

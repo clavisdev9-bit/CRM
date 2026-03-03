@@ -572,83 +572,217 @@ $query->orderBy('follow_ups.follow_up_at', 'asc');
 
 
 
-                // code untuk menampilkan detail follow up (beserta info lead, customer, dan computed column overdue)
-                public function showFollowUp($id)
-                {
-                    $user = auth()->user();
+                // code untuk menampilkan detail follow up (beserta info lead, customer, dan computed column overdue) old
+                // public function showFollowUp($id)
+                // {
+                //     $user = auth()->user();
 
-                    try {
+                //     try {
 
-                        /* ================= OVERDUE LOGIC (SAMA SEPERTI LIST) ================= */
-                        $overdueCondition = "
-                            fu.follow_up_at < NOW()
-                            AND fu.status = 'PENDING'
-                        ";
+                //         /* ================= OVERDUE LOGIC (SAMA SEPERTI LIST) ================= */
+                //         $overdueCondition = "
+                //             fu.follow_up_at < NOW()
+                //             AND fu.status = 'PENDING'
+                //         ";
 
-                        $followUp = DB::table('follow_ups as fu')
-                            ->select([
-                                'fu.id',
-                                'fu.follow_up_code',
-                                'fu.lead_id',
-                                'fu.customer_id',
-                                'fu.follow_up_type',
-                                'fu.subject',
-                                'fu.notes',
-                                'fu.follow_up_at',
-                                'fu.status',
-                                'fu.created_at',
-                                'fu.updated_at',
+                //         $followUp = DB::table('follow_ups as fu')
+                //             ->select([
+                //                 'fu.id',
+                //                 'fu.follow_up_code',
+                //                 'fu.lead_id',
+                //                 'fu.customer_id',
+                //                 'fu.follow_up_type',
+                //                 'fu.subject',
+                //                 'fu.notes',
+                //                 'fu.follow_up_at',
+                //                 'fu.status',
+                //                 'fu.created_at',
+                //                 'fu.updated_at',
                                 
 
-                                // Lead (SAMA DENGAN LIST)
-                                'l.company_name as lead_company_name',
-                                'l.contact_name as lead_contact_name',
-                                'l.lead_status',
+                //                 // Lead (SAMA DENGAN LIST)
+                //                 'l.company_name as lead_company_name',
+                //                 'l.contact_name as lead_contact_name',
+                //                 'l.lead_status',
 
-                                // Customer (optional, kalau ada)
-                                'c.company_name as customer_company_name',
-                                'c.contact_name as customer_contact_name',
-                                'c.customer_status as customer_status',
+                //                 // Customer (optional, kalau ada)
+                //                 'c.company_name as customer_company_name',
+                //                 'c.contact_name as customer_contact_name',
+                //                 'c.customer_status as customer_status',
 
-                                // Sales
-                                'sales.fullname as sales_name',
+                //                 // Sales
+                //                 'sales.fullname as sales_name',
 
-                                // computed column (WAJIB SAMA)
-                                DB::raw("CASE WHEN {$overdueCondition} THEN 1 ELSE 0 END as is_overdue"),
-                                DB::raw("CASE WHEN {$overdueCondition} THEN 'OVERDUE' ELSE fu.status END as computed_status"),
-                            ])
-                            ->leftJoin('leads as l', 'l.id', '=', 'fu.lead_id')
-                            ->leftJoin('customers as c', 'c.id', '=', 'fu.customer_id')
-                            ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'fu.created_by')
+                //                 // computed column (WAJIB SAMA)
+                //                 DB::raw("CASE WHEN {$overdueCondition} THEN 1 ELSE 0 END as is_overdue"),
+                //                 DB::raw("CASE WHEN {$overdueCondition} THEN 'OVERDUE' ELSE fu.status END as computed_status"),
+                //             ])
+                //             ->leftJoin('leads as l', 'l.id', '=', 'fu.lead_id')
+                //             ->leftJoin('customers as c', 'c.id', '=', 'fu.customer_id')
+                //             ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'fu.created_by')
 
-                            // ownership guard (SAMA)
-                            ->where('fu.id', $id)
-                            ->where('fu.created_by', $user->id_user)
-                            ->whereNull('fu.deleted_at')
-                            ->first();
+                //             // ownership guard (SAMA)
+                //             ->where('fu.id', $id)
+                //             ->where('fu.created_by', $user->id_user)
+                //             ->whereNull('fu.deleted_at')
+                //             ->first();
 
-                        if (!$followUp) {
+                //         if (!$followUp) {
+                //             return ApiResponse::error(
+                //                 'Follow up not found or access denied',
+                //                 null,
+                //                 404
+                //             );
+                //         }
+
+                //         return ApiResponse::success(
+                //             new FollowUpLeadResources($followUp),
+                //             'Success Get Follow Up Detail'
+                //         );
+
+                //     } catch (\Throwable $e) {
+
+                //         return ApiResponse::error(
+                //             'Failed to get follow up detail',
+                //             config('app.debug') ? ['exception' => $e->getMessage()] : null,
+                //             500
+                //         );
+                //     }
+                // }
+                
+                public function showFollowUp($id)
+                    {
+                        $user = auth()->user();
+
+                        try {
+
+                            /* ================= GET MAIN FOLLOW UP ================= */
+
+                            $followUp = DB::table('follow_ups as fu')
+                                ->select([
+                                    'fu.id',
+                                    'fu.follow_up_code',
+                                    'fu.lead_id',
+                                    'fu.customer_id',
+                                    'fu.follow_up_type',
+                                    'fu.subject',
+                                    'fu.notes',
+                                    'fu.follow_up_at',
+                                    'fu.status',
+                                    'fu.result',
+                                    'fu.completed_at',
+                                    'fu.closed_at',
+                                    'fu.closed_reason',
+                                    'fu.created_at',
+                                    'fu.updated_at',
+
+                                    // Lead
+                                    'l.company_name as lead_company_name',
+                                    'l.contact_name as lead_contact_name',
+                                    'l.lead_status',
+
+                                    // Customer
+                                    'c.company_name as customer_company_name',
+                                    'c.contact_name as customer_contact_name',
+                                    'c.customer_status',
+
+                                    // Sales
+                                    'sales.fullname as sales_name',
+                                ])
+                                ->leftJoin('leads as l', 'l.id', '=', 'fu.lead_id')
+                                ->leftJoin('customers as c', 'c.id', '=', 'fu.customer_id')
+                                ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'fu.created_by')
+                                ->where('fu.id', $id)
+                                ->where('fu.created_by', $user->id_user)
+                                ->whereNull('fu.deleted_at')
+                                ->first();
+
+                            if (!$followUp) {
+                                return ApiResponse::error(
+                                    'Follow up not found or access denied',
+                                    null,
+                                    404
+                                );
+                            }
+
+                            /* ================= OVERDUE LOGIC ================= */
+
+                            $isOverdue = false;
+                            $computedStatus = $followUp->status;
+
+                            if (
+                                $followUp->status === 'PENDING' &&
+                                $followUp->follow_up_at &&
+                                now()->greaterThan($followUp->follow_up_at)
+                            ) {
+                                $isOverdue = true;
+                                $computedStatus = 'OVERDUE';
+                            }
+
+                            $followUp->is_overdue = $isOverdue;
+                            $followUp->computed_status = $computedStatus;
+
+
+                            /* ================= GET ACTIVITIES ================= */
+
+                            $activities = DB::table('follow_up_activities')
+                                ->where('follow_up_id', $followUp->id)
+                                ->orderByDesc('activity_at')
+                                ->get();
+
+                            $followUp->activities = $activities;
+
+
+                            /* ================= GET COMPLAINT FROM VISITS ================= */
+
+                            $complaints = collect();
+
+                            if ($followUp->customer_id) {
+
+                                $complaints = DB::table('visits')
+                                    ->select([
+                                        'id as visit_id',
+                                        'visit_code',
+                                        'visit_at',
+                                        'check_in_at',
+                                        'check_out_at',
+                                        'latitude',
+                                        'longitude',
+                                        'gps_snapshot',
+                                        'has_complaint',
+                                        'complaint_detail',
+                                        'has_potential_order',
+                                        'potential_order_detail',
+                                        'visit_result',
+                                        'visit_status',
+                                        'notes as visit_notes',
+                                        'created_at'
+                                    ])
+                                    ->where('customer_id', $followUp->customer_id)
+                                    ->whereNotNull('complaint_detail')
+                                    ->orderByDesc('created_at')
+                                    ->get();
+                            }
+
+                            $followUp->complaint_details = $complaints;
+
+
+                            /* ================= RETURN RESPONSE ================= */
+
+                            return ApiResponse::success(
+                                $followUp,
+                                'Success Get Follow Up Detail'
+                            );
+
+                        } catch (\Throwable $e) {
+
                             return ApiResponse::error(
-                                'Follow up not found or access denied',
-                                null,
-                                404
+                                'Failed to get follow up detail',
+                                config('app.debug') ? ['exception' => $e->getMessage()] : null,
+                                500
                             );
                         }
-
-                        return ApiResponse::success(
-                            new FollowUpLeadResources($followUp),
-                            'Success Get Follow Up Detail'
-                        );
-
-                    } catch (\Throwable $e) {
-
-                        return ApiResponse::error(
-                            'Failed to get follow up detail',
-                            config('app.debug') ? ['exception' => $e->getMessage()] : null,
-                            500
-                        );
                     }
-                }
 
 
 
