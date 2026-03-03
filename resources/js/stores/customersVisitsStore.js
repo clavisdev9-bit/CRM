@@ -248,15 +248,36 @@ export const useDataCustomerVisitStore = defineStore("Data-Customers-Visit", () 
 
         const formData = new FormData()
 
+        // formData.append('notes', payload.notes)
+        // formData.append('customer_response', payload.customer_response)
+        // formData.append('has_complaint', payload.has_complaint ? 1 : 0)
+        // // formData.append('complaint_detail', payload.complaint_detail ?? '')
+        // if (payload.has_complaint && payload.complaint_detail) {
+        //         formData.append('complaint_detail', payload.complaint_detail)
+        //     }
+        // formData.append('has_potential_order', payload.has_potential_order ? 1 : 0)
+        // // formData.append('potential_order_detail', payload.potential_order_detail ?? '')
+        // if (payload.has_potential_order && payload.potential_order_detail) {
+        //         formData.append('potential_order_detail', payload.potential_order_detail)
+        //     }
+        // formData.append('follow_up_at', payload.follow_up_at)
+        // formData.append('follow_up_type', payload.follow_up_type ?? 'CALL')
+        // formData.append('follow_up_notes', payload.follow_up_notes ?? '')
+
         formData.append('notes', payload.notes)
-        formData.append('customer_response', payload.customer_response)
-        formData.append('has_complaint', payload.has_complaint ? 1 : 0)
-        formData.append('complaint_detail', payload.complaint_detail ?? '')
-        formData.append('has_potential_order', payload.has_potential_order ? 1 : 0)
-        formData.append('potential_order_detail', payload.potential_order_detail ?? '')
-        formData.append('follow_up_at', payload.follow_up_at)
-        formData.append('follow_up_type', payload.follow_up_type ?? 'CALL')
-        formData.append('follow_up_notes', payload.follow_up_notes ?? '')
+            formData.append('customer_response', payload.customer_response)
+            formData.append('has_complaint', payload.has_complaint ? 1 : 0)
+            // Hanya append kalau has_complaint true DAN ada isinya
+            if (payload.has_complaint && payload.complaint_detail) {
+                formData.append('complaint_detail', payload.complaint_detail)
+            }
+            formData.append('has_potential_order', payload.has_potential_order ? 1 : 0)
+            if (payload.has_potential_order && payload.potential_order_detail) {
+                formData.append('potential_order_detail', payload.potential_order_detail)
+            }
+            formData.append('follow_up_at', payload.follow_up_at)
+            formData.append('follow_up_type', payload.follow_up_type ?? 'CALL')
+            formData.append('follow_up_notes', payload.follow_up_notes ?? '')
 
         await axios.post(
             `/api/visits/customers/${payload.visitId}/check-out`,

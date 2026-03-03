@@ -25,10 +25,7 @@ export const useVisitDataStore = defineStore("visitStore", () => {
 
 
 
-      
-
-
-
+    
 
 
   const pagination = reactive({

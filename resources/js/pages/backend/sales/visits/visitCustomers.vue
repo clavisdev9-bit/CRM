@@ -988,7 +988,7 @@ highlightedCustomerId.value = Number(route.query.customer_id)
 
 
 
-           <!-- Modal: Visit Input check OUT -->
+<!-- Modal: Visit Input check OUT -->
    <!-- Modal: Visit Input check OUT -->
 <div class="modal modal-blur fade" id="modal-input-check-out" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
@@ -1200,7 +1200,6 @@ highlightedCustomerId.value = Number(route.query.customer_id)
           {{ dataCustomerVisit.checkingOutVisit ? 'Saving...' : 'Save' }}
         </button>
       </div>
-
     </div>
   </div>
 </div>

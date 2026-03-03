@@ -31,7 +31,11 @@ class VisitsModel extends Model
         'visit_result',
         'customer_response',
         'created_by',
-        'visit_status'
+        'visit_status',
+        'has_complaint',
+        'complaint_detail',
+        'has_potential_order',
+        'potential_order_detail',
     ];
 
     /**

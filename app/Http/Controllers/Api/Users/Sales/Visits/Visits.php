@@ -1322,14 +1322,38 @@ class Visits extends Controller
     $request->validate([
         'notes'                  => 'required|string',
         'customer_response'      => 'required|string',
-        'has_complaint'          => 'boolean',
-        'complaint_detail'       => 'required_if:has_complaint,true|nullable|string',
-        'has_potential_order'    => 'boolean',
-        'potential_order_detail' => 'required_if:has_potential_order,true|nullable|string',
+        // 'has_complaint'          => 'boolean',
+        // 'complaint_detail'       => 'required_if:has_complaint,true|nullable|string',
+         'has_complaint'          => 'nullable|boolean',  // tambah nullable
+        'complaint_detail'       => 'required_if:has_complaint,1|nullable|string',
+        // 'has_potential_order'    => 'boolean',
+        // 'potential_order_detail' => 'required_if:has_potential_order,true|nullable|string',
+        'has_potential_order'    => 'nullable|boolean',
+        'potential_order_detail' => 'required_if:has_potential_order,1|nullable|string',
         'follow_up_at'           => 'required|date|after:today',
         'follow_up_notes'        => 'nullable|string',
         'follow_up_type'         => 'required|string',
     ]);
+
+    // dd([
+    //     'has_potential_order'    => $request->has_potential_order,
+    //     'has_potential_order_bool' => $request->boolean('has_potential_order'),
+    //     'potential_order_detail' => $request->potential_order_detail,
+    //     'all'              => $request->all()
+    // ]);
+
+//     dd([
+//     'has_potential_order' => $request->boolean('has_potential_order'),
+//     'potential_order_detail' => $request->boolean('has_potential_order') ? $request->potential_order_detail : null,
+// ]);
+   
+// $visit = VisitsModel::find($visitId);
+// dd([
+//     'current_has_potential_order' => $visit->has_potential_order,
+//     'current_potential_order_detail' => $visit->potential_order_detail,
+//     'dirty' => $visit->getDirty(), // field yang akan diupdate
+// ]);
+
 
     try {
 
@@ -1369,6 +1393,7 @@ class Visits extends Controller
                 'potential_order_detail' => $request->boolean('has_potential_order') ? $request->potential_order_detail : null,
                 'visit_status'           => 'DONE',
             ]);
+            
 
             /*
             |--------------------------------------------------------------------------
