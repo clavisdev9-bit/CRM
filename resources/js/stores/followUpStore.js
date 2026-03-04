@@ -483,6 +483,27 @@ const fetchLeadsOptions = async (keyword = "") => {
 
 
 
+                      const customerTimeline = ref([])
+                      const loadingCustomerTimeline = ref(false)
+
+                      const fetchCustomerTimeline = async (followUpId) => {
+                          loadingCustomerTimeline.value = true
+                          try {
+                              const res = await axios.get(
+                                  `/api/follow-ups/${followUpId}/customer-timeline`,
+                                  { headers: getAuthHeader() }
+                              )
+                              customerTimeline.value = res.data.data.histories
+                          } catch (err) {
+                              console.error('Fetch Customer Timeline Error:', err)
+                              customerTimeline.value = []
+                          } finally {
+                              loadingCustomerTimeline.value = false
+                          }
+}
+
+
+
   return {
     followUp,
     loading,
@@ -542,7 +563,11 @@ const fetchLeadsOptions = async (keyword = "") => {
     errorFollowUp,
     updateFollowUp,
 
-    submitFollowUpResultCustomer
+    submitFollowUpResultCustomer,
+
+     customerTimeline,
+    loadingCustomerTimeline,
+    fetchCustomerTimeline,
 
   };
 });

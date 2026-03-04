@@ -502,6 +502,9 @@ const submitCheckOut = async () => {
       showConfirmButton: false
     })
 
+      // redirect setelah swal selesai
+    window.location.href = '/sales-visit'
+
   } catch (err) {
     //  AMBIL ERROR VALIDASI
     if (err.response?.status === 422) {
@@ -534,6 +537,25 @@ onMounted(async () => {
 highlightedCustomerId.value = Number(route.query.customer_id)
 
 
+
+
+watch(() => form.status, (newStatus) => {
+  // complaint_handled atau at_risk → auto aktifkan complaint
+  if (newStatus === 'complaint_handled' || newStatus === 'at_risk') {
+    form.has_complaint = true
+  } else {
+    form.has_complaint = false
+    form.complaint_detail = ''
+  }
+
+  // upsell_identified atau at_risk → auto aktifkan potential order
+  if (newStatus === 'upsell_identified' || newStatus === 'at_risk') {
+    form.has_potential_order = true
+  } else {
+    form.has_potential_order = false
+    form.potential_order_detail = ''
+  }
+})
 </script>
 
 
@@ -1064,7 +1086,7 @@ highlightedCustomerId.value = Number(route.query.customer_id)
           </div>
 
           <!-- 3. Complaint -->
-          <div class="col-12">
+          <!-- <div class="col-12">
             <div class="border rounded p-3">
               <div class="form-check form-switch mb-2">
                 <input
@@ -1090,10 +1112,10 @@ highlightedCustomerId.value = Number(route.query.customer_id)
                 </div>
               </div>
             </div>
-          </div>
+          </div> -->
 
           <!-- 4. Potential Order -->
-          <div class="col-12">
+          <!-- <div class="col-12">
             <div class="border rounded p-3">
               <div class="form-check form-switch mb-2">
                 <input
@@ -1119,7 +1141,47 @@ highlightedCustomerId.value = Number(route.query.customer_id)
                 </div>
               </div>
             </div>
-          </div>
+          </div> -->
+
+          <!-- 3. Complaint -->
+<div class="col-12" v-if="form.has_complaint">
+  <div class="border border-danger rounded p-3">
+    <label class="fw-bold mb-2">
+      <i class="fa-solid fa-triangle-exclamation text-danger me-1"></i> Complaint Detail
+      <small class="text-danger">**</small>
+    </label>
+    <textarea
+      class="form-control"
+      v-model="form.complaint_detail"
+      rows="2"
+      placeholder="Describe the complaint..."
+      :class="{ 'is-invalid': errors?.complaint_detail }"
+    ></textarea>
+    <div v-if="errors?.complaint_detail" class="invalid-feedback d-block">
+      {{ errors.complaint_detail[0] }}
+    </div>
+  </div>
+</div>
+
+<!-- 4. Potential Order -->
+<div class="col-12" v-if="form.has_potential_order">
+  <div class="border border-success rounded p-3">
+    <label class="fw-bold mb-2">
+      <i class="fa-solid fa-sack-dollar text-success me-1"></i> Potential Order Detail
+      <small class="text-danger">**</small>
+    </label>
+    <textarea
+      class="form-control"
+      v-model="form.potential_order_detail"
+      rows="2"
+      placeholder="Describe the potential order..."
+      :class="{ 'is-invalid': errors?.potential_order_detail }"
+    ></textarea>
+    <div v-if="errors?.potential_order_detail" class="invalid-feedback d-block">
+      {{ errors.potential_order_detail[0] }}
+    </div>
+  </div>
+</div>
 
           <!-- 5. Next Follow Up -->
           <div class="col-12">

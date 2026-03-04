@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, watch, reactive, computed  } from 'vue'
+import { ref, onMounted, watch, reactive, computed, nextTick, watchEffect  } from 'vue'
 import backendLayouts from "../../../../layouts/backendLayouts.vue";
 import { useFollowUpsStore } from '../../../../stores/followUpStore';
 import { useMenuStore } from "@/stores/menuStore";
@@ -660,64 +660,8 @@ const openSubmitResult = (item) => {
 }
 
 
-// const submitResult = async () => {
-//   // Validasi
-//   if (!resultForm.value.result) {
-//     return toasts.fire({ icon: "warning", title: "Pilih result terlebih dahulu" })
-//   }
 
-//   if (showNextFollowUp.value && !resultForm.value.next_follow_up_at) {
-//     return toasts.fire({ icon: "warning", title: "Tanggal follow up berikutnya wajib diisi" })
-//   }
 
-//   submittingResult.value = true
-
-//   try {
-//     const payload = {
-//       result: resultForm.value.result,
-//       notes: resultForm.value.notes ?? null,
-//       ...(showNextFollowUp.value && {
-//         next_follow_up_at: resultForm.value.next_follow_up_at,
-//         follow_up_type: resultForm.value.follow_up_type ?? null,
-//       })
-//     }
-
-//     await followUpStore.submitFollowUpResultCustomer(selectedFollowUpId.value, payload)
-
-//     // Tutup modal
-//     const modalEl = document.getElementById('submitResultModal')
-//     bootstrap.Modal.getInstance(modalEl)?.hide()
-
-//     // Reset form
-//     resultForm.value = {
-//       result: "",
-//       notes: "",
-//       next_follow_up_at: "",
-//       follow_up_type: ""
-//     }
-//     selectedFollowUpId.value = null
-
-//     toasts.fire({
-//       icon: "success",
-//       title: "Result berhasil di-submit!"
-//     })
-
-//     // Refresh tabel
-//     followUpStore.fetchFollowUps(followUpStore.mode)
-
-//   } catch (err) {
-//     const message = err.response?.data?.message || "Gagal submit result"
-
-//     if (err.response?.status === 422) {
-//       toasts.fire({ icon: "warning", title: message })
-//     } else {
-//       toasts.fire({ icon: "error", title: message })
-//     }
-
-//   } finally {
-//     submittingResult.value = false
-//   }
-// }
 
 const submitResult = async () => {
   if (!resultForm.value.result) {
@@ -778,20 +722,6 @@ const submitResult = async () => {
 }
 
 
-// const getFollowUpStatus = (status) => {
-//   switch (status) {
-//     case "OVERDUE":
-//       return { label: "Overdue", class: "bg-danger" }
-//     case "PENDING":
-//       return { label: "Pending", class: "bg-warning text-dark" }
-//     case "COMPLETED":
-//       return { label: "Completed", class: "bg-success" }
-//     case "CLOSED":
-//       return { label: "Closed", class: "bg-secondary" }
-//     default:
-//       return { label: status, class: "bg-light text-dark" }
-//   }
-// }
 </script>
 
 
@@ -988,6 +918,7 @@ const submitResult = async () => {
             <td>{{ item.follow_up_type }}</td>
             <!-- SUBJECT -->
             <td>{{ item.subject }}</td>
+          
             <!-- TARGET -->
             <td>
               <div class="fw-bold">{{ item.target_name }}</div>
@@ -1089,6 +1020,16 @@ const submitResult = async () => {
                   <i class="fa-solid fa-timeline"></i> 
                 </button>
 
+                <button
+                      v-if="!showVisitColumn"
+                      class="btn btn-outline-primary btn-sm mt-1"
+                      data-bs-toggle="modal"
+                      data-bs-target="#customerTimeLineModal"
+                      @click="followUpStore.fetchCustomerTimeline(item.id)"
+                  >
+                      <i class="fa-solid fa-timeline"></i>
+                  </button>
+
                 <!-- <div class="dropdown mt-1" v-if="showActionColumn"> -->
                   <div class="dropdown mt-1" v-if="showActionColumn && isActionable(item)">
                     <a class="btn btn-outline-primary dropdown-toggle" href="#" role="button" data-bs-toggle="dropdown" aria-expanded="false">
@@ -1163,239 +1104,237 @@ const submitResult = async () => {
 
           <!-- code modal detail -->
             <!-- DETAIL FOLLOW UP MODAL -->
-<div class="modal fade" id="followUpDetailModal" tabindex="-1">
-  <div class="modal-dialog modal-xl">
-    <div class="modal-content">
+          <div class="modal fade" id="followUpDetailModal" tabindex="-1">
+            <div class="modal-dialog modal-xl">
+              <div class="modal-content">
 
-      <!-- HEADER -->
-      <div class="modal-header">
-        <h5 class="modal-title">
-          Detail Follow Up
-        </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
+                <!-- HEADER -->
+                <div class="modal-header">
+                  <h5 class="modal-title">
+                    Detail Follow Up
+                  </h5>
+                  <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
 
-      <!-- BODY -->
-      <div class="modal-body">
+                <!-- BODY -->
+                <div class="modal-body">
 
-        <!-- LOADING -->
-        <div v-if="followUpStore.loadingDetail" class="text-center py-5">
-          <div class="spinner-border text-primary"></div>
-        </div>
-
-        <!-- DATA -->
-        <div v-else-if="followUpStore.followUpDetail">
-
-          <!-- HEADER INFO -->
-          <div class="alert alert-primary d-flex justify-content-between align-items-center">
-            <div>
-              <strong>{{ followUpStore.followUpDetail.follow_up_code }}</strong><br>
-              <small>
-                {{ followUpStore.followUpDetail?.customer_company_name 
-                    ?? followUpStore.followUpDetail?.lead_company_name }}
-              </small>
-            </div>
-
-            <span
-              class="badge rounded-pill"
-              :class="getFollowUpStatus(followUpStore.followUpDetail.computed_status).class"
-            >
-              {{ getFollowUpStatus(followUpStore.followUpDetail.computed_status).label }}
-            </span>
-          </div>
-
-          <!-- MAIN INFO -->
-          <div class="row g-3">
-
-            <div class="col-md-6">
-              <label class="form-label">Follow Up Type</label>
-              <input class="form-control"
-                :value="followUpStore.followUpDetail.follow_up_type"
-                readonly>
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label">Sales</label>
-              <input class="form-control"
-                :value="followUpStore.followUpDetail.sales_name"
-                readonly>
-            </div>
-
-            <div class="col-md-12">
-              <label class="form-label">Subject</label>
-              <input class="form-control"
-                :value="followUpStore.followUpDetail.subject"
-                readonly>
-            </div>
-
-            <div class="col-md-12">
-              <label class="form-label">Notes</label>
-              <textarea class="form-control" rows="3" readonly>
-                  {{ followUpStore.followUpDetail.notes }}
-              </textarea>
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label">Follow Up Estimate</label>
-              <input class="form-control"
-                :value="followUpStore.formatDates(followUpStore.followUpDetail.follow_up_at)"
-                readonly>
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label">Created Date</label>
-              <input class="form-control"
-                :value="followUpStore.formatDates(followUpStore.followUpDetail.created_at)"
-                readonly>
-            </div>
-
-            <div class="col-md-6">
-              <label class="form-label">
-                {{ followUpStore.followUpDetail?.customer_id ? 'Customer Status' : 'Lead Status' }}
-              </label>
-              <input class="form-control"
-                :value="followUpStore.followUpDetail?.customer_status 
-                    ?? followUpStore.followUpDetail?.lead_status"
-                readonly>
-            </div>
-
-          </div>
-
-          <!-- ================= COMPLAINT SECTION ================= -->
-            <div
-              class="mt-5"
-              v-if="followUpStore.followUpDetail.complaint_details?.some(c => c.complaint_detail)"
-            >
-
-              <h6 class="mb-3 text-danger">
-                <i class="fa-solid fa-triangle-exclamation me-2"></i>
-                Complaint From Visits
-              </h6>
-
-              <div
-                v-for="complaint in followUpStore.followUpDetail.complaint_details.filter(c => c.complaint_detail)"
-                :key="'complaint-' + complaint.visit_id"
-                class="card mb-3 border-danger"
-              >
-                <div class="card-body">
-
-                  <div class="d-flex justify-content-between mb-2">
-                    <strong>{{ complaint.visit_code }}</strong>
-                    <small class="text-muted">
-                      {{ followUpStore.formatDates(complaint.created_at) }}
-                    </small>
+                  <!-- LOADING -->
+                  <div v-if="followUpStore.loadingDetail" class="text-center py-5">
+                    <div class="spinner-border text-primary"></div>
                   </div>
 
-                  <span class="badge bg-danger mb-2">Complaint</span>
+                  <!-- DATA -->
+                  <div v-else-if="followUpStore.followUpDetail">
 
-                  <p class="mb-2">
-                    {{ complaint.complaint_detail }}
-                  </p>
+                    <!-- HEADER INFO -->
+                    <div class="alert alert-primary d-flex justify-content-between align-items-center">
+                      <div>
+                        <strong>{{ followUpStore.followUpDetail.follow_up_code }}</strong><br>
+                        <small>
+                          {{ followUpStore.followUpDetail?.customer_company_name 
+                              ?? followUpStore.followUpDetail?.lead_company_name }}
+                        </small>
+                      </div>
 
-                  <small class="text-muted">
-                    Check In: {{ followUpStore.formatDates(complaint.check_in_at) }}
-                    |
-                    Check Out: {{ followUpStore.formatDates(complaint.check_out_at) }}
-                  </small>
-
-                </div>
-              </div>
-
-            </div>
-
-
-              <!-- ================= POTENTIAL ORDER SECTION ================= -->
-              <div
-                class="mt-5"
-                v-if="followUpStore.followUpDetail.complaint_details?.some(c => c.has_potential_order)"
-              >
-
-                <h6 class="mb-3 text-success">
-                  <i class="fa-solid fa-box me-2"></i>
-                  Potential Order From Visits
-                </h6>
-
-                <div
-                  v-for="visit in followUpStore.followUpDetail.complaint_details.filter(c => c.has_potential_order)"
-                  :key="'potential-' + visit.visit_id"
-                  class="card mb-3 border-success"
-                >
-                  <div class="card-body">
-
-                    <div class="d-flex justify-content-between mb-2">
-                      <strong>{{ visit.visit_code }}</strong>
-                      <small class="text-muted">
-                        {{ followUpStore.formatDates(visit.created_at) }}
-                      </small>
+                      <span
+                        class="badge rounded-pill"
+                        :class="getFollowUpStatus(followUpStore.followUpDetail.computed_status).class"
+                      >
+                        {{ getFollowUpStatus(followUpStore.followUpDetail.computed_status).label }}
+                      </span>
                     </div>
 
-                    <span class="badge bg-success mb-2">
-                      Potential Order
-                    </span>
+                    <!-- MAIN INFO -->
+                    <div class="row g-3">
 
-                    <p class="mb-2">
-                      {{ visit.potential_order_detail }}
-                    </p>
+                      <div class="col-md-6">
+                        <label class="form-label">Follow Up Type</label>
+                        <input class="form-control"
+                          :value="followUpStore.followUpDetail.follow_up_type"
+                          readonly>
+                      </div>
 
-                    <small class="text-muted">
-                      Check In: {{ followUpStore.formatDates(visit.check_in_at) }}
-                      |
-                      Check Out: {{ followUpStore.formatDates(visit.check_out_at) }}
-                    </small>
+                      <div class="col-md-6">
+                        <label class="form-label">Sales</label>
+                        <input class="form-control"
+                          :value="followUpStore.followUpDetail.sales_name"
+                          readonly>
+                      </div>
+
+                      <div class="col-md-12">
+                        <label class="form-label">Subject</label>
+                        <input class="form-control"
+                          :value="followUpStore.followUpDetail.subject"
+                          readonly>
+                      </div>
+
+                      <div class="col-md-12">
+                        <label class="form-label">Notes</label>
+                        <textarea class="form-control" rows="3" readonly>{{ followUpStore.followUpDetail.notes }}</textarea>
+                      </div>
+
+                      <div class="col-md-6">
+                        <label class="form-label">Follow Up Estimate</label>
+                        <input class="form-control"
+                          :value="followUpStore.formatDates(followUpStore.followUpDetail.follow_up_at)"
+                          readonly>
+                      </div>
+
+                      <div class="col-md-6">
+                        <label class="form-label">Created Date</label>
+                        <input class="form-control"
+                          :value="followUpStore.formatDates(followUpStore.followUpDetail.created_at)"
+                          readonly>
+                      </div>
+
+                      <div class="col-md-6">
+                        <label class="form-label">
+                          {{ followUpStore.followUpDetail?.customer_id ? 'Customer Status' : 'Lead Status' }}
+                        </label>
+                        <input class="form-control"
+                          :value="followUpStore.followUpDetail?.customer_status 
+                              ?? followUpStore.followUpDetail?.lead_status"
+                          readonly>
+                      </div>
+
+                    </div>
+
+                    <!-- ================= COMPLAINT SECTION ================= -->
+                      <div
+                        class="mt-5"
+                        v-if="followUpStore.followUpDetail.complaint_details?.some(c => c.complaint_detail)"
+                      >
+
+                        <h6 class="mb-3 text-danger">
+                          <i class="fa-solid fa-triangle-exclamation me-2"></i>
+                          Complaint From Visits
+                        </h6>
+
+                        <div
+                          v-for="complaint in followUpStore.followUpDetail.complaint_details.filter(c => c.complaint_detail)"
+                          :key="'complaint-' + complaint.visit_id"
+                          class="card mb-3 border-danger"
+                        >
+                          <div class="card-body">
+
+                            <div class="d-flex justify-content-between mb-2">
+                              <strong>{{ complaint.visit_code }}</strong>
+                              <small class="text-muted">
+                                {{ followUpStore.formatDates(complaint.created_at) }}
+                              </small>
+                            </div>
+
+                            <span class="badge bg-danger mb-2">Complaint</span>
+
+                            <p class="mb-2">
+                              {{ complaint.complaint_detail }}
+                            </p>
+
+                            <small class="text-muted">
+                              Check In: {{ followUpStore.formatDates(complaint.check_in_at) }}
+                              |
+                              Check Out: {{ followUpStore.formatDates(complaint.check_out_at) }}
+                            </small>
+
+                          </div>
+                        </div>
+
+                      </div>
+
+
+                        <!-- ================= POTENTIAL ORDER SECTION ================= -->
+                        <div
+                          class="mt-5"
+                          v-if="followUpStore.followUpDetail.complaint_details?.some(c => c.has_potential_order)"
+                        >
+
+                          <h6 class="mb-3 text-success">
+                            <i class="fa-solid fa-box me-2"></i>
+                            Potential Order From Visits
+                          </h6>
+
+                          <div
+                            v-for="visit in followUpStore.followUpDetail.complaint_details.filter(c => c.has_potential_order)"
+                            :key="'potential-' + visit.visit_id"
+                            class="card mb-3 border-success"
+                          >
+                            <div class="card-body">
+
+                              <div class="d-flex justify-content-between mb-2">
+                                <strong>{{ visit.visit_code }}</strong>
+                                <small class="text-muted">
+                                  {{ followUpStore.formatDates(visit.created_at) }}
+                                </small>
+                              </div>
+
+                              <span class="badge bg-success mb-2">
+                                Potential Order
+                              </span>
+
+                              <p class="mb-2">
+                                {{ visit.potential_order_detail }}
+                              </p>
+
+                              <small class="text-muted">
+                                Check In: {{ followUpStore.formatDates(visit.check_in_at) }}
+                                |
+                                Check Out: {{ followUpStore.formatDates(visit.check_out_at) }}
+                              </small>
+
+                            </div>
+                          </div>
+
+                        </div>
+
+                    <!-- ================= ACTIVITY SECTION ================= -->
+                    <div class="mt-5" v-if="followUpStore.followUpDetail.activities?.length">
+
+                      <h6 class="mb-3 text-primary">
+                        <i class="fa-solid fa-clock-rotate-left me-2"></i>
+                        Activity Timeline
+                      </h6>
+
+                      <ul class="list-group">
+                        <li
+                          v-for="activity in followUpStore.followUpDetail.activities"
+                          :key="activity.id"
+                          class="list-group-item"
+                        >
+                          <div class="d-flex justify-content-between">
+                            <strong>{{ activity.title }}</strong>
+                            <small>
+                              {{ followUpStore.formatDates(activity.activity_at) }}
+                            </small>
+                          </div>
+
+                          <div class="text-muted mt-1">
+                            {{ activity.description }}
+                          </div>
+                        </li>
+                      </ul>
+
+                    </div>
 
                   </div>
+
+                  <!-- EMPTY -->
+                  <div v-else class="text-center text-muted py-5">
+                    Data tidak ditemukan
+                  </div>
+
+                </div>
+
+                <!-- FOOTER -->
+                <div class="modal-footer">
+                  <button class="btn btn-secondary" data-bs-dismiss="modal">
+                    Close
+                  </button>
                 </div>
 
               </div>
-
-          <!-- ================= ACTIVITY SECTION ================= -->
-          <div class="mt-5" v-if="followUpStore.followUpDetail.activities?.length">
-
-            <h6 class="mb-3 text-primary">
-              <i class="fa-solid fa-clock-rotate-left me-2"></i>
-              Activity Timeline
-            </h6>
-
-            <ul class="list-group">
-              <li
-                v-for="activity in followUpStore.followUpDetail.activities"
-                :key="activity.id"
-                class="list-group-item"
-              >
-                <div class="d-flex justify-content-between">
-                  <strong>{{ activity.title }}</strong>
-                  <small>
-                    {{ followUpStore.formatDates(activity.activity_at) }}
-                  </small>
-                </div>
-
-                <div class="text-muted mt-1">
-                  {{ activity.description }}
-                </div>
-              </li>
-            </ul>
-
+            </div>
           </div>
-
-        </div>
-
-        <!-- EMPTY -->
-        <div v-else class="text-center text-muted py-5">
-          Data tidak ditemukan
-        </div>
-
-      </div>
-
-      <!-- FOOTER -->
-      <div class="modal-footer">
-        <button class="btn btn-secondary" data-bs-dismiss="modal">
-          Close
-        </button>
-      </div>
-
-    </div>
-  </div>
-</div>
 
 
 
@@ -1581,591 +1520,748 @@ const submitResult = async () => {
 
 
 
-   <!-- Code Modal: Timeline Data -->
-    <div class="modal modal-blur fade" id="timeLineModal" tabindex="-1" role="dialog" aria-hidden="true">
-      <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
-        <div class="modal-content">
-          
-          <!-- Header -->
-          <div class="modal-header">
-          <h5 class="modal-title">
-            Timeline - {{ followUpStore.selectedFollowUpCode }}
-          </h5>
+        <!-- Code Modal: Timeline Data -->
+        <!-- Modal: Lead Timeline -->
+      <div class="modal modal-blur fade" id="timeLineModal" tabindex="-1" role="dialog" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+          <div class="modal-content">
 
-            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-          </div>
-
-          <!-- Body -->
-        <div class="modal-body">
-
-            <!-- LOADING -->
-            <div v-if="followUpStore.loadingTimeline"
-                class="d-flex justify-content-center py-5">
-              <div class="spinner-border text-primary"></div>
+            <!-- Header -->
+            <div class="modal-header">
+              <div>
+                <h5 class="modal-title">
+                  <i class="fa-solid fa-clock-rotate-left me-2 text-danger"></i>
+                  Lead Journey
+                </h5>
+                <small class="text-muted">{{ followUpStore.selectedFollowUpCode }}</small>
+              </div>
+              <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
             </div>
 
-            <!-- EMPTY -->
-            <div v-else-if="followUpStore.timeline.length === 0"
-                class="text-center text-muted py-4">
-              No Activity Found
-            </div>
+            <!-- Body -->
+            <div class="modal-body">
 
-            <!-- TIMELINE -->
-            <div v-else class="timeline-wrapper">
-              <div v-for="(item, index) in followUpStore.timeline" :key="index" class="timeline-step">
-                <div class="circle" :class="{ active: index === 0 }"></div>
+              <!-- LOADING -->
+              <div v-if="followUpStore.loadingTimeline" class="d-flex justify-content-center py-5">
+                <div class="spinner-border text-danger"></div>
+              </div>
 
-                <div class="label fw-bold">
-                  {{ item.activity }}
+              <!-- EMPTY -->
+              <div v-else-if="followUpStore.timeline.length === 0"
+                  class="text-center text-muted py-4">
+                No Activity Found
+              </div>
+
+              <!-- TIMELINE -->
+              <div v-else class="px-2">
+
+                <!-- SUMMARY BADGE -->
+                <div class="d-flex gap-2 mb-4 flex-wrap">
+                  <span class="badge bg-danger-lt text-primary">
+                    <i class="fa-solid fa-list-check me-1"></i>
+                    {{ followUpStore.timeline.length }} Activities
+                  </span>
+                  <span class="badge bg-secondary-lt text-primary">
+                    <i class="fa-solid fa-layer-group me-1"></i>
+                    {{ [...new Set(followUpStore.timeline.map(h => h.follow_up_code))].length }} Follow Ups
+                  </span>
                 </div>
 
-                <small class="text-muted d-block" style="font-size: 10px;">
-                  {{ item.activity_at }}
-                </small>
+                <!-- TIMELINE ITEMS -->
+                <div class="timeline-wrapper-lead d-flex flex-column">
+                  <div
+                    v-for="(item, index) in followUpStore.timeline"
+                    :key="index"
+                    class="timeline-step-lead w-100"
+                  >
+                    <!-- Icon -->
+                    <div
+                      class="timeline-icon-lead"
+                      :class="{
+                        'bg-danger'    : item.type === 'CREATE',
+                        'bg-warning'   : item.type === 'AUTO_CLOSE',
+                        'bg-success'   : item.type === 'COMPLETE',
+                        'bg-primary'   : !['CREATE','AUTO_CLOSE','COMPLETE'].includes(item.type),
+                      }"
+                    >
+                      <i
+                        class="fa-solid text-white"
+                        :class="{
+                          'fa-plus'        : item.type === 'CREATE',
+                          'fa-xmark'       : item.type === 'AUTO_CLOSE',
+                          'fa-check'       : item.type === 'COMPLETE',
+                          'fa-list-check'  : !['CREATE','AUTO_CLOSE','COMPLETE'].includes(item.type),
+                        }"
+                      ></i>
+                    </div>
 
-                <div class="description-text">
-                  {{ item.description }}
+                    <!-- Content -->
+                    <div class="timeline-content-lead card shadow-sm mb-3">
+                      <div class="card-body">
+
+                        <!-- Title & Time -->
+                        <div class="d-flex justify-content-between align-items-start mb-1">
+                          <span class="fw-bold">{{ item.activity }}</span>
+                          <small class="text-muted ms-2 text-nowrap">{{ item.activity_at }}</small>
+                        </div>
+
+                        <!-- Badge -->
+                        <div class="mb-2">
+                          <span class="badge bg-danger me-1">📋 Follow Up</span>
+                          <span v-if="item.follow_up_code" class="badge bg-secondary">
+                            {{ item.follow_up_code }}
+                          </span>
+                        </div>
+
+                        <!-- Description -->
+                        <p class="text-muted mb-0" style="font-size: 13px;">
+                          {{ item.description }}
+                        </p>
+
+                      </div>
+                    </div>
+
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
 
-          <!-- Footer -->
-          <div class="modal-footer">
-            <button type="button" class="btn btn-link link-secondary" data-bs-dismiss="modal">
-              Close
-            </button>
+            <!-- Footer -->
+            <div class="modal-footer">
+              <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+            </div>
+
           </div>
         </div>
       </div>
-    </div>
 
 
 
     
-   <!-- MODAL : ADD DIRECT FOLLOW UP LEAD-->
-<div class="modal modal-blur fade" id="form-leads-for-direct" tabindex="-1">
-  <div class="modal-dialog modal-xl modal-dialog-centered">
-    <div class="modal-content">
+      <!-- MODAL : ADD DIRECT FOLLOW UP LEAD-->
+    <div class="modal modal-blur fade" id="form-leads-for-direct" tabindex="-1">
+      <div class="modal-dialog modal-xl modal-dialog-centered">
+        <div class="modal-content">
 
-      <!-- HEADER -->
-      <div class="modal-header">
-        <h5 class="modal-title">Form Follow Up Direct</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-
-      <!-- BODY -->
-      <div class="modal-body">
-        <div class="row g-3">
-
-          <!-- LEAD -->
-          <div class="col-lg-6">
-            <label class="form-label">
-              Lead <small class="text-danger">**</small>
-            </label>
-
-            <Multiselect
-              v-model="formDirect.lead_id"
-              :options="followUpStore.leadsOptionsDirect"
-              label="company_name"
-              valueProp="lead_id"
-              :object="false"
-              placeholder="Select Lead..."
-              :searchable="true"
-              :loading="followUpStore.loadingLeadsOptionsDirect"
-            />
-            <small class="text-danger"
-              v-if="followUpStore.errorLeadDirectToFollowUp?.lead_id">
-              {{ followUpStore.errorLeadDirectToFollowUp.lead_id[0] }}
-            </small>
+          <!-- HEADER -->
+          <div class="modal-header">
+            <h5 class="modal-title">Form Follow Up Direct</h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
           </div>
 
-          <!-- DATE -->
-          <div class="col-lg-6">
-            <label class="form-label">
-              Follow-up Schedule <small class="text-danger">(suggestion 3-7 more days)</small>
-            </label>
-
-            <Flatpickr
-              v-model="formDirect.follow_up_at"
-              :config="fpConfig"
-              class="form-control"
-              placeholder="Select date & time"
-            />
-            <small class="text-danger"
-              v-if="followUpStore.errorLeadDirectToFollowUp?.follow_up_at">
-              {{ followUpStore.errorLeadDirectToFollowUp.follow_up_at[0] }}
-            </small>
-          </div>
-
-          <!-- TYPE -->
-          <div class="col-lg-6">
-            <label class="form-label">
-              Type Follow Up <small class="text-danger">**</small>
-            </label>
-
-            <Multiselect
-              v-model="formDirect.follow_up_type"
-              :options="followUpStore.typeFollowUp"
-              label="label"
-              valueProp="value"
-              placeholder="Select Follow Up"
-            />
-            <small class="text-danger"
-            v-if="followUpStore.errorLeadDirectToFollowUp?.follow_up_type">
-            {{ followUpStore.errorLeadDirectToFollowUp.follow_up_type[0] }}
-          </small>
-          </div>
-
-          <!-- TEMPLATE SUBJECT -->
-          <div class="col-lg-6">
-            <label class="form-label">
-              Template Subject <small class="text-success">(opsional)</small>
-            </label>
-
-            <Multiselect
-              v-model="formDirect.subject_template_direct"
-              :options="followUpStore.typeSubjectDirect"
-              label="label"
-              valueProp="value"
-              trackBy="value"
-              placeholder="Pilih Template Subject"
-              :searchable="true"
-            />
-            
-          </div>
-
-          <!-- SUBJECT -->
-          <div class="col-lg-6">
-            <label class="form-label">
-              Subject <small class="text-danger">**</small>
-            </label>
-
-            <input
-              v-model="formDirect.subject"
-              type="text"
-              class="form-control"
-              placeholder="Tulis subject atau pilih template"
-            />
-            <small class="text-danger"
-              v-if="followUpStore.errorLeadDirectToFollowUp?.subject">
-              {{ followUpStore.errorLeadDirectToFollowUp.subject[0] }}
-            </small>
-          </div>
-
-          <!-- NOTES -->
-          <div class="col-lg-12">
-            <label class="form-label">
-              Notes <small class="text-success">(opsional)</small>
-            </label>
-
-            <textarea
-              v-model="formDirect.notes"
-              class="form-control"
-              rows="3"
-            ></textarea>
-            <small class="text-danger"
-              v-if="followUpStore.errorLeadDirectToFollowUp?.notes">
-              {{ followUpStore.errorLeadDirectToFollowUp.notes[0] }}
-            </small>
-          </div>
-
-        </div>
-      </div>
-
-      <!-- FOOTER -->
-      <div class="modal-footer">
-        <button class="btn btn-link link-secondary" data-bs-dismiss="modal">
-          Close
-        </button>
-
-        <button
-          @click="saveDirectFollowUp"
-          class="btn btn-primary ms-auto"
-          :disabled="followUpStore.savingLeadDirectToFollowUp"
-        >
-          {{ followUpStore.savingLeadDirectToFollowUp
-            ? 'Processing...'
-            : 'Save & Sync To Follow Up'
-          }}
-        </button>
-      </div>
-
-    </div>
-  </div>
-</div>
-
-
-
-<!-- modal untuk  direct customer follow up -->
-<div class="modal fade" id="directFollowUpModal" tabindex="-1">
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-
-      <div class="modal-header">
-        <h5 class="modal-title">Execute Direct Follow Up</h5>
-        <button class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-
-      <div class="modal-body">
-        <!-- Result -->
-        <div class="mb-3">
-          <label class="form-label">Result *</label>
-          <select v-model="directForm.result" class="form-select">
-            <option value="">-- Select Result --</option>
-            <option value="NO_RESPONSE">No Response</option>
-            <option value="STILL_CONSIDERING">Still Considering</option>
-            <option value="INTERESTED">Interested</option>
-            <option value="NOT_INTERESTED">Not Interested</option>
-            <option value="DEAL">Deal</option>
-          </select>
-        </div>
-
-        <!-- Notes -->
-        <div class="mb-3">
-          <label class="form-label">Notes *</label>
-          <textarea v-model="directForm.notes" class="form-control" rows="4"/>
-        </div>
-
-        <!-- Need Next Follow Up -->
-        <div class="form-check mb-2">
-          <input type="checkbox" v-model="directForm.need_follow_up" class="form-check-input">
-          <label class="form-check-label">
-            Schedule Next Follow Up
-          </label>
-        </div>
-
-        <div v-if="directForm.need_follow_up">
-          <label class="form-label">Next Follow Up Date</label>
-          <input type="datetime-local" v-model="directForm.follow_up_at" class="form-control">
-        </div>
-      </div>
-
-      <div class="modal-footer">
-        <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-        <button class="btn btn-primary" @click="submitDirectFollowUp">
-          Submit Result
-        </button>
-      </div>
-
-    </div>
-  </div>
-</div>
-
-
-
-
-<!-- ini untuk modal submit Result -->
-<!-- Submit Result Modal -->
-<!-- Modal Submit Result Customer -->
-<div
-  class="modal fade"
-  id="submitResultModal"
-  tabindex="-1"
-  aria-labelledby="submitResultModalLabel"
-  aria-hidden="true"
->
-  <div class="modal-dialog modal-lg">
-    <div class="modal-content">
-
-      <div class="modal-header">
-        <h5 class="modal-title">
-          <i class="fa-solid fa-clipboard-check me-2 text-primary"></i>
-          Submit Follow Up Result
-        </h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-      </div>
-
-      <div class="modal-body">
-
-        <!-- RESULT -->
-        <div class="mb-3">
-          <label class="form-label fw-bold">
-            Result <small class="text-danger">**</small>
-          </label>
-          <Multiselect
-            v-model="resultForm.result"
-            :options="followUpStore.resultSubmit"
-            label="label"
-            valueProp="value"
-            trackBy="value"
-            placeholder="Pilih Result Follow Up..."
-            :searchable="true"
-          />
-        </div>
-
-        <!-- NOTES -->
-        <div class="mb-3">
-          <label class="form-label fw-bold">
-            Notes <small class="text-success">(opsional)</small>
-          </label>
-          <textarea
-            v-model="resultForm.notes"
-            class="form-control"
-            rows="3"
-            placeholder="Tulis catatan hasil follow up..."
-          ></textarea>
-        </div>
-
-        <!-- NEXT FOLLOW UP SECTION -->
-        <transition name="fade">
-          <div
-            v-if="showNextFollowUp"
-            class="p-3 border rounded mt-3"
-            :class="isNextFollowUpRequired ? 'border-primary bg-light' : 'border-secondary bg-light'"
-          >
-            <p
-              class="fw-bold mb-2"
-              :class="isNextFollowUpRequired ? 'text-primary' : 'text-secondary'"
-            >
-              <i class="fa-regular fa-calendar-plus me-1"></i>
-              Jadwalkan Follow Up Berikutnya
-              <small v-if="!isNextFollowUpRequired" class="fw-normal">(opsional)</small>
-            </p>
-
+          <!-- BODY -->
+          <div class="modal-body">
             <div class="row g-3">
-              <div class="col-md-6">
+
+              <!-- LEAD -->
+              <div class="col-lg-6">
                 <label class="form-label">
-                  Tanggal Follow Up
-                  <small v-if="isNextFollowUpRequired" class="text-danger">**</small>
-                  <small v-else class="text-success">(opsional)</small>
+                  Lead <small class="text-danger">**</small>
                 </label>
-                <Flatpickr
-                  v-model="resultForm.next_follow_up_at"
-                  :config="fpConfig"
-                  class="form-control"
-                  placeholder="Pilih tanggal & waktu"
+
+                <Multiselect
+                  v-model="formDirect.lead_id"
+                  :options="followUpStore.leadsOptionsDirect"
+                  label="company_name"
+                  valueProp="lead_id"
+                  :object="false"
+                  placeholder="Select Lead..."
+                  :searchable="true"
+                  :loading="followUpStore.loadingLeadsOptionsDirect"
                 />
+                <small class="text-danger"
+                  v-if="followUpStore.errorLeadDirectToFollowUp?.lead_id">
+                  {{ followUpStore.errorLeadDirectToFollowUp.lead_id[0] }}
+                </small>
               </div>
 
-              <div class="col-md-6">
+              <!-- DATE -->
+              <div class="col-lg-6">
                 <label class="form-label">
-                  Type Follow Up <small class="text-success">(opsional)</small>
+                  Follow-up Schedule <small class="text-danger">(suggestion 3-7 more days)</small>
                 </label>
+
+                <Flatpickr
+                  v-model="formDirect.follow_up_at"
+                  :config="fpConfig"
+                  class="form-control"
+                  placeholder="Select date & time"
+                />
+                <small class="text-danger"
+                  v-if="followUpStore.errorLeadDirectToFollowUp?.follow_up_at">
+                  {{ followUpStore.errorLeadDirectToFollowUp.follow_up_at[0] }}
+                </small>
+              </div>
+
+              <!-- TYPE -->
+              <div class="col-lg-6">
+                <label class="form-label">
+                  Type Follow Up <small class="text-danger">**</small>
+                </label>
+
                 <Multiselect
-                  v-model="resultForm.follow_up_type"
+                  v-model="formDirect.follow_up_type"
                   :options="followUpStore.typeFollowUp"
                   label="label"
                   valueProp="value"
+                  placeholder="Select Follow Up"
+                />
+                <small class="text-danger"
+                v-if="followUpStore.errorLeadDirectToFollowUp?.follow_up_type">
+                {{ followUpStore.errorLeadDirectToFollowUp.follow_up_type[0] }}
+              </small>
+              </div>
+
+              <!-- TEMPLATE SUBJECT -->
+              <div class="col-lg-6">
+                <label class="form-label">
+                  Template Subject <small class="text-success">(opsional)</small>
+                </label>
+
+                <Multiselect
+                  v-model="formDirect.subject_template_direct"
+                  :options="followUpStore.typeSubjectDirect"
+                  label="label"
+                  valueProp="value"
                   trackBy="value"
-                  placeholder="Pilih Type Follow Up"
+                  placeholder="Pilih Template Subject"
                   :searchable="true"
                 />
+                
               </div>
+
+              <!-- SUBJECT -->
+              <div class="col-lg-6">
+                <label class="form-label">
+                  Subject <small class="text-danger">**</small>
+                </label>
+
+                <input
+                  v-model="formDirect.subject"
+                  type="text"
+                  class="form-control"
+                  placeholder="Tulis subject atau pilih template"
+                />
+                <small class="text-danger"
+                  v-if="followUpStore.errorLeadDirectToFollowUp?.subject">
+                  {{ followUpStore.errorLeadDirectToFollowUp.subject[0] }}
+                </small>
+              </div>
+
+              <!-- NOTES -->
+              <div class="col-lg-12">
+                <label class="form-label">
+                  Notes <small class="text-success">(opsional)</small>
+                </label>
+
+                <textarea
+                  v-model="formDirect.notes"
+                  class="form-control"
+                  rows="3"
+                ></textarea>
+                <small class="text-danger"
+                  v-if="followUpStore.errorLeadDirectToFollowUp?.notes">
+                  {{ followUpStore.errorLeadDirectToFollowUp.notes[0] }}
+                </small>
+              </div>
+
             </div>
           </div>
-        </transition>
 
-        <!-- INFO BADGES -->
-        <transition name="fade">
-          <div v-if="resultForm.result === 'dealing'" class="alert alert-warning mt-3">
-            <i class="fa-solid fa-handshake me-1"></i>
-            <strong>Negotiation Stage!</strong>
-            Jadwalkan follow up lanjutan untuk monitoring proses negosiasi.
+          <!-- FOOTER -->
+          <div class="modal-footer">
+            <button class="btn btn-link link-secondary" data-bs-dismiss="modal">
+              Close
+            </button>
+
+            <button
+              @click="saveDirectFollowUp"
+              class="btn btn-primary ms-auto"
+              :disabled="followUpStore.savingLeadDirectToFollowUp"
+            >
+              {{ followUpStore.savingLeadDirectToFollowUp
+                ? 'Processing...'
+                : 'Save & Sync To Follow Up'
+              }}
+            </button>
           </div>
 
-          <div v-else-if="resultForm.result === 'no_meet'" class="alert alert-secondary mt-3">
-            <i class="fa-solid fa-phone-slash me-1"></i>
-            <strong>Tidak Berhasil Dihubungi.</strong>
-            Isi tanggal jika ingin retry follow up otomatis, atau kosongkan jika akan dijadwal manual.
+        </div>
+      </div>
+    </div>
+
+
+
+    <!-- modal untuk  direct customer follow up -->
+    <div class="modal fade" id="directFollowUpModal" tabindex="-1">
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+
+          <div class="modal-header">
+            <h5 class="modal-title">Execute Direct Follow Up</h5>
+            <button class="btn-close" data-bs-dismiss="modal"></button>
           </div>
 
-          <div v-else-if="resultForm.result === 'closed'" class="alert alert-success mt-3">
-            <i class="fa-solid fa-circle-check me-1"></i>
-            <strong>Deal Closed!</strong>
-            Semua follow up aktif akan ditutup otomatis & status customer menjadi <strong>Active</strong>.
+          <div class="modal-body">
+            <!-- Result -->
+            <div class="mb-3">
+              <label class="form-label">Result *</label>
+              <select v-model="directForm.result" class="form-select">
+                <option value="">-- Select Result --</option>
+                <option value="NO_RESPONSE">No Response</option>
+                <option value="STILL_CONSIDERING">Still Considering</option>
+                <option value="INTERESTED">Interested</option>
+                <option value="NOT_INTERESTED">Not Interested</option>
+                <option value="DEAL">Deal</option>
+              </select>
+            </div>
+
+            <!-- Notes -->
+            <div class="mb-3">
+              <label class="form-label">Notes *</label>
+              <textarea v-model="directForm.notes" class="form-control" rows="4"/>
+            </div>
+
+            <!-- Need Next Follow Up -->
+            <div class="form-check mb-2">
+              <input type="checkbox" v-model="directForm.need_follow_up" class="form-check-input">
+              <label class="form-check-label">
+                Schedule Next Follow Up
+              </label>
+            </div>
+
+            <div v-if="directForm.need_follow_up">
+              <label class="form-label">Next Follow Up Date</label>
+              <input type="datetime-local" v-model="directForm.follow_up_at" class="form-control">
+            </div>
           </div>
 
-          <div v-else-if="resultForm.result === 'cancelled'" class="alert alert-danger mt-3">
-            <i class="fa-solid fa-triangle-exclamation me-1"></i>
-            <strong>Opportunity Lost!</strong>
-            Semua follow up aktif customer ini akan dibatalkan otomatis.
+          <div class="modal-footer">
+            <button class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+            <button class="btn btn-primary" @click="submitDirectFollowUp">
+              Submit Result
+            </button>
           </div>
-        </transition>
 
+        </div>
+      </div>
+    </div>
+
+
+
+
+    <!-- ini untuk modal submit Result -->
+    <!-- Submit Result Modal -->
+    <!-- Modal Submit Result Customer -->
+    <div
+      class="modal fade"
+      id="submitResultModal"
+      tabindex="-1"
+      aria-labelledby="submitResultModalLabel"
+      aria-hidden="true"
+    >
+      <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+
+          <div class="modal-header">
+            <h5 class="modal-title">
+              <i class="fa-solid fa-clipboard-check me-2 text-primary"></i>
+              Submit Follow Up Result
+            </h5>
+            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+          </div>
+
+          <div class="modal-body">
+
+            <!-- RESULT -->
+            <div class="mb-3">
+              <label class="form-label fw-bold">
+                Result <small class="text-danger">**</small>
+              </label>
+              <Multiselect
+                v-model="resultForm.result"
+                :options="followUpStore.resultSubmit"
+                label="label"
+                valueProp="value"
+                trackBy="value"
+                placeholder="Pilih Result Follow Up..."
+                :searchable="true"
+              />
+            </div>
+
+            <!-- NOTES -->
+            <div class="mb-3">
+              <label class="form-label fw-bold">
+                Notes <small class="text-success">(opsional)</small>
+              </label>
+              <textarea
+                v-model="resultForm.notes"
+                class="form-control"
+                rows="3"
+                placeholder="Tulis catatan hasil follow up..."
+              ></textarea>
+            </div>
+
+            <!-- NEXT FOLLOW UP SECTION -->
+            <transition name="fade">
+              <div
+                v-if="showNextFollowUp"
+                class="p-3 border rounded mt-3"
+                :class="isNextFollowUpRequired ? 'border-primary bg-light' : 'border-secondary bg-light'"
+              >
+                <p
+                  class="fw-bold mb-2"
+                  :class="isNextFollowUpRequired ? 'text-primary' : 'text-secondary'"
+                >
+                  <i class="fa-regular fa-calendar-plus me-1"></i>
+                  Jadwalkan Follow Up Berikutnya
+                  <small v-if="!isNextFollowUpRequired" class="fw-normal">(opsional)</small>
+                </p>
+
+                <div class="row g-3">
+                  <div class="col-md-6">
+                    <label class="form-label">
+                      Tanggal Follow Up
+                      <small v-if="isNextFollowUpRequired" class="text-danger">**</small>
+                      <small v-else class="text-success">(opsional)</small>
+                    </label>
+                    <Flatpickr
+                      v-model="resultForm.next_follow_up_at"
+                      :config="fpConfig"
+                      class="form-control"
+                      placeholder="Pilih tanggal & waktu"
+                    />
+                  </div>
+
+                  <div class="col-md-6">
+                    <label class="form-label">
+                      Type Follow Up <small class="text-success">(opsional)</small>
+                    </label>
+                    <Multiselect
+                      v-model="resultForm.follow_up_type"
+                      :options="followUpStore.typeFollowUp"
+                      label="label"
+                      valueProp="value"
+                      trackBy="value"
+                      placeholder="Pilih Type Follow Up"
+                      :searchable="true"
+                    />
+                  </div>
+                </div>
+              </div>
+            </transition>
+
+            <!-- INFO BADGES -->
+            <transition name="fade">
+              <div v-if="resultForm.result === 'dealing'" class="alert alert-warning mt-3">
+                <i class="fa-solid fa-handshake me-1"></i>
+                <strong>Negotiation Stage!</strong>
+                Jadwalkan follow up lanjutan untuk monitoring proses negosiasi.
+              </div>
+
+              <div v-else-if="resultForm.result === 'no_meet'" class="alert alert-secondary mt-3">
+                <i class="fa-solid fa-phone-slash me-1"></i>
+                <strong>Tidak Berhasil Dihubungi.</strong>
+                Isi tanggal jika ingin retry follow up
+                <!-- Isi tanggal jika ingin retry follow up otomatis, atau kosongkan jika akan dijadwal manual. -->
+              </div>
+
+              <div v-else-if="resultForm.result === 'closed'" class="alert alert-success mt-3">
+                <i class="fa-solid fa-circle-check me-1"></i>
+                <strong>Deal Closed!</strong>
+                <!-- Semua follow up aktif akan ditutup otomatis & status customer menjadi <strong>Active</strong>. -->
+                Semua follow up aktif akan ditutup otomatis.
+              </div>
+
+              <div v-else-if="resultForm.result === 'cancelled'" class="alert alert-danger mt-3">
+                <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                <strong>Opportunity Lost!</strong>
+                Semua follow up aktif customer ini akan dibatalkan otomatis.
+              </div>
+            </transition>
+
+          </div>
+
+          <div class="modal-footer">
+            <button class="btn btn-secondary" data-bs-dismiss="modal">
+              <i class="fa fa-times me-1"></i> Cancel
+            </button>
+
+            <button
+              class="btn btn-primary ms-auto"
+              :disabled="submittingResult || followUpStore.submittingResult"
+              @click="submitResult"
+            >
+              <span v-if="submittingResult || followUpStore.submittingResult">
+                <span class="spinner-border spinner-border-sm me-1"></span>
+                Submitting...
+              </span>
+              <span v-else>
+                <i class="fa-solid fa-paper-plane me-1"></i>
+                Submit Result
+              </span>
+            </button>
+          </div>
+
+        </div>
+      </div>
+    </div>
+
+
+
+
+
+    <!-- Modal: Customer Timeline -->
+<!-- Modal: Customer Timeline -->
+<div class="modal modal-blur fade" id="customerTimeLineModal" tabindex="-1" role="dialog" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered" role="document">
+    <div class="modal-content">
+
+      <!-- Header -->
+      <div class="modal-header">
+        <div>
+          <h5 class="modal-title">
+            <i class="fa-solid fa-clock-rotate-left me-2 text-primary"></i>
+            Customer Journey
+          </h5>
+          <small class="text-muted">{{ followUpStore.selectedFollowUpCode }}</small>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
       </div>
 
-      <div class="modal-footer">
-        <button class="btn btn-secondary" data-bs-dismiss="modal">
-          <i class="fa fa-times me-1"></i> Cancel
-        </button>
+      <!-- Body -->
+      <div class="modal-body">
 
-        <button
-          class="btn btn-primary ms-auto"
-          :disabled="submittingResult || followUpStore.submittingResult"
-          @click="submitResult"
-        >
-          <span v-if="submittingResult || followUpStore.submittingResult">
-            <span class="spinner-border spinner-border-sm me-1"></span>
-            Submitting...
-          </span>
-          <span v-else>
-            <i class="fa-solid fa-paper-plane me-1"></i>
-            Submit Result
-          </span>
-        </button>
+        <!-- LOADING -->
+        <div v-if="followUpStore.loadingCustomerTimeline" class="d-flex justify-content-center py-5">
+          <div class="spinner-border text-primary"></div>
+        </div>
+
+        <!-- EMPTY -->
+        <div v-else-if="followUpStore.customerTimeline.length === 0"
+            class="text-center text-muted py-4">
+          No Activity Found
+        </div>
+
+        <!-- TIMELINE -->
+        <div v-else class="px-2">
+
+          <!-- SUMMARY BADGE -->
+          <div class="d-flex gap-2 mb-4 flex-wrap">
+            <span class="badge bg-primary-lt text-primary">
+              <i class="fa-solid fa-list-check me-1"></i>
+              {{ followUpStore.customerTimeline.filter(h => h.source === 'FOLLOW_UP').length }} Activities
+            </span>
+            <span class="badge bg-success-lt text-primary">
+              <i class="fa-solid fa-building me-1 "></i>
+              {{ followUpStore.customerTimeline.filter(h => h.source === 'VISIT').length }} Visits
+            </span>
+            <span class="badge bg-danger-lt text-primary">
+              <i class="fa-solid fa-triangle-exclamation me-1"></i>
+              {{ followUpStore.customerTimeline.filter(h => h.has_complaint).length }} Complaints
+            </span>
+            <span class="badge bg-warning-lt text-primary">
+              <i class="fa-solid fa-sack-dollar me-1"></i>
+              {{ followUpStore.customerTimeline.filter(h => h.has_potential_order).length }} Potential Orders
+            </span>
+          </div>
+
+          <!-- TIMELINE ITEMS -->
+          <div class="timeline-wrapper-customer d-flex flex-column">
+            <div
+              v-for="(item, index) in followUpStore.customerTimeline"
+              :key="index"
+              class="timeline-step-customer w-100"
+            >
+              <!-- Icon berdasarkan source/type -->
+              <div
+                class="timeline-icon-customer"
+                :class="{
+                  'bg-primary' : item.source === 'FOLLOW_UP',
+                  'bg-success' : item.source === 'VISIT' && !item.has_complaint && !item.has_potential_order,
+                  'bg-danger'  : item.has_complaint,
+                  'bg-warning' : item.has_potential_order,
+                }"
+              >
+                <i
+                  class="fa-solid text-white"
+                  :class="{
+                    'fa-list-check'           : item.source === 'FOLLOW_UP',
+                    'fa-building'             : item.source === 'VISIT' && !item.has_complaint && !item.has_potential_order,
+                    'fa-triangle-exclamation' : item.has_complaint,
+                    'fa-sack-dollar'          : item.has_potential_order && !item.has_complaint,
+                  }"
+                ></i>
+              </div>
+
+              <!-- Content -->
+              <div class="timeline-content-customer card shadow-sm mb-3">
+                <div class="card-body">
+
+                  <!-- Title & Time -->
+                  <div class="d-flex justify-content-between align-items-start mb-1">
+                    <span class="fw-bold">{{ item.title }}</span>
+                    <small class="text-muted ms-2 text-nowrap">{{ item.activity_at }}</small>
+                  </div>
+
+                  <!-- Badge source -->
+                  <div class="mb-2">
+                    <span class="badge me-1"
+                      :class="item.source === 'VISIT' ? 'bg-success' : 'bg-primary'">
+                      {{ item.source === 'VISIT' ? '🏢 Visit' : '📋 Follow Up' }}
+                    </span>
+                    <span v-if="item.follow_up_code" class="badge bg-secondary">
+                      {{ item.follow_up_code }}
+                    </span>
+                    <span v-if="item.visit_code" class="badge bg-secondary">
+                      {{ item.visit_code }}
+                    </span>
+                  </div>
+
+                  <!-- Description -->
+                  <p class="text-muted mb-2" style="font-size: 13px;">
+                    {{ item.description }}
+                  </p>
+
+                  <!-- Visit Detail -->
+                  <div v-if="item.source === 'VISIT'">
+
+                    <!-- Check in / out -->
+                    <div class="d-flex gap-3 mb-2" style="font-size: 12px;">
+                      <span>
+                        <i class="fa-solid fa-right-to-bracket text-success me-1"></i>
+                        {{ item.check_in_at ?? '-' }}
+                      </span>
+                      <span>
+                        <i class="fa-solid fa-right-from-bracket text-danger me-1"></i>
+                        {{ item.check_out_at ?? '-' }}
+                      </span>
+                    </div>
+
+                    <!-- Visit Result -->
+                    <div v-if="item.visit_result" class="mb-2">
+                      <span class="badge bg-blue-lt">{{ item.visit_result }}</span>
+                    </div>
+
+                    <!-- Complaint -->
+                    <div v-if="item.has_complaint" class="alert alert-danger py-2 mb-2">
+                      <i class="fa-solid fa-triangle-exclamation me-1"></i>
+                      <strong>Complaint:</strong> {{ item.complaint_detail }}
+                    </div>
+
+                    <!-- Potential Order -->
+                    <div v-if="item.has_potential_order" class="alert alert-success py-2 mb-0">
+                      <i class="fa-solid fa-sack-dollar me-1"></i>
+                      <strong>Potential Order:</strong> {{ item.potential_order_detail }}
+                    </div>
+
+                  </div>
+
+                </div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Footer -->
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
       </div>
 
     </div>
   </div>
 </div>
+
 
   </backendLayouts>
 </template>
 
 
 <style scoped>
-/* TIMELINE CONTAINER */
-.timeline-wrapper {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start; /* Biar teks yang panjang tidak narik circle ke bawah */
-  position: relative;
-  margin-top: 40px;
-  padding: 0 20px;
-  min-height: 200px;
-}
-
-/* GARIS MERAH (Pindah ke Background Wrapper) */
-.timeline-wrapper::before {
-  content: "";
-  position: absolute;
-  top: 20px; /* Setengah dari tinggi circle (40px/2) */
-  left: 50px; /* Sesuaikan agar tidak mentok kiri */
-  right: 50px; /* Sesuaikan agar tidak mentok kanan */
-  height: 3px;
-  background: #dc3545;
-  z-index: 0;
-}
-
-/* MASING-MASING STEP */
-.timeline-step {
-  position: relative;
-  text-align: center;
-  z-index: 1;
-  flex: 1; /* Memberi ruang yang sama rata untuk tiap step */
-  padding: 0 5px;
-}
-
-/* CIRCLE */
-.circle {
-  width: 40px;
-  height: 40px;
-  border: 3px solid #dc3545;
-  border-radius: 50%;
-  background: white;
-  margin: 0 auto 15px auto; /* Margin bottom untuk jarak ke teks */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.3s ease;
-}
-
-/* CIRCLE AKTIF (ISI MERAH) */
-.circle.active {
-  background: #dc3545;
-}
-
-/* TIPOGRAFI */
-.label {
-  font-size: 13px;
-  color: #dc3545;
-  line-height: 1.2;
-  margin-bottom: 4px;
-  min-height: 32px; /* Menjaga agar tinggi teks judul seragam */
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.description-text {
-  font-size: 11px;
-  color: #6c757d;
-  line-height: 1.4;
-  margin-top: 8px;
-}
-
-/* MODAL ADJUSTMENT */
-.modal-lg {
-  max-width: 900px; /* Perlebar sedikit karena step-nya cukup banyak */
-}
-
-/* --- TAMPILAN STANDAR (UNTUK DESKTOP) --- */
-.timeline-wrapper {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  position: relative;
-  margin-top: 40px;
-  padding: 0 10px;
-}
-
-.timeline-wrapper::before {
-  content: "";
-  position: absolute;
-  top: 20px;
-  left: 30px;
-  right: 30px;
-  height: 3px;
-  background: #dc3545;
-  z-index: 0;
-}
-
-.timeline-step {
-  position: relative;
-  text-align: center;
-  z-index: 1;
-  flex: 1;
-}
-
-/* --- TAMPILAN KHUSUS HP (RESPONSIVE) --- */
-@media (max-width: 768px) {
-  .timeline-wrapper {
-    flex-direction: column; /* Ubah jadi berderet ke bawah */
-    align-items: flex-start; /* Rata kiri */
-    padding-left: 40px; /* Ruang untuk garis vertikal */
-  }
-
-  /* Ubah garis merah jadi vertikal (berdiri) */
-  .timeline-wrapper::before {
-    top: 0;
-    bottom: 0;
-    left: 20px; /* Posisi garis di sebelah kiri */
-    width: 3px;
-    height: 100%;
-  }
-
-  .timeline-step {
-    text-align: left; /* Teks rata kiri */
-    margin-bottom: 30px; /* Jarak antar step */
-    width: 100%;
-    display: flex;
-    flex-direction: column;
-  }
-
-  .circle {
-    margin: 0; /* Hilangkan margin auto tengah */
-    position: absolute;
-    left: -40px; /* Geser lingkaran ke posisi garis vertikal */
-    top: 0;
-    width: 30px; /* Kecilkan sedikit biar manis di HP */
-    height: 30px;
-  }
-
-  .label {
-    justify-content: flex-start; /* Judul rata kiri */
-    min-height: auto;
-    margin-top: 0;
-    font-size: 14px;
-  }
-
-  .description-text {
-    margin-left: 0;
-    padding-bottom: 10px;
-  }
-}
 
 .fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
 .fade-enter-from, .fade-leave-to { opacity: 0; }
 
+
+.timeline-wrapper-lead {
+  position: relative;
+  padding-left: 50px;
+}
+
+.timeline-wrapper-lead::before {
+  content: '';
+  position: absolute;
+  left: 16px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #dc3545;
+}
+
+.timeline-step-lead {
+  position: relative;
+  margin-bottom: 16px;
+  width: 100%;
+}
+
+.timeline-icon-lead {
+  position: absolute;
+  left: -50px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  z-index: 1;
+}
+
+.timeline-content-lead {
+  border-radius: 8px;
+  width: 100%;
+}
+
+
+/* time line cust */
+.timeline-wrapper-customer {
+  position: relative;
+  padding-left: 50px;
+}
+
+.timeline-wrapper-customer::before {
+  content: '';
+  position: absolute;
+  left: 16px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: #e0e0e0;
+}
+
+.timeline-step-customer {
+  position: relative;
+  margin-bottom: 16px;
+  width: 100%;
+}
+
+.timeline-icon-customer {
+  position: absolute;
+  left: -50px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  z-index: 1;
+}
+
+.timeline-content-customer {
+  border-radius: 8px;
+  width: 100%;
+}
 </style>

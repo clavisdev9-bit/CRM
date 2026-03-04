@@ -158,9 +158,12 @@ Route::get('/follow-up/get-sales/customers', [FollowUp::class, 'getCustomersBySa
 Route::put('/follow-up/update/{id}', [FollowUp::class, 'updateFollowUp'])->name('api.follow.up.update');
 Route::delete('/follow-up/delete/{id}', [FollowUp::class, 'deleteFollowUp'])->name('api.follow.up.delete');
 Route::get('/follow-ups/{id}/timeline', [FollowUp::class, 'timeline'])->name('api.follow.up.timeline');
+Route::get('/follow-ups/{id}/customer-timeline', [FollowUp::class, 'customerTimeline']);
 Route::post('/follow-ups/{id}/submit-result', [FollowUp::class, 'submitResultFollowUp'])->name('api.follow.up.submit.result');
 Route::post('/follow-ups/{id}/direct-follow-up', [FollowUp::class, 'createDirectFollowUpFromLead'])->name('api.follow.up.start.follow.up');
 Route::post('/follow-ups/{id}/submit-result/customer', [FollowUp::class, 'submitResultCustomers'])->name('api.follow.up.submit.result.customers');
+
+
 
 // api sales Visits bagian lead
 Route::get('/data-visits-leads', [Visits::class, 'getVisitLead'])->name('api.data.leads.visit');
