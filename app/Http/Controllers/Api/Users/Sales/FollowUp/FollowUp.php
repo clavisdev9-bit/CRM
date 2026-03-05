@@ -394,170 +394,113 @@ class FollowUp extends Controller
 
 
 
-            // codeuntuk update kemungkinan ada banyak perubahan
-            // public function updateFollowUp(FollowUpValidationUpdate $request,$id) {
-            //     $data = $request->validated();
-            //     $userId = auth()->user()->id_user;
+    
 
-            //     try {
-            //         // Ambil follow up (pastikan milik sales login)
-            //         $followUp = DB::table('follow_ups')
-            //             ->where('id', $id)
-            //             ->where('created_by', $userId)
-            //             ->whereNull('deleted_at')
-            //             ->first();
+                 public function updateFollowUp(FollowUpValidationUpdate $request, $id) {
+                    $data = $request->validated();
+                    $userId = auth()->user()->id_user;
 
-            //         if (!$followUp) {
-            //             return ApiResponse::error(
-            //                 'Follow up not found or access denied',
-            //                 null,
-            //                 404
-            //             );
-            //         }
-            //         DB::table('follow_ups')
-            //     ->where('id', $id)
-            //     ->update([
-            //         'follow_up_at' => $data['follow_up_at'],
-            //         'notes'        => $data['notes'] ?? null,
-            //         'subject'       => $data['subject'] ?? null,
-            //         'updated_at'   => now(),
-            //     ]);
+                    try {
+                        $followUp = DB::table('follow_ups')
+                            ->where('id', $id)
+                            ->where('created_by', $userId)
+                            ->whereNull('deleted_at')
+                            ->first();
 
+                        if (!$followUp) {
+                            return ApiResponse::error(
+                                'Follow up not found or access denied',
+                                null,
+                                404
+                            );
+                        }
 
-                
-            //         // Ambil data terbaru
-            //         $updated = DB::table('follow_ups as fu')
-            //             ->select([
-            //                 'fu.*',
-            //                 'l.company_name as lead_company_name',
-            //                 'c.company_name as customer_company_name',
-            //                 'sales.fullname as sales_name',
-            //             ])
-            //             ->leftJoin('leads as l', 'l.id', '=', 'fu.lead_id')
-            //             ->leftJoin('customers as c', 'c.id', '=', 'fu.customer_id')
-            //             ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'fu.created_by')
-            //             ->where('fu.id', $id)
-            //             ->first();
+                        DB::transaction(function () use ($id, $data, $userId, $followUp) {
 
-            //         return ApiResponse::success(
-            //             $updated,
-            //             'Success Update Follow Up'
-            //         );
+                            /*
+                            |------------------------------------------------------------------
+                            | 1. UPDATE FOLLOW UP
+                            |------------------------------------------------------------------
+                            */
+                            DB::table('follow_ups')
+                                ->where('id', $id)
+                                ->update([
+                                    'follow_up_at' => $data['follow_up_at'],
+                                    'notes'        => $data['notes'] ?? null,
+                                    'subject'      => $data['subject'] ?? null,
+                                    'updated_at'   => now(),
+                                ]);
 
-            //     } catch (\Throwable $e) {
-            //         return ApiResponse::error(
-            //             'Failed to update follow up',
-            //             config('app.debug') ? ['exception' => $e->getMessage()] : null,
-            //             500
-            //         );
-            //     }
-            // }
+                            /*
+                            |------------------------------------------------------------------
+                            | 2. LOG PERUBAHAN (hanya field yang berubah)
+                            |------------------------------------------------------------------
+                            */
+                            $changes = [];
 
-            public function updateFollowUp(FollowUpValidationUpdate $request, $id) {
-    $data = $request->validated();
-    $userId = auth()->user()->id_user;
+                            if ($followUp->follow_up_at !== $data['follow_up_at']) {
+                                $changes[] = 'Follow up date: '
+                                    . Carbon::parse($followUp->follow_up_at)->format('d M Y')
+                                    . ' → '
+                                    . Carbon::parse($data['follow_up_at'])->format('d M Y');
+                            }
 
-    try {
-        $followUp = DB::table('follow_ups')
-            ->where('id', $id)
-            ->where('created_by', $userId)
-            ->whereNull('deleted_at')
-            ->first();
+                            if (($followUp->subject ?? '') !== ($data['subject'] ?? '')) {
+                                $changes[] = 'Subject updated';
+                            }
 
-        if (!$followUp) {
-            return ApiResponse::error(
-                'Follow up not found or access denied',
-                null,
-                404
-            );
-        }
+                            if (($followUp->notes ?? '') !== ($data['notes'] ?? '')) {
+                                $changes[] = 'Notes updated';
+                            }
 
-        DB::transaction(function () use ($id, $data, $userId, $followUp) {
+                            $description = count($changes) > 0
+                                ? implode(', ', $changes)
+                                : 'Follow up updated';
 
-            /*
-            |------------------------------------------------------------------
-            | 1. UPDATE FOLLOW UP
-            |------------------------------------------------------------------
-            */
-            DB::table('follow_ups')
-                ->where('id', $id)
-                ->update([
-                    'follow_up_at' => $data['follow_up_at'],
-                    'notes'        => $data['notes'] ?? null,
-                    'subject'      => $data['subject'] ?? null,
-                    'updated_at'   => now(),
-                ]);
+                            /*
+                            |------------------------------------------------------------------
+                            | 3. INSERT ACTIVITY LOG
+                            |------------------------------------------------------------------
+                            */
+                            DB::table('follow_up_activities')->insert([
+                                'follow_up_id'  => $id,
+                                'title'         => 'Follow Up Updated',
+                                'description'   => $description,
+                                'activity_type' => 'UPDATE',
+                                'scheduled_for' => $data['follow_up_at'],
+                                'activity_at'   => now(),
+                                'created_at'    => now(),
+                                'created_by'    => $userId,
+                            ]);
+                        });
 
-            /*
-            |------------------------------------------------------------------
-            | 2. LOG PERUBAHAN (hanya field yang berubah)
-            |------------------------------------------------------------------
-            */
-            $changes = [];
+                        // Ambil data terbaru
+                        $updated = DB::table('follow_ups as fu')
+                            ->select([
+                                'fu.*',
+                                'l.company_name as lead_company_name',
+                                'c.company_name as customer_company_name',
+                                'sales.fullname as sales_name',
+                            ])
+                            ->leftJoin('leads as l', 'l.id', '=', 'fu.lead_id')
+                            ->leftJoin('customers as c', 'c.id', '=', 'fu.customer_id')
+                            ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'fu.created_by')
+                            ->where('fu.id', $id)
+                            ->first();
 
-            if ($followUp->follow_up_at !== $data['follow_up_at']) {
-                $changes[] = 'Follow up date: '
-                    . Carbon::parse($followUp->follow_up_at)->format('d M Y')
-                    . ' → '
-                    . Carbon::parse($data['follow_up_at'])->format('d M Y');
-            }
+                        return ApiResponse::success(
+                            $updated,
+                            'Success Update Follow Up'
+                        );
 
-            if (($followUp->subject ?? '') !== ($data['subject'] ?? '')) {
-                $changes[] = 'Subject updated';
-            }
-
-            if (($followUp->notes ?? '') !== ($data['notes'] ?? '')) {
-                $changes[] = 'Notes updated';
-            }
-
-            $description = count($changes) > 0
-                ? implode(', ', $changes)
-                : 'Follow up updated';
-
-            /*
-            |------------------------------------------------------------------
-            | 3. INSERT ACTIVITY LOG
-            |------------------------------------------------------------------
-            */
-            DB::table('follow_up_activities')->insert([
-                'follow_up_id'  => $id,
-                'title'         => 'Follow Up Updated',
-                'description'   => $description,
-                'activity_type' => 'UPDATE',
-                'scheduled_for' => $data['follow_up_at'],
-                'activity_at'   => now(),
-                'created_at'    => now(),
-                'created_by'    => $userId,
-            ]);
-        });
-
-        // Ambil data terbaru
-        $updated = DB::table('follow_ups as fu')
-            ->select([
-                'fu.*',
-                'l.company_name as lead_company_name',
-                'c.company_name as customer_company_name',
-                'sales.fullname as sales_name',
-            ])
-            ->leftJoin('leads as l', 'l.id', '=', 'fu.lead_id')
-            ->leftJoin('customers as c', 'c.id', '=', 'fu.customer_id')
-            ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'fu.created_by')
-            ->where('fu.id', $id)
-            ->first();
-
-        return ApiResponse::success(
-            $updated,
-            'Success Update Follow Up'
-        );
-
-    } catch (\Throwable $e) {
-        return ApiResponse::error(
-            'Failed to update follow up',
-            config('app.debug') ? ['exception' => $e->getMessage()] : null,
-            500
-        );
-    }
-}
+                    } catch (\Throwable $e) {
+                        return ApiResponse::error(
+                            'Failed to update follow up',
+                            config('app.debug') ? ['exception' => $e->getMessage()] : null,
+                            500
+                        );
+                    }
+                }
 
 
 
@@ -1682,7 +1625,7 @@ public function createDirectFollowUpFromLead(Request $request, $leadId)
     }
 
     /**
-     * 🔥 CENTRAL ACTIVITY LOGGER
+     * CODE UNTUK CENTRAL ACTIVITY LOGGER
      */
     protected function recordActivity(
         MsFollowUp $followUp,
@@ -1703,7 +1646,39 @@ public function createDirectFollowUpFromLead(Request $request, $leadId)
     }
 
 
+    //  code untuk ambil data customer 
+    function getCustomerForDirect(Request $request) {
 
+                    {
+                        $userId = auth()->user()->id_user;
+                        $search = $request->get('search');
+
+                        $query = DB::table('customers as c')
+                            ->select([
+                                'c.id',
+                                'c.company_name',
+                                'c.contact_name',
+                            ])
+                            ->where(function ($q) use ($userId) {
+                                $q->where('c.created_by', $userId)
+                                ->orWhere('c.assigned_to', $userId);
+                            })
+                            ->whereNull('c.deleted_at')
+                            ->where('c.lead_status', 'New');
+
+                        if ($search) {
+                            $query->where(function ($q) use ($search) {
+                                $q->where('c.company_name', 'ILIKE', "%{$search}%")
+                                ->orWhere('c.contact_name', 'ILIKE', "%{$search}%");
+                            });
+                        }
+
+                        return ApiResponse::success(
+                            $query->orderBy('c.company_name')->limit(100)->get(),
+                            'Success Get Customers For Direct Follow Up'
+                        );
+                    }
+    }
     // end code follow up bagian customer
 
 }

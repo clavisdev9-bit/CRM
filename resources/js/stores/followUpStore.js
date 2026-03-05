@@ -54,6 +54,10 @@ const updatingFollowUp = ref(false)
 const errorFollowUp = ref(null)
 
 
+// code untuk select customer direct subject follow up
+const CustomerOptionsDirect = ref([]);
+const loadingCustomerssOptionsDirect = ref(false);
+
 const pagination = reactive({
     current_page: 1,
     per_page: 10,
@@ -118,86 +122,86 @@ const pagination = reactive({
     }
   };
 
-  /* ================= SEARCH ================= */
-  const searchWithDelay = (val) => {
-    clearTimeout(searchTimeout);
-    search.value = val;
-    pagination.current_page = 1;
+          /* ================= SEARCH ================= */
+          const searchWithDelay = (val) => {
+            clearTimeout(searchTimeout);
+            search.value = val;
+            pagination.current_page = 1;
 
-    searchTimeout = setTimeout(fetchFollowUps, 500);
-  };
+            searchTimeout = setTimeout(fetchFollowUps, 500);
+          };
 
-  const changePageSize = () => {
-    pagination.current_page = 1;
-    fetchFollowUps();
-  };
+          const changePageSize = () => {
+            pagination.current_page = 1;
+            fetchFollowUps();
+          };
 
-  const changeSorting = () => {
-  pagination.current_page = 1
-  fetchFollowUps()
-}
-
-
-  const nextPage = () => {
-    if (pagination.current_page < pagination.last_page) {
-      fetchFollowUps(null, pagination.current_page + 1);
-    }
-  };
-
-  const prevPage = () => {
-    if (pagination.current_page > 1) {
-      fetchFollowUps(null, pagination.current_page - 1);
-    }
-  };
+          const changeSorting = () => {
+          pagination.current_page = 1
+          fetchFollowUps()
+        }
 
 
+          const nextPage = () => {
+            if (pagination.current_page < pagination.last_page) {
+              fetchFollowUps(null, pagination.current_page + 1);
+            }
+          };
 
-    /* ================= FETCH TIMELINE ================= */
-    const fetchTimeline = async (id) => {
-      loadingTimeline.value = true;
-      timeline.value = [];
-
-      try {
-        const res = await axios.get(`/api/follow-ups/${id}/timeline`, {
-          headers: getAuthHeader(),
-        });
-
-        selectedFollowUpCode.value = res.data.data.follow_up_code;
-        timeline.value = res.data.data.histories ?? [];
-
-      } catch (err) {
-        console.error("Fetch Timeline Failed:", err);
-        timeline.value = [];
-      } finally {
-        loadingTimeline.value = false;
-      }
-    };
+          const prevPage = () => {
+            if (pagination.current_page > 1) {
+              fetchFollowUps(null, pagination.current_page - 1);
+            }
+          };
 
 
-      const clearTimeline = () => {
-      timeline.value = [];
-      selectedFollowUpCode.value = null;
-    };
 
-/* ================= FETCH LEADS FOR SELECT ================= */
-const fetchLeadsOptions = async (keyword = "") => {
-  loadingLeadsOptions.value = true;
+                /* ================= FETCH TIMELINE ================= */
+                const fetchTimeline = async (id) => {
+                  loadingTimeline.value = true;
+                  timeline.value = [];
 
-  try {
-    const params = new URLSearchParams();
-    if (keyword) params.append("search", keyword);
+                  try {
+                    const res = await axios.get(`/api/follow-ups/${id}/timeline`, {
+                      headers: getAuthHeader(),
+                    });
 
-    const res = await axios.get(`${endpoints.leadsSelect}?${params.toString()}`, {
-      headers: getAuthHeader(),
-    });
-    leadsOptions.value = res.data.data ?? [];
-  } catch (err) {
-    console.error("Fetch Leads Options Failed:", err);
-    leadsOptions.value = [];
-  } finally {
-    loadingLeadsOptions.value = false;
-  }
-};
+                    selectedFollowUpCode.value = res.data.data.follow_up_code;
+                    timeline.value = res.data.data.histories ?? [];
+
+                  } catch (err) {
+                    console.error("Fetch Timeline Failed:", err);
+                    timeline.value = [];
+                  } finally {
+                    loadingTimeline.value = false;
+                  }
+                };
+
+
+                  const clearTimeline = () => {
+                  timeline.value = [];
+                  selectedFollowUpCode.value = null;
+                };
+
+                  /* ================= FETCH LEADS FOR SELECT ================= */
+                  const fetchLeadsOptions = async (keyword = "") => {
+                    loadingLeadsOptions.value = true;
+
+                    try {
+                      const params = new URLSearchParams();
+                      if (keyword) params.append("search", keyword);
+
+                      const res = await axios.get(`${endpoints.leadsSelect}?${params.toString()}`, {
+                        headers: getAuthHeader(),
+                      });
+                      leadsOptions.value = res.data.data ?? [];
+                    } catch (err) {
+                      console.error("Fetch Leads Options Failed:", err);
+                      leadsOptions.value = [];
+                    } finally {
+                      loadingLeadsOptions.value = false;
+                    }
+                  };
 
 
                   //  code serch leads dengan delay 400ms
@@ -233,52 +237,44 @@ const fetchLeadsOptions = async (keyword = "") => {
                           ])
 
 
-                          // const resultSubmit = ref([
-                          //   { value: 'success', label: 'Follow Up Ditutup (Tidak Ada Respons dari Customer)' },
-                          //   { value: 'need_followup', label: 'Perlu Follow Up Lagi' },
-                          //   { value: 'reschedule', label: 'Jadwal Ulang'},
-                          //   { value: 'no_meet', label: 'Tidak Berhasil Follow UP / Tidak Bertemu Customer(PIC)' },
-                          //   { value: 'dealing', label: 'Sedang Proses Deal / Negotiation Stage ' },
-                          //   { value: 'closed', label: 'Selesai / Closed' },
-                          //   { value: 'cancelled', label: 'Dibatalkan' },
-                          //   ])
+                          
                           const resultSubmit = ref([
-  { 
-    value: 'success', 
-    label: 'Follow Up Ditutup (Tidak Ada Respons dari Customer)',
-    description: 'Customer tidak merespons setelah beberapa kali follow up. Follow up dianggap selesai.'
-  },
-  { 
-    value: 'need_followup', 
-    label: 'Perlu Follow Up Lagi',
-    description: 'Sudah ada komunikasi, namun customer belum memberi keputusan. Perlu dijadwalkan follow up berikutnya.'
-  },
-  { 
-    value: 'reschedule', 
-    label: 'Jadwal Ulang',
-    description: 'Customer meminta untuk dihubungi atau ditemui di waktu yang berbeda.'
-  },
-  { 
-    value: 'no_meet', 
-    label: 'Tidak Berhasil Follow Up / Tidak Bertemu Customer (PIC)',
-    description: 'Sudah dicoba menghubungi namun PIC tidak bisa ditemui atau tidak mengangkat.'
-  },
-  { 
-    value: 'dealing', 
-    label: 'Sedang Proses Deal / Negotiation Stage',
-    description: 'Customer tertarik dan sedang dalam tahap negosiasi harga atau kontrak.'
-  },
-  { 
-    value: 'closed', 
-    label: 'Selesai / Closed',
-    description: 'Deal berhasil ditutup. Customer sudah setuju dan proses selesai.'
-  },
-  { 
-    value: 'cancelled', 
-    label: 'Dibatalkan',
-    description: 'Follow up dibatalkan karena customer tidak jadi melanjutkan atau ada kendala internal.'
-  },
-])
+                            { 
+                              value: 'success', 
+                              label: 'Follow Up Ditutup (Tidak Ada Respons dari Customer)',
+                              description: 'Customer tidak merespons setelah beberapa kali follow up. Follow up dianggap selesai.'
+                            },
+                            { 
+                              value: 'need_followup', 
+                              label: 'Perlu Follow Up Lagi',
+                              description: 'Sudah ada komunikasi, namun customer belum memberi keputusan. Perlu dijadwalkan follow up berikutnya.'
+                            },
+                            { 
+                              value: 'reschedule', 
+                              label: 'Jadwal Ulang',
+                              description: 'Customer meminta untuk dihubungi atau ditemui di waktu yang berbeda.'
+                            },
+                            { 
+                              value: 'no_meet', 
+                              label: 'Tidak Berhasil Follow Up / Tidak Bertemu Customer (PIC)',
+                              description: 'Sudah dicoba menghubungi namun PIC tidak bisa ditemui atau tidak mengangkat.'
+                            },
+                            { 
+                              value: 'dealing', 
+                              label: 'Sedang Proses Deal / Negotiation Stage',
+                              description: 'Customer tertarik dan sedang dalam tahap negosiasi harga atau kontrak.'
+                            },
+                            { 
+                              value: 'closed', 
+                              label: 'Selesai / Closed',
+                              description: 'Deal berhasil ditutup. Customer sudah setuju dan proses selesai.'
+                            },
+                            { 
+                              value: 'cancelled', 
+                              label: 'Dibatalkan',
+                              description: 'Follow up dibatalkan karena customer tidak jadi melanjutkan atau ada kendala internal.'
+                            },
+                          ])
 
 
                           //  format tanggal untuk tabel
@@ -537,7 +533,36 @@ const fetchLeadsOptions = async (keyword = "") => {
                           } finally {
                               loadingCustomerTimeline.value = false
                           }
-}
+                    }
+
+                      // code untuk fecth customer
+                     const fetchCustomersSelectDirectSubject = async () => {
+                        loadingCustomerssOptionsDirect.value = true
+                        try {
+                          const res = await axios.get('/api/follow-up/get-sales/customers', { // ← sesuaikan endpoint (customers bukan leads)
+                            headers: getAuthHeader(),
+                          })
+
+                          if (!res.data || !res.data.data) {
+                            console.error('FORMAT RESPONSE TIDAK SESUAI', res.data)
+                            CustomerOptionsDirect.value = []
+                            return
+                          }
+
+                          CustomerOptionsDirect.value = res.data.data.map(item => ({
+                            id: Number(item.id),
+                            company_name: item.company_name,
+                            contact_name: item.contact_name,
+                            customer_code: item.customer_code, // ← tambahkan untuk info tambahan di dropdown
+                          }))
+
+                        } catch (err) {
+                          console.error('FETCH DIRECT CUSTOMERS ERROR', err)
+                          CustomerOptionsDirect.value = [] // ← bug! sebelumnya assign ke loading bukan array
+                        } finally {
+                          loadingCustomerssOptionsDirect.value = false
+                        }
+                      }
 
 
 
@@ -605,6 +630,11 @@ const fetchLeadsOptions = async (keyword = "") => {
      customerTimeline,
     loadingCustomerTimeline,
     fetchCustomerTimeline,
+
+
+    fetchCustomersSelectDirectSubject,
+    CustomerOptionsDirect,
+    loadingCustomerssOptionsDirect
 
   };
 });

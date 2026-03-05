@@ -438,6 +438,15 @@ const statusOptions = [
   }
 ]
 
+
+const followUpTypes = [
+  { value: 'CALL',     label: 'Call',         icon: 'fa fa-phone' },
+  { value: 'VISIT',    label: 'Visit',        icon: 'fa fa-location-dot' },
+  { value: 'WHATSAPP', label: 'WhatsApp',     icon: 'fa-brands fa-whatsapp' },
+  { value: 'EMAIL',    label: 'Email',        icon: 'fa fa-envelope' },
+  { value: 'MEETING',  label: 'Meeting',      icon: 'fa fa-handshake' },
+]
+
 // ==============================
 // OPEN MODAL
 // ==============================
@@ -1144,44 +1153,44 @@ watch(() => form.status, (newStatus) => {
           </div> -->
 
           <!-- 3. Complaint -->
-<div class="col-12" v-if="form.has_complaint">
-  <div class="border border-danger rounded p-3">
-    <label class="fw-bold mb-2">
-      <i class="fa-solid fa-triangle-exclamation text-danger me-1"></i> Complaint Detail
-      <small class="text-danger">**</small>
-    </label>
-    <textarea
-      class="form-control"
-      v-model="form.complaint_detail"
-      rows="2"
-      placeholder="Describe the complaint..."
-      :class="{ 'is-invalid': errors?.complaint_detail }"
-    ></textarea>
-    <div v-if="errors?.complaint_detail" class="invalid-feedback d-block">
-      {{ errors.complaint_detail[0] }}
-    </div>
-  </div>
-</div>
+          <div class="col-12" v-if="form.has_complaint">
+            <div class="border border-danger rounded p-3">
+              <label class="fw-bold mb-2">
+                <i class="fa-solid fa-triangle-exclamation text-danger me-1"></i> Complaint Detail
+                <small class="text-danger">**</small>
+              </label>
+              <textarea
+                class="form-control"
+                v-model="form.complaint_detail"
+                rows="2"
+                placeholder="Describe the complaint..."
+                :class="{ 'is-invalid': errors?.complaint_detail }"
+              ></textarea>
+              <div v-if="errors?.complaint_detail" class="invalid-feedback d-block">
+                {{ errors.complaint_detail[0] }}
+              </div>
+            </div>
+          </div>
 
-<!-- 4. Potential Order -->
-<div class="col-12" v-if="form.has_potential_order">
-  <div class="border border-success rounded p-3">
-    <label class="fw-bold mb-2">
-      <i class="fa-solid fa-sack-dollar text-success me-1"></i> Potential Order Detail
-      <small class="text-danger">**</small>
-    </label>
-    <textarea
-      class="form-control"
-      v-model="form.potential_order_detail"
-      rows="2"
-      placeholder="Describe the potential order..."
-      :class="{ 'is-invalid': errors?.potential_order_detail }"
-    ></textarea>
-    <div v-if="errors?.potential_order_detail" class="invalid-feedback d-block">
-      {{ errors.potential_order_detail[0] }}
-    </div>
-  </div>
-</div>
+            <!-- 4. Potential Order -->
+            <div class="col-12" v-if="form.has_potential_order">
+              <div class="border border-success rounded p-3">
+                <label class="fw-bold mb-2">
+                  <i class="fa-solid fa-sack-dollar text-success me-1"></i> Potential Order Detail
+                  <small class="text-danger">**</small>
+                </label>
+                <textarea
+                  class="form-control"
+                  v-model="form.potential_order_detail"
+                  rows="2"
+                  placeholder="Describe the potential order..."
+                  :class="{ 'is-invalid': errors?.potential_order_detail }"
+                ></textarea>
+                <div v-if="errors?.potential_order_detail" class="invalid-feedback d-block">
+                  {{ errors.potential_order_detail[0] }}
+                </div>
+              </div>
+            </div>
 
           <!-- 5. Next Follow Up -->
           <div class="col-12">
@@ -1192,7 +1201,7 @@ watch(() => form.status, (newStatus) => {
             <div class="row g-2">
 
               <!-- Tanggal -->
-              <div class="col-12 col-sm-6">
+              <div class="col-12 col-sm-5">
                 <label class="form-label small text-muted">Date</label>
                 <input
                   type="date"
@@ -1207,21 +1216,28 @@ watch(() => form.status, (newStatus) => {
               </div>
 
               <!-- Type -->
-              <div class="col-12 col-sm-6">
-                <label class="form-label small text-muted">Type</label>
-                <select
-                  class="form-select"
-                  v-model="form.follow_up_type"
-                  :class="{ 'is-invalid': errors?.follow_up_type }"
-                >
-                  <option value="">-- Select Type --</option>
-                  <option value="CALL">📞 Call</option>
-                  <option value="VISIT">🏢 Visit</option>
-                  <option value="WHATSAPP">💬 WhatsApp</option>
-                  <option value="EMAIL">📧 Email</option>
-                  <option value="MEETING">🏢 Meeting</option>
-                  <option value="OTHER">📦 Other</option>
-                </select>
+              <div class="col-6">
+                <label class="form-label small text-muted">
+                  Type <small class="text-danger">**</small>
+                </label>
+                <div class="d-flex gap-2 flex-wrap" :class="{ 'is-invalid': errors?.follow_up_type }">
+                  <template v-for="type in followUpTypes" :key="type.value">
+                    <input
+                      type="radio"
+                      class="btn-check"
+                      :id="`form-type-${type.value}`"
+                      :value="type.value"
+                      v-model="form.follow_up_type"
+                    />
+                    <label
+                      class="btn btn-sm btn-outline-primary"
+                      :for="`form-type-${type.value}`"
+                    >
+                      <i :class="type.icon" class="me-1"></i>
+                      {{ type.label }}
+                    </label>
+                  </template>
+                </div>
                 <div v-if="errors?.follow_up_type" class="invalid-feedback d-block">
                   {{ errors.follow_up_type[0] }}
                 </div>
@@ -1230,7 +1246,7 @@ watch(() => form.status, (newStatus) => {
               <!-- Notes Follow Up -->
               <div class="col-12">
                 <label class="form-label small text-muted">
-                  Follow Up Notes <span class="text-muted">(optional)</span>
+                  Notes Next Follow Up <span class="text-muted">(optional)</span>
                 </label>
                 <textarea
                   class="form-control"
