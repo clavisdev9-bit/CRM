@@ -36,6 +36,8 @@ class MsCustomers extends Model
     'notes',
 
     'converted_at',
+        'lead_source',  // ← pastikan ada ini
+
 ];
 
 

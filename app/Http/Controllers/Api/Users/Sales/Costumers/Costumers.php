@@ -71,7 +71,7 @@ class Costumers extends Controller
 
                         // RELATION LEAD
                         'l.company_name as lead_company_name',
-                        'l.lead_source',
+                        'c.lead_source',
                         'l.lead_status',
 
                         // MASTER
@@ -153,9 +153,10 @@ class Costumers extends Controller
                     'lead_category_id' => $data['lead_category_id'] ?? null,
                     'assigned_to'      => $data['assigned_to'] ?? null,
                     'customer_status'  => 'Active',
-
+                    'lead_source'      => $data['lead_source'] ?? null,  // ← tambahkan ini
                     'id_user'          => $userId,
                     'created_by'       => $userId,
+                    
 
                     'visibility_type'  => $data['visibility_type'] ?? 'PRIVATE',
                     'notes'            => $data['notes'] ?? null,
@@ -225,6 +226,7 @@ class Costumers extends Controller
                     'industry_id'      => $data['industry_id'] ?? null,
                     'lead_category_id' => $data['lead_category_id'] ?? null,
                     // 'assigned_to'      => $data['assigned_to'] ?? null,
+                    'lead_source'      => $data['lead_source'] ?? null,
                     'visibility_type'  => $data['visibility_type'] ?? 'PRIVATE',
                     'customer_status'  => $data['customer_status'] ?? 'Active',
                     'notes'            => $data['notes'] ?? null,

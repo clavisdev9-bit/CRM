@@ -93,11 +93,50 @@ const form = reactive({
   phone: '',
   industry_id: '',
   lead_category_id: '',
+  lead_source: '',
   visibility_type: 'PRIVATE',
   notes: '',
   customer_status: '',
   address: '',
 })
+
+// const form = reactive({
+//   company_name: '',
+//   contact_name: '',
+//   email: '',
+//   phone: '',
+//   industry_id: '',
+//   lead_category_id: '',
+//   lead_source: '',        // ← tambahkan ini
+//   visibility_type: 'PRIVATE',
+//   notes: '',
+//   customer_status: '',
+//   address: '',
+// })
+
+// Tambahkan ini sebelum `const form = reactive({...})`
+const defaultForm = {
+  company_name: '',
+  contact_name: '',
+  email: '',
+  phone: '',
+  industry_id: '',
+  lead_category_id: '',
+  lead_source: '',        // ← fix bug sebelumnya
+  visibility_type: 'PRIVATE',
+  notes: '',
+  customer_status: '',
+  address: '',
+}
+
+const resetForm = () => {
+  Object.assign(form, defaultForm)
+  editCustomerId.value = null
+  dataCustomer.updating = false
+  dataCustomer.error = null
+  dataCustomers.errorCustomer = null
+}
+
 
 const editCustomerId = ref(null)
 const customersInput = ref(null)
@@ -109,6 +148,7 @@ const dataCustomer = reactive({
 
 
 const openAddModal = () => {
+  resetForm() 
   editCustomerId.value = null
 
   Object.assign(form, {
@@ -129,7 +169,10 @@ const openAddModal = () => {
 
 
 const openEditModal = (customer) => {
+   console.log('customer data:', customer)
+   resetForm() 
   editCustomerId.value = customer.id
+  dataCustomer.updating = true
 
   Object.assign(form, {
     company_name: customer.company_name,
@@ -138,6 +181,7 @@ const openEditModal = (customer) => {
     phone: customer.phone,
     industry_id: customer.industry_id,
     lead_category_id: customer.lead_category_id,
+    lead_source: customer.lead_source ?? '',  // ← INI YANG KURANG
     visibility_type: customer.visibility_type,
     notes: customer.notes,
     address: customer.address,
@@ -147,6 +191,7 @@ const openEditModal = (customer) => {
   dataCustomer.error = null
   dataCustomer.updating = true
 }
+
 
 
 const saveCustomers = async () => {
@@ -161,53 +206,22 @@ const saveCustomers = async () => {
       await dataCustomers.storeCustomers(form)
     }
 
-    // reset state
-    editCustomerId.value = null
-    dataCustomer.updating = false
-
-    Object.assign(form, {
-      company_name: '',
-      contact_name: '',
-      email: '',
-      phone: '',
-      industry_id: '',
-      lead_category_id: '',
-      visibility_type: 'PRIVATE',
-      notes: '',
-      address: '',
-      customer_status: '',
-    })
-
-    // close modal
     const modal = document.getElementById("modal-add-data")
-    const instance =
-      bootstrap.Modal.getInstance(modal) ||
-      new bootstrap.Modal(modal)
-
+    const instance = bootstrap.Modal.getInstance(modal) || new bootstrap.Modal(modal)
     instance.hide()
+    // resetForm() akan otomatis dipanggil oleh event 'hidden.bs.modal' ↑
 
-    modal.addEventListener(
-      "hidden.bs.modal",
-      () => {
-        toasts.fire({
-          icon: "success",
-          title: isEdit
-            ? "Customer berhasil diupdate"
-            : "Customer berhasil ditambahkan",
-        })
-      },
-      { once: true }
-    )
-
-    // refresh list
-    await dataCustomers.fetchCustomers(dataCustomers.buildUrl())
+    modal.addEventListener("hidden.bs.modal", () => {
+      toasts.fire({
+        icon: "success",
+        title: isEdit ? "Customer updated successfully" : "Customer added successfully",
+      })
+    }, { once: true })
 
   } catch (err) {
-    console.error(err)
-
     toasts.fire({
       icon: "error",
-      title: err.response?.data?.message || "Gagal menyimpan customer",
+      title: err.response?.data?.message || "Failed to save customer",
     })
   }
 }
@@ -649,177 +663,183 @@ const handleImportExcel = () => {
 
 
   <!-- Code Modal: Detail Data -->
-   <div class="modal fade" id="customersDetailModal" tabindex="-1" aria-hidden="true">
+  <!-- Code Modal: Detail Data -->
+<div class="modal fade" id="customersDetailModal" tabindex="-1" aria-hidden="true">
   <div class="modal-dialog modal-lg modal-dialog-centered">
     <div class="modal-content">
 
       <!-- Header -->
       <div class="modal-header">
         <h5 class="modal-title">Detail Customer</h5>
-        <button
-          type="button"
-          class="btn-close"
-          data-bs-dismiss="modal"
-          aria-label="Close"
-        ></button>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
       </div>
 
       <!-- Body -->
       <div class="modal-body">
 
         <!-- Loading -->
-        <div
-          v-if="dataCustomers.loading"
-          class="d-flex justify-content-center align-items-center"
-          style="min-height: 180px;"
-        >
+        <div v-if="dataCustomers.loading" class="d-flex justify-content-center align-items-center" style="min-height: 180px;">
           <div class="spinner-border text-primary" role="status">
             <span class="visually-hidden">Loading...</span>
           </div>
         </div>
 
-       <!-- Content -->
-<div v-else-if="dataCustomers.customerDetail" class="row g-3">
+        <!-- Content -->
+        <div v-else-if="dataCustomers.customerDetail" class="row g-3">
 
-  <!-- BASIC INFO -->
-  <div class="col-12">
-    <h6 class="text-muted mb-2">Informasi Customer</h6>
-    <ul class="list-group list-group-flush">
-      <li class="list-group-item d-flex justify-content-between">
-        <span class="text-muted">Customer Code</span>
-        <span class="fw-semibold">
-          {{ dataCustomers.customerDetail.customer_code }}
-        </span>
-      </li>
+          <!-- BASIC INFO -->
+          <div class="col-12">
+            <h6 class="text-muted mb-2">
+              <i class="fa fa-user me-1"></i> Informasi Customer
+            </h6>
+            <ul class="list-group list-group-flush">
+              <li class="list-group-item d-flex justify-content-between">
+                <span class="text-muted">Customer Code</span>
+                <span class="fw-semibold badge bg-secondary">
+                  {{ dataCustomers.customerDetail.customer_code }}
+                </span>
+              </li>
+              <li class="list-group-item d-flex justify-content-between">
+                <span class="text-muted">Company Name</span>
+                <span class="fw-semibold">{{ dataCustomers.customerDetail.company_name }}</span>
+              </li>
+              <li class="list-group-item d-flex justify-content-between">
+                <span class="text-muted">Contact Name</span>
+                <span>{{ dataCustomers.customerDetail.contact_name || '-' }}</span>
+              </li>
+            </ul>
+          </div>
 
-      <li class="list-group-item d-flex justify-content-between">
-        <span class="text-muted">Company Name</span>
-        <span class="fw-semibold">
-          {{ dataCustomers.customerDetail.company_name }}
-        </span>
-      </li>
+          <!-- CONTACT -->
+          <div class="col-12">
+            <h6 class="text-muted mt-2 mb-2">
+              <i class="fa fa-phone me-1"></i> Kontak
+            </h6>
+            <ul class="list-group list-group-flush">
+              <li class="list-group-item d-flex justify-content-between">
+                <span class="text-muted">Email</span>
+                <span>{{ dataCustomers.customerDetail.email || '-' }}</span>
+              </li>
+              <li class="list-group-item d-flex justify-content-between">
+                <span class="text-muted">Phone</span>
+                <span>{{ dataCustomers.customerDetail.phone || '-' }}</span>
+              </li>
+            </ul>
+          </div>
 
-      <li class="list-group-item d-flex justify-content-between">
-        <span class="text-muted">Contact Name</span>
-        <span>
-          {{ dataCustomers.customerDetail.contact_name }}
-        </span>
-      </li>
-    </ul>
-  </div>
+          <!-- CLASSIFICATION -->
+          <div class="col-12">
+            <h6 class="text-muted mt-2 mb-2">
+              <i class="fa fa-tag me-1"></i> Klasifikasi
+            </h6>
+            <ul class="list-group list-group-flush">
+              <li class="list-group-item d-flex justify-content-between">
+                <span class="text-muted">Category</span>
+                <span>{{ dataCustomers.customerDetail.category_name || '-' }}</span>
+              </li>
+              <li class="list-group-item d-flex justify-content-between">
+                <span class="text-muted">Industry</span>
+                <span>{{ dataCustomers.customerDetail.industry_name || '-' }}</span>
+              </li>
+              <li class="list-group-item d-flex justify-content-between">
+                <span class="text-muted">Lead Source</span>
+                <span class="badge bg-info text-dark">
+                  {{ dataCustomers.customerDetail.lead_source || '-' }}
+                </span>
+              </li>
+              <li class="list-group-item d-flex justify-content-between">
+                <span class="text-muted">Status</span>
+                <span class="badge" :class="getStatusBadgeClass(dataCustomers.customerDetail.customer_status)">
+                  {{ dataCustomers.customerDetail.customer_status }}
+                </span>
+              </li>
+              <li class="list-group-item d-flex justify-content-between">
+                <span class="text-muted">Visibility</span>
+                <span class="badge" :class="dataCustomers.customerDetail.visibility_type === 'PUBLIC' ? 'bg-success' : 'bg-warning text-dark'">
+                  {{ dataCustomers.customerDetail.visibility_type }}
+                </span>
+              </li>
+            </ul>
+          </div>
 
-  <!-- CONTACT -->
-  <div class="col-12">
-    <h6 class="text-muted mt-3 mb-2">Kontak</h6>
-    <ul class="list-group list-group-flush">
-      <li class="list-group-item d-flex justify-content-between">
-        <span class="text-muted">Email</span>
-        <span>{{ dataCustomers.customerDetail.email || '-' }}</span>
-      </li>
+          <!-- OWNERSHIP -->
+          <div class="col-12">
+            <h6 class="text-muted mt-2 mb-2">
+              <i class="fa fa-users me-1"></i> Ownership
+            </h6>
+            <ul class="list-group list-group-flush">
+              <li class="list-group-item d-flex justify-content-between">
+                <span class="text-muted">Owner</span>
+                <span>{{ dataCustomers.customerDetail.owner_name || '-' }}</span>
+              </li>
+              <li class="list-group-item d-flex justify-content-between">
+                <span class="text-muted">Assigned Sales</span>
+                <span>{{ dataCustomers.customerDetail.assigned_name || '-' }}</span>
+              </li>
+            </ul>
+          </div>
 
-      <li class="list-group-item d-flex justify-content-between">
-        <span class="text-muted">Phone</span>
-        <span>{{ dataCustomers.customerDetail.phone || '-' }}</span>
-      </li>
-    </ul>
-  </div>
+          <!-- ADDRESS -->
+          <div class="col-12" v-if="dataCustomers.customerDetail.address">
+            <h6 class="text-muted mt-2 mb-2">
+              <i class="fa fa-map-marker-alt me-1"></i> Address
+            </h6>
+            <div class="border rounded p-2 bg-light">
+              {{ dataCustomers.customerDetail.address }}
+            </div>
+          </div>
 
-  <!-- CLASSIFICATION -->
-  <div class="col-12">
-    <h6 class="text-muted mt-3 mb-2">Klasifikasi</h6>
-    <ul class="list-group list-group-flush">
-      <li class="list-group-item d-flex justify-content-between">
-        <span class="text-muted">Category</span>
-        <span>{{ dataCustomers.customerDetail.category_name }}</span>
-      </li>
+          <!-- NOTES -->
+          <div class="col-12" v-if="dataCustomers.customerDetail.notes">
+            <h6 class="text-muted mt-2 mb-2">
+              <i class="fa fa-sticky-note me-1"></i> Notes
+            </h6>
+            <div class="border rounded p-2 bg-light">
+              {{ dataCustomers.customerDetail.notes }}
+            </div>
+          </div>
 
-      <li class="list-group-item d-flex justify-content-between">
-        <span class="text-muted">Industry</span>
-        <span>{{ dataCustomers.customerDetail.industry_name }}</span>
-      </li>
+          <!-- META -->
+          <div class="col-12">
+            <h6 class="text-muted mt-2 mb-2">
+              <i class="fa fa-clock me-1"></i> Informasi Sistem
+            </h6>
+            <ul class="list-group list-group-flush">
+              <li class="list-group-item d-flex justify-content-between">
+                <span class="text-muted">Converted At</span>
+                <span>{{ dataCustomers.formatDate(dataCustomers.customerDetail.converted_at) }}</span>
+              </li>
+              <li class="list-group-item d-flex justify-content-between">
+                <span class="text-muted">Created At</span>
+                <span>{{ dataCustomers.formatDate(dataCustomers.customerDetail.created_at) }}</span>
+              </li>
+              <li class="list-group-item d-flex justify-content-between">
+                <span class="text-muted">Last Updated</span>
+                <span>{{ dataCustomers.formatDate(dataCustomers.customerDetail.updated_at) }}</span>
+              </li>
+            </ul>
+          </div>
 
-      <li class="list-group-item d-flex justify-content-between">
-        <span class="text-muted">Status</span>
-        <span class="badge bg-success">
-          {{ dataCustomers.customerDetail.customer_status }}
-        </span>
-      </li>
-    </ul>
-  </div>
+        </div>
 
-  <!-- OWNERSHIP -->
-  <div class="col-12">
-    <h6 class="text-muted mt-3 mb-2">Ownership</h6>
-    <ul class="list-group list-group-flush">
-      <li class="list-group-item d-flex justify-content-between">
-        <span class="text-muted">Owner</span>
-        <span>{{ dataCustomers.customerDetail.owner_name }}</span>
-      </li>
-
-      <li class="list-group-item d-flex justify-content-between">
-        <span class="text-muted">Assigned Sales</span>
-        <span>{{ dataCustomers.customerDetail.assigned_name || '-' }}</span>
-      </li>
-    </ul>
-  </div>
-
-  <!-- NOTES -->
-  <div class="col-12" v-if="dataCustomers.customerDetail.notes">
-    <h6 class="text-muted mt-3 mb-2">Notes</h6>
-    <div class="border rounded p-2 bg-light">
-      {{ dataCustomers.customerDetail.notes }}
-    </div>
-  </div>
-
-  <div class="col-12" v-if="dataCustomers.customerDetail.address">
-    <h6 class="text-muted mt-3 mb-2">address</h6>
-    <div class="border rounded p-2 bg-light">
-      {{ dataCustomers.customerDetail.address }}
-    </div>
-  </div>
-
-  <!-- META -->
-  <div class="col-12">
-    <h6 class="text-muted mt-3 mb-2">Informasi Sistem</h6>
-    <ul class="list-group list-group-flush">
-      <li class="list-group-item d-flex justify-content-between">
-        <span class="text-muted">Converted At</span>
-        <span>
-          {{ dataCustomers.formatDate(dataCustomers.customerDetail.converted_at) }}
-        </span>
-      </li>
-
-      <li class="list-group-item d-flex justify-content-between">
-        <span class="text-muted">Created At</span>
-        <span>
-          {{ dataCustomers.formatDate(dataCustomers.customerDetail.created_at) }}
-        </span>
-      </li>
-    </ul>
-  </div>
-</div>
         <!-- Empty -->
         <div v-else class="text-center text-muted py-5">
-          Data tidak tersedia
+          <i class="fa fa-inbox fa-2x mb-2"></i>
+          <p>Data tidak tersedia</p>
         </div>
 
       </div>
 
       <!-- Footer -->
       <div class="modal-footer">
-        <button
-          type="button"
-          class="btn btn-outline-secondary"
-          data-bs-dismiss="modal"
-        >
-          Close
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">
+          <i class="fa fa-times me-1"></i> Close
         </button>
       </div>
 
     </div>
   </div>
 </div>
-
 
 <!-- Code Modal: Add Customer -->
 <div
@@ -1014,7 +1034,8 @@ const handleImportExcel = () => {
                               :class="{ 'is-invalid': dataCustomers.errorCustomer?.lead_source }"
                             >
                               <Multiselect
-                                v-model="form.lead_category_id"
+                               :key="`lead-source-${editCustomerId}`"
+                               v-model="form.lead_source"   
                                 :options="dataCustomers.leadSource"
                                 label="label"
                                 valueProp="value"

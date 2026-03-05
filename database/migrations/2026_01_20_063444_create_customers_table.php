@@ -6,108 +6,102 @@ use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
-    /**
-     * Run the migrations.
-     */
     public function up(): void
     {
-       Schema::create('customers', function (Blueprint $table) {
-       $table->id();
+        Schema::create('customers', function (Blueprint $table) {
+            $table->id();
 
-    // =========================
-    // RELATION
-    // =========================
-    $table->unsignedBigInteger('lead_id')->nullable();
-    $table->unsignedBigInteger('lead_category_id')->nullable();
-    $table->unsignedBigInteger('industry_id')->nullable();
+            // =========================
+            // RELATION
+            // =========================
+            $table->unsignedBigInteger('lead_id')->nullable();
+            $table->unsignedBigInteger('lead_category_id')->nullable();
+            $table->unsignedBigInteger('industry_id')->nullable();
 
-    // =========================
-    // CUSTOMER IDENTITY
-    // =========================
-    $table->string('customer_code', 30)->unique();
-    $table->string('company_name', 150);
-    $table->string('contact_name', 100)->nullable();
-    $table->string('email', 100)->nullable();
-    $table->string('phone', 20)->nullable();
+            // =========================
+            // CUSTOMER IDENTITY
+            // =========================
+            $table->string('customer_code', 30)->unique();
+            $table->string('company_name', 150);
+            $table->string('contact_name', 100)->nullable();
+            $table->string('email', 100)->nullable();
+            $table->string('phone', 20)->nullable();
 
-    // =========================
-    // OWNERSHIP
-    // =========================
-   $table->unsignedBigInteger('id_user')
-                  ->comment('Lead owner (default owner)');
-    $table->unsignedBigInteger('assigned_to')->nullable();
-    $table->unsignedBigInteger('created_by');
+            // =========================
+            // OWNERSHIP
+            // =========================
+            $table->unsignedBigInteger('id_user')->comment('Customer owner');
+            $table->unsignedBigInteger('assigned_to')->nullable();
+            $table->unsignedBigInteger('created_by');
 
-    // =========================
-    // STATUS
-    // =========================
-    $table->string('customer_status', 50)->default('Active');
+            // =========================
+            // STATUS & VISIBILITY
+            // =========================
+            $table->string('customer_status', 50)->default('Active');
+            // Active | Dormant | Inactive | Lost | Blacklist
 
-      // VISIBILITY
-      $table->string('visibility_type', 50)->default('PRIVATE');
+            $table->string('visibility_type', 50)->default('PRIVATE');
+            // PRIVATE | PUBLIC
 
-    // =========================
-    // INFO
-    // =========================
-    $table->text('address')->nullable();
-    $table->text('notes')->nullable();
+            // =========================
+            // CLASSIFICATION
+            // =========================
+            $table->string('lead_source', 50)->nullable();
+            // Cold Call | Website | Referral | Social Media |
+            // Email Campaign | Event | Partner | Ads | Other
 
-    // =========================
-    // ACTIVITY
-    // =========================
-    $table->timestamp('converted_at')->nullable();
+            // =========================
+            // INFO
+            // =========================
+            $table->text('address')->nullable();
+            $table->text('notes')->nullable();
 
-    // =========================
-    // AUDIT
-    // =========================
-    $table->timestamps();
-    $table->softDeletes();
+            // =========================
+            // ACTIVITY
+            // =========================
+            $table->timestamp('converted_at')->nullable();
 
-    // =========================
-    // INDEX
-    // =========================
-    $table->index('lead_id');
-    $table->index('lead_category_id');
-    $table->index('industry_id');
-    $table->string('lead_source', 50)->default('Website');
-    $table->index('assigned_to');
-    $table->index('customer_status');
-      // Active
-      // Dormant
-      // Inactive
-      // Lost
-      // Blacklist
+            // =========================
+            // AUDIT
+            // =========================
+            $table->timestamps();
+            $table->softDeletes();
 
+            // =========================
+            // INDEX
+            // =========================
+            $table->index('lead_id');
+            $table->index('lead_category_id');
+            $table->index('industry_id');
+            $table->index('assigned_to');
+            $table->index('customer_status');
+            $table->index('lead_source');
 
-    // =========================
-    // FOREIGN KEY
-    // =========================
-    $table->foreign('lead_id')
-          ->references('id')->on('leads')
-          ->nullOnDelete();
+            // =========================
+            // FOREIGN KEY
+            // =========================
+            $table->foreign('lead_id')
+                  ->references('id')->on('leads')
+                  ->nullOnDelete();
 
-    $table->foreign('lead_category_id')
-          ->references('id')->on('lead_categories')
-          ->nullOnDelete();
+            $table->foreign('lead_category_id')
+                  ->references('id')->on('lead_categories')
+                  ->nullOnDelete();
 
-    $table->foreign('industry_id')
-          ->references('id')->on('lead_industries')
-          ->nullOnDelete();
+            $table->foreign('industry_id')
+                  ->references('id')->on('lead_industries')
+                  ->nullOnDelete();
 
-    $table->foreign('assigned_to')
-          ->references('id_user')->on('ms_users')
-          ->nullOnDelete();
+            $table->foreign('assigned_to')
+                  ->references('id_user')->on('ms_users')
+                  ->nullOnDelete();
 
-    $table->foreign('created_by')
-          ->references('id_user')->on('ms_users')
-          ->cascadeOnDelete();
-});
-
+            $table->foreign('created_by')
+                  ->references('id_user')->on('ms_users')
+                  ->cascadeOnDelete();
+        });
     }
 
-    /**
-     * Reverse the migrations.
-     */
     public function down(): void
     {
         Schema::dropIfExists('customers');

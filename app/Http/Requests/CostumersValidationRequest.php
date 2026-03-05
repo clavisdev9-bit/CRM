@@ -22,15 +22,16 @@ class CostumersValidationRequest extends FormRequest
         return [
             'company_name'      => 'required|string|max:255',
             'contact_name'      => 'required|string|max:255',
-            'email'             => 'nullable|email|max:255',
-            'phone'             => 'nullable|string|max:50',
-            'industry_id'       => 'nullable|integer',
-            'lead_category_id'  => 'nullable|integer',
+            'email'             => 'required|email|max:255',
+            'phone'             => 'required|string|max:50',
+            'industry_id'       => 'required|integer',
+            'lead_category_id'  => 'required|integer',
             'assigned_to'       => 'nullable|integer',
+            'lead_source'       => 'required|string|max:255',
             'visibility_type'   => 'nullable|string|in:PRIVATE,PUBLIC',
             'notes'             => 'nullable|string',
-            'address'           => 'nullable|string',
-            'customer_status'           => 'nullable|string',
+            'address'           => 'required|string',
+            'customer_status'           => 'required|string',
         ];
     }
 
@@ -62,6 +63,7 @@ class CostumersValidationRequest extends FormRequest
         'notes.string'               => 'Notes must be a string.',
         'address.string'             => 'Address must be a string.',
         'customer_status.string'     => 'Customer status must be a string.',
+
     ];
 }
 

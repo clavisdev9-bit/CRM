@@ -317,8 +317,8 @@ export const useCustomersStore = defineStore("customersStore", () => {
                                   const leadSource = ref([
                                     { value: 'Cold Call', label: 'Cold Call' },
                                     { value: 'Website', label: 'Website' },
-                                    { value: 'Referral', label: 'Referral' },,
-                                    { value: 'Social Media', label: 'Social Media' },,
+                                    { value: 'Referral', label: 'Referral' },
+                                    { value: 'Social Media', label: 'Social Media' },
                                     { value: 'Email Campaign', label: 'Email Campaign' },
                                     { value: 'Event', label: 'Event' },
                                     { value: 'Partner', label: 'Partner' },
@@ -335,9 +335,6 @@ export const useCustomersStore = defineStore("customersStore", () => {
                                     { value: 'Blacklist', label: 'Blacklist' },
                                     ])
                                     
-
-
-
 
 
             return {
