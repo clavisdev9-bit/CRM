@@ -233,15 +233,52 @@ const fetchLeadsOptions = async (keyword = "") => {
                           ])
 
 
+                          // const resultSubmit = ref([
+                          //   { value: 'success', label: 'Follow Up Ditutup (Tidak Ada Respons dari Customer)' },
+                          //   { value: 'need_followup', label: 'Perlu Follow Up Lagi' },
+                          //   { value: 'reschedule', label: 'Jadwal Ulang'},
+                          //   { value: 'no_meet', label: 'Tidak Berhasil Follow UP / Tidak Bertemu Customer(PIC)' },
+                          //   { value: 'dealing', label: 'Sedang Proses Deal / Negotiation Stage ' },
+                          //   { value: 'closed', label: 'Selesai / Closed' },
+                          //   { value: 'cancelled', label: 'Dibatalkan' },
+                          //   ])
                           const resultSubmit = ref([
-                            { value: 'success', label: 'Follow Up Ditutup (Tidak Ada Respons dari Customer)' },
-                            { value: 'need_followup', label: 'Perlu Follow Up Lagi' },
-                            { value: 'reschedule', label: 'Jadwal Ulang'},
-                            { value: 'no_meet', label: 'Tidak Berhasil Follow UP / Tidak Bertemu Customer(PIC)' },
-                            { value: 'dealing', label: 'Sedang Proses Deal / Negotiation Stage ' },
-                            { value: 'closed', label: 'Selesai / Closed' },
-                            { value: 'cancelled', label: 'Dibatalkan' },
-                            ])
+  { 
+    value: 'success', 
+    label: 'Follow Up Ditutup (Tidak Ada Respons dari Customer)',
+    description: 'Customer tidak merespons setelah beberapa kali follow up. Follow up dianggap selesai.'
+  },
+  { 
+    value: 'need_followup', 
+    label: 'Perlu Follow Up Lagi',
+    description: 'Sudah ada komunikasi, namun customer belum memberi keputusan. Perlu dijadwalkan follow up berikutnya.'
+  },
+  { 
+    value: 'reschedule', 
+    label: 'Jadwal Ulang',
+    description: 'Customer meminta untuk dihubungi atau ditemui di waktu yang berbeda.'
+  },
+  { 
+    value: 'no_meet', 
+    label: 'Tidak Berhasil Follow Up / Tidak Bertemu Customer (PIC)',
+    description: 'Sudah dicoba menghubungi namun PIC tidak bisa ditemui atau tidak mengangkat.'
+  },
+  { 
+    value: 'dealing', 
+    label: 'Sedang Proses Deal / Negotiation Stage',
+    description: 'Customer tertarik dan sedang dalam tahap negosiasi harga atau kontrak.'
+  },
+  { 
+    value: 'closed', 
+    label: 'Selesai / Closed',
+    description: 'Deal berhasil ditutup. Customer sudah setuju dan proses selesai.'
+  },
+  { 
+    value: 'cancelled', 
+    label: 'Dibatalkan',
+    description: 'Follow up dibatalkan karena customer tidak jadi melanjutkan atau ada kendala internal.'
+  },
+])
 
 
                           //  format tanggal untuk tabel

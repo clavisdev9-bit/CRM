@@ -721,7 +721,11 @@ const submitResult = async () => {
   }
 }
 
-
+// onMounted(() => {
+//   // inisialisasi semua tooltip Bootstrap
+//   const tooltips = document.querySelectorAll('[data-bs-toggle="tooltip"]')
+//   tooltips.forEach(el => new bootstrap.Tooltip(el))
+// })
 </script>
 
 
@@ -1878,7 +1882,7 @@ const submitResult = async () => {
               <label class="form-label fw-bold">
                 Result <small class="text-danger">**</small>
               </label>
-              <Multiselect
+              <!-- <Multiselect
                 v-model="resultForm.result"
                 :options="followUpStore.resultSubmit"
                 label="label"
@@ -1886,7 +1890,30 @@ const submitResult = async () => {
                 trackBy="value"
                 placeholder="Pilih Result Follow Up..."
                 :searchable="true"
-              />
+              /> -->
+              <Multiselect
+                  v-model="resultForm.result"
+                  :options="followUpStore.resultSubmit"
+                  label="label"
+                  valueProp="value"
+                  trackBy="value"
+                  placeholder="Pilih Result Follow Up..."
+                  :searchable="true"
+                >
+                  <template #option="{ option }">
+                    <div class="d-flex justify-content-between align-items-center w-100">
+                      <span>{{ option.label }}</span>
+                      <span
+                        v-if="option.description"
+                        :title="option.description"
+                        class="ms-2 text-muted"
+                        style="cursor: help;"
+                      >
+                        <i class="fa fa-circle-info"></i>
+                      </span>
+                    </div>
+                </template>
+                </Multiselect>
             </div>
 
             <!-- NOTES -->
