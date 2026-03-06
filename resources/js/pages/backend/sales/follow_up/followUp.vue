@@ -2227,8 +2227,6 @@ const submitDirectFollowUp = async () => {
 
 
 
-
-
 <!-- modal untuk direct customer follow up -->
 <!-- modal untuk direct customer follow up -->
 <div class="modal fade" id="directFollowUpModal" tabindex="-1">
@@ -2240,7 +2238,7 @@ const submitDirectFollowUp = async () => {
           <h5 class="modal-title">
             <i class="fa fa-phone me-2 text-primary"></i> Direct Follow Up
           </h5>
-          <small class="text-muted">Follow up langsung tanpa jadwal kunjungan</small>
+          <small class="text-muted">Follow up directly without scheduling a visit</small>
         </div>
         <button class="btn-close" data-bs-dismiss="modal"></button>
       </div>
@@ -2325,18 +2323,7 @@ const submitDirectFollowUp = async () => {
             </Multiselect>
           </div> -->
 
-          <!-- Tanggal Follow Up -->
-          <div class="col-lg-6">
-            <label class="form-label fw-semibold">
-              Date Follow Up Estimate<small class="text-danger">*</small>
-            </label>
-            <input
-              type="datetime-local"
-              v-model="directForm.follow_up_at"
-              class="form-control"
-            />
-          </div>
-
+      
 
            <div class="col-lg-6">
                 <label class="form-label">
@@ -2394,7 +2381,7 @@ const submitDirectFollowUp = async () => {
               v-model="directForm.notes"
               class="form-control"
               rows="4"
-              placeholder="Tuliskan hasil pembicaraan, poin penting, atau kendala yang ditemui..."
+              placeholder="Tuliskan hasil pembicaraan, poin penting, Rencana Pembahasan Follow Up Selanjutnya atau kendala yang ditemui..."
             />
           </div>
 
@@ -2430,40 +2417,6 @@ const submitDirectFollowUp = async () => {
                 class="form-control"
               />
             </div>
-            <div class="col-lg-6">
-              <label class="form-label fw-semibold">Notes Next Follow Up</label>
-              <input
-                type="text"
-                v-model="directForm.next_follow_up_notes"
-                class="form-control"
-                placeholder="Topik yang akan dibahas berikutnya..."
-              />
-            </div>
-
-
-            <div class="col-12">
-            <label class="form-label fw-semibold">
-             Type Next Follow Up<small class="text-danger">*</small>
-            </label>
-            <div class="d-flex gap-2 flex-wrap">
-              <template v-for="type in followUpTypes" :key="type.value">
-                <input
-                  type="radio"
-                  class="btn-check"
-                  :id="`type-${type.value}`"
-                  :value="type.value"
-                  v-model="directForm.follow_up_type"
-                />
-                <label
-                  class="btn btn-sm btn-outline-primary"
-                  :for="`type-${type.value}`"
-                >
-                  <i :class="type.icon" class="me-1"></i>
-                  {{ type.label }}
-                </label>
-              </template>
-            </div>
-          </div>
           </template>
 
         </div>

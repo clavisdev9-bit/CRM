@@ -120,7 +120,7 @@ class FollowUp extends Controller
 
          
 
-                            public function followUpSalesByCustomers(FollowUpValidationIndex $request)
+             public function followUpSalesByCustomers(FollowUpValidationIndex $request)
                 {
                     $validated = $request->validated();
                     $user = auth()->user();
@@ -323,8 +323,6 @@ class FollowUp extends Controller
                 }
 
          
-
-
 
                     // ini kayanya perlu perubahan seperti leads juga nanati pas garap visit customer
                     public function getCustomersBySales(Request $request)
@@ -858,136 +856,136 @@ class FollowUp extends Controller
 
 
 
-                    public function customerTimeline($id)
-        {
-            /*
-            |--------------------------------------------------------------------------
-            | Ambil Follow Up yang diklik
-            |--------------------------------------------------------------------------
-            */
-            $followUp = DB::table('follow_ups')
-                ->select('id', 'customer_id', 'follow_up_code')
-                ->where('id', $id)
-                ->first();
+                public function customerTimeline($id)
+                    {
+                        /*
+                        |--------------------------------------------------------------------------
+                        | Ambil Follow Up yang diklik
+                        |--------------------------------------------------------------------------
+                        */
+                        $followUp = DB::table('follow_ups')
+                            ->select('id', 'customer_id', 'follow_up_code')
+                            ->where('id', $id)
+                            ->first();
 
-            if (!$followUp) {
-                return response()->json(['message' => 'Follow Up not found'], 404);
-            }
+                        if (!$followUp) {
+                            return response()->json(['message' => 'Follow Up not found'], 404);
+                        }
 
-            $customerId = $followUp->customer_id;
+                        $customerId = $followUp->customer_id;
 
-            /*
-            |--------------------------------------------------------------------------
-            | Ambil semua follow-up milik customer ini
-            |--------------------------------------------------------------------------
-            */
-            $followUps = DB::table('follow_ups')
-                ->where('customer_id', $customerId)
-                ->whereNull('deleted_at')
-                ->orderBy('created_at', 'asc')
-                ->get(['id', 'follow_up_code']);
+                        /*
+                        |--------------------------------------------------------------------------
+                        | Ambil semua follow-up milik customer ini
+                        |--------------------------------------------------------------------------
+                        */
+                        $followUps = DB::table('follow_ups')
+                            ->where('customer_id', $customerId)
+                            ->whereNull('deleted_at')
+                            ->orderBy('created_at', 'asc')
+                            ->get(['id', 'follow_up_code']);
 
-            $followUpIds = $followUps->pluck('id');
+                        $followUpIds = $followUps->pluck('id');
 
-            /*
-            |--------------------------------------------------------------------------
-            | 1. Follow Up Activities
-            |--------------------------------------------------------------------------
-            */
-            $activities = DB::table('follow_up_activities as act')
-                ->join('follow_ups as fu', 'fu.id', '=', 'act.follow_up_id')
-                ->whereIn('act.follow_up_id', $followUpIds)
-                ->select([
-                    'act.id',
-                    'act.activity_type as type',
-                    'act.title',
-                    'act.description',
-                    'act.activity_at',
-                    'fu.follow_up_code',
-                    'fu.id as follow_up_id',
-                ])
-                ->get()
-                ->map(fn($a) => [
-                    'source'         => 'FOLLOW_UP',
-                    'type'           => $a->type,
-                    'follow_up_code' => $a->follow_up_code,
-                    'follow_up_id'   => $a->follow_up_id,
-                    'title'          => $a->title,
-                    'description'    => $a->description,
-                    'activity_raw'   => $a->activity_at,
-                    'activity_at'    => Carbon::parse($a->activity_at)
-                                            ->timezone('Asia/Jakarta')
-                                            ->format('d M Y H:i'),
-                ]);
+                        /*
+                        |--------------------------------------------------------------------------
+                        | 1. Follow Up Activities
+                        |--------------------------------------------------------------------------
+                        */
+                        $activities = DB::table('follow_up_activities as act')
+                            ->join('follow_ups as fu', 'fu.id', '=', 'act.follow_up_id')
+                            ->whereIn('act.follow_up_id', $followUpIds)
+                            ->select([
+                                'act.id',
+                                'act.activity_type as type',
+                                'act.title',
+                                'act.description',
+                                'act.activity_at',
+                                'fu.follow_up_code',
+                                'fu.id as follow_up_id',
+                            ])
+                            ->get()
+                            ->map(fn($a) => [
+                                'source'         => 'FOLLOW_UP',
+                                'type'           => $a->type,
+                                'follow_up_code' => $a->follow_up_code,
+                                'follow_up_id'   => $a->follow_up_id,
+                                'title'          => $a->title,
+                                'description'    => $a->description,
+                                'activity_raw'   => $a->activity_at,
+                                'activity_at'    => Carbon::parse($a->activity_at)
+                                                        ->timezone('Asia/Jakarta')
+                                                        ->format('d M Y H:i'),
+                            ]);
 
-                    /*
-                    |--------------------------------------------------------------------------
-                    | 2. Visit History (termasuk complaint & potential order)
-                    |--------------------------------------------------------------------------
-                    */
-                    $visits = DB::table('visits')
-                        ->where('customer_id', $customerId)
-                        ->whereNull('deleted_at')
-                        ->orderBy('visit_at', 'asc')
-                        ->select([
-                            'id',
-                            'visit_code',
-                            'visit_at',
-                            'check_in_at',
-                            'check_out_at',
-                            'visit_status',
-                            'visit_result',
-                            'notes',
-                            'has_complaint',
-                            'complaint_detail',
-                            'has_potential_order',
-                            'potential_order_detail',
-                        ])
-                        ->get()
-                        ->map(fn($v) => [
-                            'source'                 => 'VISIT',
-                            'type'                   => 'VISIT',
-                            'visit_code'             => $v->visit_code,
-                            'title'                  => 'Visit - ' . $v->visit_code,
-                            'description'            => $v->notes ?? '-',
-                            'visit_status'           => $v->visit_status,
-                            'visit_result'           => $v->visit_result,
-                            'check_in_at'            => $v->check_in_at
-                                                            ? Carbon::parse($v->check_in_at)->timezone('Asia/Jakarta')->format('d M Y H:i')
-                                                            : null,
-                            'check_out_at'           => $v->check_out_at
-                                                            ? Carbon::parse($v->check_out_at)->timezone('Asia/Jakarta')->format('d M Y H:i')
-                                                            : null,
-                            'has_complaint'          => (bool) $v->has_complaint,
-                            'complaint_detail'       => $v->complaint_detail,
-                            'has_potential_order'    => (bool) $v->has_potential_order,
-                            'potential_order_detail' => $v->potential_order_detail,
-                            'activity_raw'           => $v->visit_at,
-                            'activity_at'            => Carbon::parse($v->visit_at)
-                                                            ->timezone('Asia/Jakarta')
-                                                            ->format('d M Y H:i'),
-                        ]);
+                                /*
+                                |--------------------------------------------------------------------------
+                                | 2. Visit History (termasuk complaint & potential order)
+                                |--------------------------------------------------------------------------
+                                */
+                                $visits = DB::table('visits')
+                                    ->where('customer_id', $customerId)
+                                    ->whereNull('deleted_at')
+                                    ->orderBy('visit_at', 'asc')
+                                    ->select([
+                                        'id',
+                                        'visit_code',
+                                        'visit_at',
+                                        'check_in_at',
+                                        'check_out_at',
+                                        'visit_status',
+                                        'visit_result',
+                                        'notes',
+                                        'has_complaint',
+                                        'complaint_detail',
+                                        'has_potential_order',
+                                        'potential_order_detail',
+                                    ])
+                                    ->get()
+                                    ->map(fn($v) => [
+                                        'source'                 => 'VISIT',
+                                        'type'                   => 'VISIT',
+                                        'visit_code'             => $v->visit_code,
+                                        'title'                  => 'Visit - ' . $v->visit_code,
+                                        'description'            => $v->notes ?? '-',
+                                        'visit_status'           => $v->visit_status,
+                                        'visit_result'           => $v->visit_result,
+                                        'check_in_at'            => $v->check_in_at
+                                                                        ? Carbon::parse($v->check_in_at)->timezone('Asia/Jakarta')->format('d M Y H:i')
+                                                                        : null,
+                                        'check_out_at'           => $v->check_out_at
+                                                                        ? Carbon::parse($v->check_out_at)->timezone('Asia/Jakarta')->format('d M Y H:i')
+                                                                        : null,
+                                        'has_complaint'          => (bool) $v->has_complaint,
+                                        'complaint_detail'       => $v->complaint_detail,
+                                        'has_potential_order'    => (bool) $v->has_potential_order,
+                                        'potential_order_detail' => $v->potential_order_detail,
+                                        'activity_raw'           => $v->visit_at,
+                                        'activity_at'            => Carbon::parse($v->visit_at)
+                                                                        ->timezone('Asia/Jakarta')
+                                                                        ->format('d M Y H:i'),
+                                    ]);
 
-                    /*
-                    |--------------------------------------------------------------------------
-                    | Merge & Sort semua event berdasarkan waktu
-                    |--------------------------------------------------------------------------
-                    */
-                    $histories = $activities
-                        ->concat($visits)
-                        ->sortBy('activity_raw')
-                        ->values();
+                                /*
+                                |--------------------------------------------------------------------------
+                                | Merge & Sort semua event berdasarkan waktu
+                                |--------------------------------------------------------------------------
+                                */
+                                $histories = $activities
+                                    ->concat($visits)
+                                    ->sortBy('activity_raw')
+                                    ->values();
 
-                    return response()->json([
-                        'data' => [
-                            'customer_id'     => $customerId,
-                            'current_followup'=> $followUp->follow_up_code,
-                            'total_followups' => $followUps->count(),
-                            'total_visits'    => $visits->count(),
-                            'histories'       => $histories,
-                        ]
-                    ]);
-                }
+                                return response()->json([
+                                    'data' => [
+                                        'customer_id'     => $customerId,
+                                        'current_followup'=> $followUp->follow_up_code,
+                                        'total_followups' => $followUps->count(),
+                                        'total_visits'    => $visits->count(),
+                                        'histories'       => $histories,
+                                    ]
+                                ]);
+                            }
 
 
             // code generate follow up code dengan format FUP-20260121-0001-XXXXXX (6 digit urutan + 6 digit random)
@@ -1298,7 +1296,7 @@ public function createDirectFollowUpFromLead(Request $request, $leadId)
 
         /*
         |------------------------------------------
-        | ❗ Cegah double open follow up
+        |  Cegah double open follow up
         |------------------------------------------
         */
         $existing = DB::table('follow_ups')
@@ -1646,6 +1644,7 @@ public function createDirectFollowUpFromLead(Request $request, $leadId)
     }
 
 
+
     //  code untuk ambil data customer 
     function getCustomerForDirect(Request $request) {
 
@@ -1678,6 +1677,68 @@ public function createDirectFollowUpFromLead(Request $request, $leadId)
                             'Success Get Customers For Direct Follow Up'
                         );
                     }
+    }
+
+
+
+
+    // code untuk  store direct follow up customer 
+     public function storeDirectCustomer(Request $request)
+    {
+        try {
+            $validated = $request->validate([
+                'customer_id'     => 'required|exists:customers,id',
+                'follow_up_type'  => 'required|in:CALL,EMAIL,WHATSAPP,MEETING,OTHER',
+                'subject'         => 'required|string|max:255',
+                'notes'           => 'required|string',
+                'follow_up_at'    => 'required|date',
+            ]);
+             $salesId = auth()->user()->id_user;
+
+            /**
+             * CEK FOLLOW UP AKTIF
+             */
+                $existingFollowUp = MsFollowUp::where('customer_id', $validated['customer_id'])
+                ->whereNotIn('status', ['CLOSED', 'DONE']) // yang BELUM selesai
+                ->exists();
+
+                if ($existingFollowUp) {
+                    return ApiResponse::error(
+                        'Customer masih memiliki follow up yang aktif'
+                    );
+                }
+
+            /**
+             * CREATE FOLLOW UP BARU
+             */
+            $followUp = MsFollowUp::create([
+                'follow_up_code' => $this->generateFollowUpCode(),
+                'lead_id'        => null,
+                'customer_id'    => $validated['customer_id'],
+                'follow_up_type' => $validated['follow_up_type'], // bukan 'CALL'
+                'subject'        => $validated['subject'],
+                'notes'          => $validated['notes'],
+                'follow_up_at'   => $validated['follow_up_at'],
+                'status'         => 'PENDING',
+                // 'assigned_to'    => $user->id,
+                'created_by'     => $salesId,
+            ]);
+
+            // Tambah ini
+                $this->recordActivity(
+                    $followUp,
+                    'FOLLOW_UP_CREATED (DIRECT FOLLOW UP)',
+                    'Direct Follow Up Dibuat',
+                    $validated['notes'],
+                    $validated['follow_up_at']
+                );
+
+            return ApiResponse::success($followUp, 'Follow up berhasil dibuat');
+
+        } catch (\Exception $e) {
+
+            return ApiResponse::error($e->getMessage());
+        }
     }
     // end code follow up bagian customer
 

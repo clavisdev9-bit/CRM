@@ -162,6 +162,7 @@ Route::get('/follow-ups/{id}/customer-timeline', [FollowUp::class, 'customerTime
 Route::post('/follow-ups/{id}/submit-result', [FollowUp::class, 'submitResultFollowUp'])->name('api.follow.up.submit.result');
 Route::post('/follow-ups/{id}/direct-follow-up', [FollowUp::class, 'createDirectFollowUpFromLead'])->name('api.follow.up.start.follow.up');
 Route::post('/follow-ups/{id}/submit-result/customer', [FollowUp::class, 'submitResultCustomers'])->name('api.follow.up.submit.result.customers');
+Route::post('/follow-ups/direct-follow-up-customer', [FollowUp::class, 'storeDirectCustomer'])->name('api.follow.up.direct.customer');
 
 
 
