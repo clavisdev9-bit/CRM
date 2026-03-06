@@ -550,7 +550,7 @@ const pagination = reactive({
                           }
 
                           CustomerOptionsDirect.value = res.data.data.map(item => ({
-                            id: Number(item.id),
+                            customer_id: Number(item.id),
                             company_name: item.company_name,
                             contact_name: item.contact_name,
                             customer_code: item.customer_code, // ← tambahkan untuk info tambahan di dropdown
@@ -563,6 +563,38 @@ const pagination = reactive({
                           loadingCustomerssOptionsDirect.value = false
                         }
                       }
+
+
+
+                      // code untuk store direct customer
+                        const submittingDirect = ref(false)
+                        const errorDirect = ref(null)
+
+                        // tambah function
+                        const storeDirectCustomerFollowUp = async (payload) => {
+                          submittingDirect.value = true
+                          errorDirect.value = null
+
+                          try {
+                            const res = await axios.post(
+                              '/api/follow-ups/direct-follow-up-customer',
+                              payload,
+                              { headers: getAuthHeader() }
+                            )
+
+                            await fetchFollowUps()
+                            return res.data
+
+                          } catch (err) {
+                            if (err.response?.status === 422) {
+                              errorDirect.value = err.response.data.errors
+                            }
+                            throw err
+                          } finally {
+                            submittingDirect.value = false
+                          }
+                        }
+
 
 
 
@@ -634,7 +666,11 @@ const pagination = reactive({
 
     fetchCustomersSelectDirectSubject,
     CustomerOptionsDirect,
-    loadingCustomerssOptionsDirect
+    loadingCustomerssOptionsDirect,
+
+    submittingDirect, 
+    errorDirect, 
+    storeDirectCustomerFollowUp
 
   };
 });

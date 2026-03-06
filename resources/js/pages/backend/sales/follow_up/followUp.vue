@@ -257,7 +257,7 @@ const submitFollowUp = async () => {
 
   /*
   |------------------------------------------------------------------
-  | 🔵 EDIT MODE (RESCHEDULE / SIMPLE UPDATE)
+  |  EDIT MODE (RESCHEDULE / SIMPLE UPDATE)
   |------------------------------------------------------------------
   */
   if (formMode.value === 'edit') {
@@ -738,18 +738,18 @@ const followUpTypes = [
 ]
 
 const directForm = reactive({
-  customer_id: null,       // ← dari item yang dipilih
+  customer_id: null,
   follow_up_type: 'CALL',
-  follow_up_at: '',
+  follow_up_at: '',        // ← untuk jadwal follow up SEKARANG (selalu ada)
+  next_follow_up_at: null, // ← untuk next follow up (opsional)
   subject: '',
   notes: '',
-  result: '',
-  closed_reason: '',       // ← muncul jika cancelled/no_meet
   need_follow_up: false,
-  next_follow_up_at: null,
-  next_follow_up_notes: '',
   subject_template_customer: '',
 })
+
+console.log();
+
 
 const subjectTemplatesCustomers = ref([
   // Relationship Maintenance
@@ -790,10 +790,9 @@ watch(() => directForm.subject_template_customer, (val) => {
   }
 })
 
-const openAddModalDirectCustomer = (item) => {
-  
+const openAddModalDirectCustomer = () => {  // ← hapus parameter item
   Object.assign(directForm, {
-    customer_id: item?.id ?? null,  // ← sesuaikan dengan field di data kamu
+    customer_id: null,
     follow_up_type: 'CALL',
     follow_up_at: '',
     subject: '',
@@ -802,17 +801,73 @@ const openAddModalDirectCustomer = (item) => {
     closed_reason: '',
     need_follow_up: false,
     next_follow_up_at: null,
-    next_follow_up_notes: '',
+    subject_template_customer: '',
   })
-   followUpStore.fetchCustomersSelectDirectSubject() 
+
+  followUpStore.fetchCustomersSelectDirectSubject()
 
   const modal = new bootstrap.Modal('#directFollowUpModal')
   modal.show()
 }
 
-const submitDirectFollowUp = async () => {
-  console.log("oke");
-  
+const submitDirectFollowUpCustomer = async () => {
+
+
+  // Validasi manual
+  if (!directForm.customer_id) {
+    return toasts.fire({ icon: 'warning', title: 'Customer wajib dipilih' })
+  }
+
+  if (!directForm.follow_up_type) {
+    return toasts.fire({ icon: 'warning', title: 'Type follow up wajib dipilih' })
+  }
+
+  if (!directForm.subject) {
+    return toasts.fire({ icon: 'warning', title: 'Subject wajib diisi' })
+  }
+
+  if (!directForm.notes) {
+    return toasts.fire({ icon: 'warning', title: 'Notes wajib diisi' })
+  }
+
+
+  const payload = {
+  customer_id:    directForm.customer_id,
+  follow_up_type: directForm.follow_up_type,
+  subject:        directForm.subject,
+  notes:          directForm.notes,
+  follow_up_at:   directForm.follow_up_at,  // ← dari field baru ini
+}
+
+  try {
+    await followUpStore.storeDirectCustomerFollowUp(payload)
+
+    // tutup modal
+    const modalEl = document.getElementById('directFollowUpModal')
+    bootstrap.Modal.getInstance(modalEl)?.hide()
+
+    // reset form
+    Object.assign(directForm, {
+      customer_id: null,
+      follow_up_type: 'CALL',
+      follow_up_at: '',
+      subject: '',
+      notes: '',
+      result: '',
+      closed_reason: '',
+      need_follow_up: false,
+      next_follow_up_at: null,
+      subject_template_customer: '',
+    })
+
+    toasts.fire({ icon: 'success', title: 'Direct Follow Up berhasil dibuat!' })
+
+  } catch (err) {
+    toasts.fire({
+      icon: 'error',
+      title: err.response?.data?.message || 'Gagal membuat follow up',
+    })
+  }
 }
 </script>
 
@@ -888,12 +943,12 @@ const submitDirectFollowUp = async () => {
               </div>
 
                 <div v-if="showActionColumn" class="d-flex justify-content-between align-items-center mb-2"> 
-               
-
-                  <button class="btn btn-primary btn-sm me-1"  data-bs-toggle="modal" 
-                      data-bs-target="#form-direct-customer" @click="openAddModalDirectCustomer('customer')" >
+                    <button 
+                      class="btn btn-primary btn-sm me-1"
+                      @click="openAddModalDirectCustomer()"
+                    >
                       <i class="fa fa-plus"></i> Add Follow Up (DIRECT CUSTOMER) 
-                  </button> 
+                    </button>
               </div>
 
 
@@ -2253,12 +2308,12 @@ const submitDirectFollowUp = async () => {
               Customer <small class="text-danger">*</small>
             </label>
            <Multiselect
-                  v-model="formDirect.customer_id"
+                  v-model="directForm.customer_id"
                   :options="followUpStore.CustomerOptionsDirect"
                   label="company_name"
-                  valueProp="id"
-                  :object="false"
-                  placeholder="Select Lead..."
+                  valueProp="customer_id"
+                    :object="false"        
+                  placeholder="Select Customer..."
                   :searchable="true"
                   :loading="followUpStore.loadingCustomerssOptionsDirect"
                 />
@@ -2372,6 +2427,19 @@ const submitDirectFollowUp = async () => {
             />
           </div>
 
+          <!-- Follow Up Date - selalu tampil -->
+            <div class="col-12">
+              <label class="form-label fw-semibold">
+                Follow Up Date <small class="text-danger">*</small>
+              </label>
+              <Flatpickr
+                v-model="directForm.follow_up_at"
+                :config="fpConfig"
+                class="form-control"
+                placeholder="Pilih tanggal & waktu follow up"
+              />
+            </div>
+
           <!-- Notes -->
           <div class="col-12">
             <label class="form-label fw-semibold">
@@ -2406,7 +2474,7 @@ const submitDirectFollowUp = async () => {
           </div>
 
           <!-- Next Follow Up (conditional) -->
-          <template v-if="directForm.need_follow_up">
+          <!-- <template v-if="directForm.need_follow_up">
             <div class="col-lg-6">
               <label class="form-label fw-semibold">
                Next Follow Up Date <small class="text-danger">*</small>
@@ -2417,10 +2485,25 @@ const submitDirectFollowUp = async () => {
                 class="form-control"
               />
             </div>
-          </template>
+          </template> -->
+              <template v-if="directForm.need_follow_up">
+                        <div class="col-12">
+                <label class="form-label fw-semibold">
+                  Next Follow Up Date<small class="text-danger">*</small>
+                </label>
+                <Flatpickr
+                  v-model="directForm.follow_up_at"
+                  :config="fpConfig"
+                  class="form-control"
+                  placeholder="Pilih tanggal & waktu follow up"
+                />
+              </div>
+              </template>
 
         </div>
       </div>
+
+   
 
       <div class="modal-footer">
         <button class="btn btn-outline-secondary" data-bs-dismiss="modal">
