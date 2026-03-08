@@ -1,6 +1,9 @@
 import { createRouter, createWebHistory } from 'vue-router'
 // frontend
 import Home from '../pages/frontend/home/files.vue'
+import mapsTracking from '../pages/frontend/home/mapsTracking.vue'
+import salesTable from '../pages/frontend/home/visitSalesTable.vue'
+import dashboardHome from '../pages/frontend/home/dashboard.vue'
 import FrontTable from '../pages/frontend/exampleComponentFronent/table/table.vue'
 import FrontForm from '../pages/frontend/exampleComponentFronent/form/form.vue'
 import FrontError from '../pages/frontend/exampleComponentFronent/error/error.vue'
@@ -55,6 +58,9 @@ import notFound from '../pages/backend/exampleComponent/Notfound.vue'
 const routes = [
   // Front
   { path: '/', component: Home },
+  { path: '/maps/tracking/sales', component: mapsTracking },
+  { path: '/history/monitoring/sales', component: salesTable },
+  { path: '/dashboard/sales', component: dashboardHome },
   { path: '/frontend/table', component: FrontTable },
   { path: '/frontend/form', component: FrontForm },
   { path: '/frontend/error', component: FrontError },

@@ -45,7 +45,6 @@ class Visits extends Controller
                 //Tanggal tertentu   ?date_from=2025-06-01&date_to=2025-06-01
                 //Range seminggu     ?date_from=2025-06-01&date_to=2025-06-07
                 //Semua data         ?date_from=2020-01-01&date_to=2099-12-31
-
                 public function getVisitTargetMap(Request $request)
                 {
                     // Default hari ini, bisa dioverride via query param
@@ -351,6 +350,14 @@ class Visits extends Controller
 
         // Exclude soft deleted visits
         ->whereNull('v.deleted_at')
+
+        // Setelah bagian soft delete, sebelum FILTER VISIT TYPE
+->when($validated['date_from'] ?? null, function ($q, $date) {
+    $q->whereDate('v.visit_at', '>=', $date);
+})
+->when($validated['date_to'] ?? null, function ($q, $date) {
+    $q->whereDate('v.visit_at', '<=', $date);
+})
 
         // Exclude soft deleted leads (hanya jika lead_id ada)
         ->where(function ($q) {

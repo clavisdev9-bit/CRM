@@ -20,8 +20,8 @@
       </button>
 
       <div class="mobile-logo-center d-xl-none">
-  <img :src="logo" alt="Logo" class="mobile-logo-img" />
-</div>
+        <img :src="logo" alt="Logo" class="mobile-logo-img" />
+      </div>
 
       <!-- ========================================================= -->
       <!-- DESKTOP MENU (muncul di layar besar, hilang di mobile)   -->
@@ -30,9 +30,28 @@
 
         <ul class="navbar-nav align-items-center modern-nav">
 
-            <li class="nav-item">
+          <li class="nav-item">
             <router-link class="nav-link fw-semibold" to="/">
               <i class="fa-solid fa-house me-2"></i> Home
+            </router-link>
+          </li>
+
+          <li class="nav-item">
+            <router-link class="nav-link fw-semibold" to="/maps/tracking/sales">
+              <i class="fa-solid fa-map-location me-2"></i> Realtime Tracking Maps Activity Sales
+            </router-link>
+          </li>
+
+
+          <li class="nav-item">
+            <router-link class="nav-link fw-semibold" to="/history/monitoring/sales">
+             <i class="fa-solid fa-indent me-2"></i> Sales visit history & monitoring
+            </router-link>
+          </li>
+
+           <li class="nav-item">
+            <router-link class="nav-link fw-semibold" to="/dashboard/sales">
+             <i class="fa-solid fa-chart-column"></i> Dashboard
             </router-link>
           </li>
      
@@ -56,14 +75,14 @@
        <i class="fa-solid fa-globe"></i>
 
         <div class="dropdown">
-          <a data-bs-toggle="dropdown">
+          <!-- <a data-bs-toggle="dropdown">
             <img :src="avatarDefault" class="rounded-circle" width="36" />
-          </a>
-          <ul class="dropdown-menu dropdown-menu-end">
+          </a> -->
+          <!-- <ul class="dropdown-menu dropdown-menu-end">
             <li><a class="dropdown-item" href="#"><i class="fa-solid fa-user-tie me-2"></i> My Profile</a></li>
             <li><hr /></li>
             <li><a class="dropdown-item text-danger" href="#"><i class="fa-solid fa-arrow-up-from-bracket me-2"></i>Logout</a></li>
-          </ul>
+          </ul> -->
         </div>
       </div>
     </div>

@@ -22,40 +22,20 @@ class VisitValidationForExternalIndex extends FormRequest
     public function rules(): array
     {
         return [
+        'per_page' => 'required|integer|min:1|max:10000',
+        'search'   => 'nullable|string|max:100',
+        'sort_by'  => 'nullable|in:company_name,created_at,visit_date,check_out',
+        'sort_dir' => 'nullable|in:asc,desc',
 
-            /*
-            |--------------------------------------------------------------------------
-            | Pagination
-            |--------------------------------------------------------------------------
-            */
-            'per_page' => 'nullable|integer|min:1|max:100',
+        // ✅ Fix: PLANNED bukan VISIT
+        'visit_status' => 'nullable|in:PLANNED,ONGOING,DONE',
 
-            /*
-            |--------------------------------------------------------------------------
-            | Searching
-            |--------------------------------------------------------------------------
-            */
-            'search' => 'nullable|string|max:100',
-
-            /*
-            |--------------------------------------------------------------------------
-            | Sorting
-            |--------------------------------------------------------------------------
-            */
-            'sort_by' => 'nullable|in:company_name,created_at,visit_date,check_out',
-
-            'sort_dir' => 'nullable|in:asc,desc',
-
-            /*
-            |--------------------------------------------------------------------------
-            | Filter Status Progress Visit
-            |--------------------------------------------------------------------------
-            | ONGOING      = sudah checkin belum checkout
-            | CHECKED_OUT  = sudah selesai
-            */
-            'visit_status' => 'nullable|in:VISIT,ONGOING,DONE',
-
-        ];
+        // ✅ Tambah visit_type
+        'visit_type' => 'nullable|in:LEAD,CUSTOMER',
+        // ✅ Tambah filter tanggal
+        'date_from' => 'nullable|date',
+        'date_to'   => 'nullable|date|after_or_equal:date_from',
+    ];
     }
 
     /**
@@ -73,16 +53,15 @@ class VisitValidationForExternalIndex extends FormRequest
     /**
      * Custom error messages (biar clean ke frontend)
      */
-    public function messages(): array
-    {
-        return [
-            'per_page.integer' => 'Per page harus berupa angka.',
-            'per_page.max'     => 'Maksimal per page adalah 100 data.',
-
-            'sort_by.in'  => 'Kolom sorting tidak valid.',
-            'sort_dir.in' => 'Arah sorting hanya boleh asc atau desc.',
-
-            'visit_status.in' => 'Status visit hanya ONGOING atau CHECKED_OUT.',
-        ];
-    }
+   public function messages(): array
+{
+    return [
+        'per_page.integer'  => 'Per page harus berupa angka.',
+        'per_page.max'      => 'Maksimal per page adalah 10000 data.',
+        'sort_by.in'        => 'Kolom sorting tidak valid.',
+        'sort_dir.in'       => 'Arah sorting hanya boleh asc atau desc.',
+        'visit_status.in'   => 'Status visit hanya PLANNED, ONGOING, atau DONE.',
+        'visit_type.in'     => 'Tipe visit hanya LEAD atau CUSTOMER.',
+    ];
+}
 }

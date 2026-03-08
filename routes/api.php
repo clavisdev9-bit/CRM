@@ -14,6 +14,8 @@ use App\Http\Controllers\Api\Users\Sales\Leads\Leads;
 use App\Http\Controllers\Api\Users\Sales\Costumers\Costumers;
 use App\Http\Controllers\Api\Users\Sales\FollowUp\FollowUp;
 use App\Http\Controllers\Api\Users\Sales\Visits\Visits;
+use App\Http\Controllers\Api\Home\Dashboard\DashboardController;
+
 
 Route::post('/signIn', [SignAuth::class, 'signIn'])->name('api.sign.in');
 Route::post('/forgot-password-request', [SignAuth::class, 'requestResetPassword'])->name('api.forgot.password');
@@ -189,16 +191,26 @@ Route::post('/visits/customers/{visit}/check-in', [Visits::class, 'checkInVisitC
 Route::post('/visits/customers/{visit}/check-out', [Visits::class, 'checkOutCustomer']);
 });
 
+
+
+// UNTUK GEO LOCATION
+Route::get('/reverse-geocode', [Location::class, 'reverse']);
 // untuk data map external
 Route::get('/data-visits-leads-map', [Visits::class, 'getVisitTargetMap'])->name('api.data.visits.map');
 // untuk data visit all data 
 Route::get('/data-visits-all-data', [Visits::class, 'getVisitAllData'])->name('api.data.visits.all');
 
 
-// UNTUK GEO LOCATION
-Route::get('/reverse-geocode', [Location::class, 'reverse']);
-
-
+// Dashboard
+Route::prefix('dashboard')->group(function () {
+    Route::get('/summary',         [DashboardController::class, 'summary']);
+    Route::get('/visit-chart',     [DashboardController::class, 'visitChart']);
+    Route::get('/top-sales',       [DashboardController::class, 'topSales']);
+    Route::get('/conversion-rate', [DashboardController::class, 'conversionRate']);
+    Route::get('/visit-status',    [DashboardController::class, 'visitStatus']);
+    Route::get('/recent-activity', [DashboardController::class, 'recentActivity']);
+});
+// Route::get('dashboard/summary', [DashboardController::class, 'summary']);
 
 
 
