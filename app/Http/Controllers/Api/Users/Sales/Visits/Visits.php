@@ -23,8 +23,6 @@ use App\Http\Requests\VisitValidationIndex;
 use App\Http\Requests\VisitValidationForExternalIndex;
 
 
-
-
 class Visits extends Controller
 {
         protected $VisitsModel;
@@ -41,106 +39,144 @@ class Visits extends Controller
         }
 
 
-        public function getVisitTargetMap(VisitValidationIndex $request)
-        {
-            $query = DB::table('visits as v')
-                ->select([
-                    'v.id',
-                    'v.visit_code',
-                    'v.visit_at',
-                    'v.check_in_at',
-                    'v.check_out_at',
-                    'v.latitude',
-                    'v.longitude',
-                    'v.gps_snapshot',
+                //untuk target map 
+                //Skenario Query       Param
+                //Hari ini           (default)Tidak perlu kirim apa-apa
+                //Tanggal tertentu   ?date_from=2025-06-01&date_to=2025-06-01
+                //Range seminggu     ?date_from=2025-06-01&date_to=2025-06-07
+                //Semua data         ?date_from=2020-01-01&date_to=2099-12-31
 
-                    'u.id_user as sales_id',
-                    'u.fullname as sales_name',
-                    'u.image as sales_photo',
+                public function getVisitTargetMap(Request $request)
+                {
+                    // Default hari ini, bisa dioverride via query param
+                    $dateFrom = $request->input('date_from', today()->toDateString());
+                    $dateTo   = $request->input('date_to', today()->toDateString());
 
-                    DB::raw("
-                        CASE
-                            WHEN u.image IS NOT NULL AND u.image != ''
-                                THEN CONCAT('" . asset('storage/users') . "/', u.image)
-                            ELSE CONCAT('" . asset('storage/users/default.png') . "')
-                        END as sales_photo_url
-                    "),
+                    $query = DB::table('visits as v')
+                        ->select([
+                            'v.id',
+                            'v.visit_code',
+                            'v.visit_at',
+                            'v.check_in_at',
+                            'v.check_out_at',
+                        // Tambahkan di select
+                            DB::raw("CAST(v.latitude AS DECIMAL(10,7)) as latitude"),
+                            DB::raw("CAST(v.longitude AS DECIMAL(10,7)) as longitude"),
+                            'v.gps_snapshot',
+                            'v.lead_id',
+                            'v.customer_id',
 
-                    DB::raw("'LEAD' as target_type"),
-                    'l.company_name as target_name',
+                            'u.id_user as sales_id',
+                            'u.fullname as sales_name',
+                            'u.image as sales_photo',
 
-                    DB::raw("
-                        CASE
-                            WHEN v.check_in_at IS NULL
-                                AND v.visit_at <= NOW()
-                                THEN 'SEDANG_VISIT'
-                            WHEN v.check_in_at IS NOT NULL
-                                AND v.check_out_at IS NULL
-                                THEN 'SEDANG_CHECK_IN'
-                            WHEN v.check_out_at IS NOT NULL
-                                THEN 'SELESAI'
-                            ELSE 'UNKNOWN'
-                        END as visit_status_label
-                    "),
+                            DB::raw("
+                                CASE
+                                    WHEN u.image IS NOT NULL AND u.image != ''
+                                        THEN CONCAT('" . asset('storage/users') . "/', u.image)
+                                    ELSE '" . asset('storage/users/default.png') . "'
+                                END as sales_photo_url
+                            "),
 
-                    DB::raw("
-                        CASE
-                            WHEN v.latitude IS NOT NULL
-                                AND v.longitude IS NOT NULL
-                                AND v.check_out_at IS NULL
-                                THEN true
-                            ELSE false
-                        END as show_on_map
-                    ")
-                ])
-                ->leftJoin('leads as l', 'l.id', '=', 'v.lead_id')
-                ->leftJoin('ms_users as u', 'u.id_user', '=', 'v.sales_id')
-                // ini code untuk hanya menampilkan visit dan check-in 
-                // ->where(function ($q) {
-                //     $q
-                //         ->where(function ($qq) {
-                //             $qq->whereNull('v.check_in_at')
-                //             ->where('v.visit_at', '<=', now());
-                //         })
-                //         ->orWhere(function ($qq) {
-                //             $qq->whereNotNull('v.check_in_at')
-                //             ->whereNull('v.check_out_at');
-                //         });
-                // })
-                ->where(function ($q) {
-    $q
-        // Belum check-in tapi sudah waktunya visit
-        ->where(function ($qq) {
-            $qq->whereNull('v.check_in_at')
-               ->where('v.visit_at', '<=', now());
-        })
+                            DB::raw("
+                                CASE
+                                    WHEN v.lead_id IS NOT NULL THEN 'LEAD'
+                                    WHEN v.customer_id IS NOT NULL THEN 'CUSTOMER'
+                                    ELSE 'UNKNOWN'
+                                END as target_type
+                            "),
 
-        // Sudah check-in, belum check-out (masih di lokasi)
-        ->orWhere(function ($qq) {
-            $qq->whereNotNull('v.check_in_at')
-               ->whereNull('v.check_out_at');
-        })
+                            DB::raw("
+                                CASE
+                                    WHEN v.lead_id IS NOT NULL THEN l.company_name
+                                    WHEN v.customer_id IS NOT NULL THEN c.company_name
+                                    ELSE NULL
+                                END as target_name
+                            "),
 
-        // 🔥 Tambahan: yang sudah selesai
-        ->orWhereNotNull('v.check_out_at');
-})
+                            DB::raw("
+                                CASE
+                                    WHEN v.lead_id IS NOT NULL THEN l.contact_name
+                                    WHEN v.customer_id IS NOT NULL THEN c.contact_name
+                                    ELSE NULL
+                                END as target_contact
+                            "),
 
-                ->orderBy('v.visit_at', 'desc');
+                            DB::raw("
+                                CASE
+                                    WHEN v.lead_id IS NOT NULL THEN l.address
+                                    WHEN v.customer_id IS NOT NULL THEN c.address
+                                    ELSE NULL
+                                END as target_address
+                            "),
 
-            $results = $query->get();
+                            DB::raw("
+                                CASE
+                                    WHEN v.check_in_at IS NULL
+                                        AND v.visit_at <= NOW()
+                                        THEN 'BELUM_CHECK_IN'
+                                    WHEN v.check_in_at IS NOT NULL
+                                        AND v.check_out_at IS NULL
+                                        THEN 'SEDANG_CHECK_IN'
+                                    WHEN v.check_out_at IS NOT NULL
+                                        THEN 'SELESAI'
+                                    ELSE 'UNKNOWN'
+                                END as visit_status_label
+                            "),
 
-            return ApiResponse::success(
-                $results,
-                $results->isEmpty()
-                    ? 'Tidak ada sales di lapangan'
-                    : 'Success'
-            );
-        }
+                            DB::raw("
+                                CASE
+                                    WHEN v.latitude IS NOT NULL
+                                        AND v.longitude IS NOT NULL
+                                        THEN true
+                                    ELSE false
+                                END as show_on_map
+                            ")
+                        ])
 
+                        ->leftJoin('leads as l', 'l.id', '=', 'v.lead_id')
+                        ->leftJoin('customers as c', 'c.id', '=', 'v.customer_id')
+                        ->leftJoin('ms_users as u', 'u.id_user', '=', 'v.sales_id')
+
+                        ->where(function ($q) {
+                            $q
+                                ->where(function ($qq) {
+                                    $qq->whereNull('v.check_in_at')
+                                    ->where('v.visit_at', '<=', now());
+                                })
+                                ->orWhere(function ($qq) {
+                                    $qq->whereNotNull('v.check_in_at')
+                                    ->whereNull('v.check_out_at');
+                                })
+                                ->orWhereNotNull('v.check_out_at');
+                        })
+
+                        // Filter tanggal — default hari ini
+                        ->whereBetween('v.visit_at', [
+                            $dateFrom . ' 00:00:00',
+                            $dateTo   . ' 23:59:59',
+                        ])
+                        
+                        //untuk soft delete
+                        ->whereNull('v.deleted_at')
+                        ->whereNull('l.deleted_at')  
+                        ->whereNull('c.deleted_at')
+
+                        ->orderBy('v.visit_at', 'desc');
+
+                    $results = $query->get();
+
+                    return ApiResponse::success(
+                        $results,
+                        $results->isEmpty()
+                            ? 'Tidak ada data visit pada periode ini'
+                            : 'Success'
+                    );
+                }
 
 
         // code for get data visit leads and customer  for  (external)
-       public function getVisitAllData(VisitValidationForExternalIndex $request)
+        public function getVisitAllData(VisitValidationForExternalIndex $request)
 {
     $validated = $request->validated();
 
@@ -169,7 +205,6 @@ class Visits extends Controller
     | MAIN QUERY
     |--------------------------------------------------------------------------
     */
-
     $query = DB::table('visits as v')
         ->select([
 
@@ -179,9 +214,10 @@ class Visits extends Controller
             'v.customer_id',
             'v.sales_id',
 
+            // Company name dari lead atau customer
             DB::raw("COALESCE(l.company_name, c.company_name) as company_name"),
 
-            // VISIT TYPE
+            // Visit type label
             DB::raw("
                 CASE
                     WHEN v.customer_id IS NOT NULL THEN 'CUSTOMER'
@@ -189,7 +225,34 @@ class Visits extends Controller
                 END as visit_type
             "),
 
-            // 🔥 VISIT PROGRESS (IMPORTANT)
+            // Target contact
+            DB::raw("
+                CASE
+                    WHEN v.lead_id IS NOT NULL THEN l.contact_name
+                    WHEN v.customer_id IS NOT NULL THEN c.contact_name
+                    ELSE NULL
+                END as target_contact
+            "),
+
+            // Target phone
+            DB::raw("
+                CASE
+                    WHEN v.lead_id IS NOT NULL THEN l.phone
+                    WHEN v.customer_id IS NOT NULL THEN c.phone
+                    ELSE NULL
+                END as target_phone
+            "),
+
+            // Target address
+            DB::raw("
+                CASE
+                    WHEN v.lead_id IS NOT NULL THEN l.address
+                    WHEN v.customer_id IS NOT NULL THEN c.address
+                    ELSE NULL
+                END as target_address
+            "),
+
+            // Visit progress (English)
             DB::raw("
                 CASE
                     WHEN v.check_in_at IS NULL
@@ -201,37 +264,52 @@ class Visits extends Controller
                 END as visit_progress
             "),
 
+            // Visit status label (Indonesian)
+            DB::raw("
+                CASE
+                    WHEN v.check_in_at IS NULL
+                        THEN 'SEDANG VISIT'
+                    WHEN v.check_in_at IS NOT NULL AND v.check_out_at IS NULL
+                        THEN 'SEDANG CHECK IN'
+                    WHEN v.check_in_at IS NOT NULL AND v.check_out_at IS NOT NULL
+                        THEN 'SELESAI'
+                END as visit_status_label
+            "),
+
             'u.fullname as sales_name',
             'v.visit_at',
             'v.check_in_at',
             'v.check_out_at',
 
             /*
-            |--------------------------------------------------------------------------
-            | DURATIONS
-            |--------------------------------------------------------------------------
+            |------------------------------------------------------------------
+            | DURATIONS (PostgreSQL)
+            |------------------------------------------------------------------
             */
 
+            // Durasi dari jadwal visit ke check-in
             DB::raw("
-                CASE 
+                CASE
                     WHEN v.check_in_at IS NOT NULL
-                    THEN TO_CHAR(v.check_in_at - v.visit_at, 'HH24:MI:SS')
+                        THEN TO_CHAR(v.check_in_at - v.visit_at, 'HH24:MI:SS')
                     ELSE NULL
                 END as time_from_visit_to_check_in
             "),
 
+            // Durasi dari check-in ke check-out
             DB::raw("
                 CASE
                     WHEN v.check_in_at IS NOT NULL AND v.check_out_at IS NOT NULL
-                    THEN TO_CHAR(v.check_out_at - v.check_in_at, 'HH24:MI:SS')
+                        THEN TO_CHAR(v.check_out_at - v.check_in_at, 'HH24:MI:SS')
                     ELSE NULL
                 END as time_from_check_in_to_check_out
             "),
 
+            // Total durasi dari visit ke check-out
             DB::raw("
                 CASE
                     WHEN v.check_in_at IS NOT NULL AND v.check_out_at IS NOT NULL
-                    THEN TO_CHAR(v.check_out_at - v.visit_at, 'HH24:MI:SS')
+                        THEN TO_CHAR(v.check_out_at - v.visit_at, 'HH24:MI:SS')
                     ELSE NULL
                 END as total_time_result
             "),
@@ -240,57 +318,83 @@ class Visits extends Controller
             'v.longitude',
             'v.gps_snapshot',
             'v.photo',
+            // Photo visit (full URL)
+            DB::raw("
+                CASE
+                    WHEN v.photo IS NOT NULL AND v.photo != ''
+                        THEN CONCAT('" . asset('storage') . "/', v.photo)
+                    ELSE NULL
+                END as photo_url
+            "),
             'v.notes',
             'v.visit_result',
             'v.visit_status',
             'v.customer_response',
+            'v.has_complaint',
+            'v.complaint_detail',
+            'v.has_potential_order',
+            'v.potential_order_detail',
             'v.created_by',
             'v.created_at',
             'v.updated_at',
-
-             DB::raw("
-                CASE
-                    WHEN v.check_in_at IS NULL THEN 'SEDANG VISIT'
-                    WHEN v.check_in_at IS NOT NULL AND v.check_out_at IS NULL THEN 'SEDANG CHECK IN'
-                    WHEN v.check_in_at IS NOT NULL AND v.check_out_at IS NOT NULL THEN 'SELESAI'
-                END as visit_status
-            ")
         ])
 
         ->leftJoin('leads as l', 'l.id', '=', 'v.lead_id')
         ->leftJoin('customers as c', 'c.id', '=', 'v.customer_id')
         ->leftJoin('ms_users as u', 'u.id_user', '=', 'v.sales_id')
 
-        // hanya visit valid
+        // Hanya visit yang valid (punya lead atau customer)
         ->where(function ($q) {
             $q->whereNotNull('v.lead_id')
               ->orWhereNotNull('v.customer_id');
+        })
+
+        // Exclude soft deleted visits
+        ->whereNull('v.deleted_at')
+
+        // Exclude soft deleted leads (hanya jika lead_id ada)
+        ->where(function ($q) {
+            $q->whereNull('v.lead_id')
+              ->orWhereNull('l.deleted_at');
+        })
+
+        // Exclude soft deleted customers (hanya jika customer_id ada)
+        ->where(function ($q) {
+            $q->whereNull('v.customer_id')
+              ->orWhereNull('c.deleted_at');
         });
+
+    /*
+    |--------------------------------------------------------------------------
+    | FILTER VISIT TYPE (LEAD / CUSTOMER)
+    |--------------------------------------------------------------------------
+    */
+    $query->when($validated['visit_type'] ?? null, function ($q, $type) {
+        if ($type === 'LEAD') {
+            $q->whereNotNull('v.lead_id')->whereNull('v.customer_id');
+        } elseif ($type === 'CUSTOMER') {
+            $q->whereNotNull('v.customer_id')->whereNull('v.lead_id');
+        }
+    });
 
     /*
     |--------------------------------------------------------------------------
     | FILTER STATUS
     |--------------------------------------------------------------------------
     */
-
     $query->when($status, function ($q) use ($status) {
-
         switch ($status) {
-
-            case 'VISIT':
+            case 'PLANNED':
                 $q->whereNull('v.check_in_at');
                 break;
-
             case 'ONGOING':
                 $q->whereNotNull('v.check_in_at')
                   ->whereNull('v.check_out_at');
                 break;
-
             case 'DONE':
                 $q->whereNotNull('v.check_out_at');
                 break;
         }
-
     });
 
     /*
@@ -298,7 +402,6 @@ class Visits extends Controller
     | SEARCHING
     |--------------------------------------------------------------------------
     */
-
     $query->when($search, function ($q) use ($search) {
         $q->where(function ($sq) use ($search) {
             $sq->where('l.company_name', 'ILIKE', "%{$search}%")
@@ -313,7 +416,6 @@ class Visits extends Controller
     | SORTING
     |--------------------------------------------------------------------------
     */
-
     $query->orderBy($orderColumn, $sortDir);
 
     $results = $query->paginate($perPage);
@@ -325,9 +427,6 @@ class Visits extends Controller
             : 'Success'
     );
 }
-
-
-
 
 
 
