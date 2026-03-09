@@ -52,10 +52,10 @@ class VisitsResources extends JsonResource
             'notes'       => $this->notes,
             'visit_result' => $this->visit_result,
             'customer_response'     => $this->customer_response,
-            'has_complaint'         => $this->has_complaint,
-            'complaint_detail'      => $this->complaint_detail,
-            'has_potential_order'   => $this->has_potential_order,
-            'potential_order_detail' => $this->potential_order_detail,
+            'has_complaint'         => $this->has_complaint ?? null,
+            'complaint_detail'      => $this->complaint_detail ?? null,
+            'has_potential_order'   => $this->has_potential_order ?? null,
+            'potential_order_detail' => $this->potential_order_detail ?? null,
 
             // Meta
             'created_by' => $this->created_by,

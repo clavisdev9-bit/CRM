@@ -476,6 +476,17 @@ class Visits extends Controller
             END as visit_type
         "),
 
+        DB::raw("
+                CASE
+                    WHEN v.check_in_at IS NULL
+                        THEN 'PLANNED'
+                    WHEN v.check_in_at IS NOT NULL AND v.check_out_at IS NULL
+                        THEN 'ONGOING'
+                    WHEN v.check_out_at IS NOT NULL
+                        THEN 'DONE'
+                END as visit_progress
+            "),
+
 
                 'u.fullname as sales_name',
                 'v.visit_at',
@@ -504,6 +515,49 @@ class Visits extends Controller
                         ELSE NULL
                     END as total_time_result
                 "),
+
+                DB::raw("
+                        CASE
+                            WHEN v.lead_id IS NOT NULL THEN l.contact_name
+                            WHEN v.customer_id IS NOT NULL THEN c.contact_name
+                            ELSE NULL
+                        END as target_contact
+                    "),
+
+                    DB::raw("
+                        CASE
+                            WHEN v.lead_id IS NOT NULL THEN l.phone
+                            WHEN v.customer_id IS NOT NULL THEN c.phone
+                            ELSE NULL
+                        END as target_phone
+                    "),
+
+                    DB::raw("
+                        CASE
+                            WHEN v.lead_id IS NOT NULL THEN l.address
+                            WHEN v.customer_id IS NOT NULL THEN c.address
+                            ELSE NULL
+                        END as target_address
+                    "),
+
+                     DB::raw("
+                            CASE
+                                WHEN v.check_in_at IS NULL
+                                    THEN 'SEDANG VISIT'
+                                WHEN v.check_in_at IS NOT NULL AND v.check_out_at IS NULL
+                                    THEN 'SEDANG CHECK IN'
+                                WHEN v.check_in_at IS NOT NULL AND v.check_out_at IS NOT NULL
+                                    THEN 'SELESAI'
+                            END as visit_status_label
+                        "),
+
+                         DB::raw("
+                        CASE
+                            WHEN v.photo IS NOT NULL AND v.photo != ''
+                                THEN CONCAT('" . asset('storage') . "/', v.photo)
+                            ELSE NULL
+                        END as photo_url
+                    "),
 
                 'v.check_out_at',
                 'v.latitude',
