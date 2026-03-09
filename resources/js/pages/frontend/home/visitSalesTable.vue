@@ -87,8 +87,8 @@
         <div class="loader-ring"></div>
         <span>Memuat data...</span>
       </div>
-
-      <table class="visits-table" v-else>
+     <div class="table-responsive" v-else>
+      <table class="visits-table">
         <thead>
           <tr>
             <th @click="setSort('visit_date')" class="sortable">
@@ -157,6 +157,7 @@
           </tr>
         </tbody>
       </table>
+      </div>
     </div>
 
     <!-- PAGINATION -->
