@@ -16,7 +16,7 @@ return new class extends Migration
             $table->unsignedBigInteger('employee_id');
 
             // ===== MODE =====
-            $table->enum('attendance_mode', ['OFFICE', 'FREE']);
+            $table->enum('attendance_mode', ['OFFICE', 'FREE', 'WFH', 'HYBRID']);
 
             // ===== ATTENDANCE CORE =====
             $table->enum('attendance_type', ['IN', 'OUT']);
