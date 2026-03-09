@@ -209,6 +209,7 @@ Route::prefix('dashboard')->group(function () {
     Route::get('/conversion-rate', [DashboardController::class, 'conversionRate']);
     Route::get('/visit-status',    [DashboardController::class, 'visitStatus']);
     Route::get('/recent-activity', [DashboardController::class, 'recentActivity']);
+    Route::get('/conversion-rate-customers', [DashboardController::class, 'conversionRateCustomers']);
 });
 // Route::get('dashboard/summary', [DashboardController::class, 'summary']);
 

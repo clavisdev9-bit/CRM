@@ -35,117 +35,101 @@ class Attendance extends Controller
         $this->MsUsers = $MsUsers;
     }
 
+            // cek user  udah absen apa belum hari ini
+            public function checkToday()
+                {
+                    $user = auth('api')->user();
 
-    public function checkToday()
-        {
-            $user = auth('api')->user();
+                    if (!$user) {
+                        return ApiResponse::error('Unauthenticated', 401);
+                    }
 
-            if (!$user) {
-                return ApiResponse::error('Unauthenticated', 401);
-            }
+                    $today = Carbon::today();
 
-            $today = Carbon::today();
+                    $records = Attendances::where('user_id', $user->id_user)
+                        ->whereDate('attendance_date', $today)
+                        ->get();
 
-            $records = Attendances::where('user_id', $user->id_user)
-                ->whereDate('attendance_date', $today)
-                ->get();
+                    if ($records->isEmpty()) {
+                        return ApiResponse::success([
+                            'has_attendance_today' => false,
+                            'status' => 'NONE',
+                            'check_in' => null,
+                            'check_out' => null
+                        ]);
+                    }
 
-            if ($records->isEmpty()) {
-                return ApiResponse::success([
-                    'has_attendance_today' => false,
-                    'status' => 'NONE',
-                    'check_in' => null,
-                    'check_out' => null
-                ]);
-            }
+                    $checkIn = $records->where('attendance_type', 'IN')->min('attendance_time');
+                    $checkOut = $records->where('attendance_type', 'OUT')->max('attendance_time');
 
-            $checkIn = $records->where('attendance_type', 'IN')->min('attendance_time');
-            $checkOut = $records->where('attendance_type', 'OUT')->max('attendance_time');
-
-            return ApiResponse::success([
-                'has_attendance_today' => true,
-                'check_in' => $checkIn,
-                'check_out' => $checkOut,
-                'status' => $checkOut ? 'COMPLETE' : 'IN_ONLY'
-            ]);
-        }
-
-
-        public function GetAttendanceById(AttendanceValidationIndex $request)
-        {
-            $validated = $request->validated();
-
-            $search      = $validated['search'] ?? null;
-            $perPage     = is_numeric($validated['per_page'] ?? null) ? $validated['per_page'] : 10;
-            $sortBy      = $validated['sort_by'] ?? 'attendance_date';
-            $sortDir     = $validated['sort_dir'] ?? 'desc';
-            $onlyDeleted = $validated['only_deleted'] ?? false;
-
-            //  JWT USER (INI YANG BENAR)
-            $user = auth('api')->user(); // atau auth('jwt')
-
-            if (!$user) {
-                return ApiResponse::error('Unauthenticated', 401);
-            }
-
-            $userId = $user->id_user;
-
-            // $query = $this->Attendances
-            //     ->with(['user', 'employee'])
-            //     ->where('user_id', $userId)
-            //     ->when($onlyDeleted, fn ($q) => $q->onlyTrashed())
-            //     ->when($search, function ($q) use ($search) {
-            //         $q->where(function ($sub) use ($search) {
-            //             $sub->where('location_name', 'ILIKE', "%{$search}%")
-            //                 ->orWhere('attendance_type', 'ILIKE', "%{$search}%")
-            //                 ->orWhere('attendance_datetime', 'ILIKE', "%{$search}%")
-            //                 ->orWhere('attendance_date', 'ILIKE', "%{$search}%")
-            //                 ->orWhere('attendance_time', 'ILIKE', "%{$search}%");
-            //         });
-            //     })
-            //     ->orderBy($sortBy, $sortDir);
-            $query = $this->Attendances
-    ->with(['user', 'employee'])
-    ->where('user_id', $userId)
-    ->when($onlyDeleted, fn ($q) => $q->onlyTrashed())
-    ->when($search, function ($q) use ($search) {
-        $q->where(function ($sub) use ($search) {
-            $sub->where('location_name', 'ILIKE', "%{$search}%")
-                ->orWhere('attendance_type', 'ILIKE', "%{$search}%")
-                ->orWhereRaw("attendance_date::text ILIKE ?", ["%{$search}%"])
-                ->orWhereRaw("attendance_time::text ILIKE ?", ["%{$search}%"]);
-        });
-    })
-    ->orderBy($sortBy, $sortDir)
-    ->orderBy('attendance_date', 'asc');
+                    return ApiResponse::success([
+                        'has_attendance_today' => true,
+                        'check_in' => $checkIn,
+                        'check_out' => $checkOut,
+                        'status' => $checkOut ? 'COMPLETE' : 'IN_ONLY'
+                    ]);
+                }
 
 
-            $results = $query->paginate($perPage);
-
-            return ApiResponse::paginate(
-                new AttendanceResourceCollection($results),
-                'Success'
-            );
-        }
-
-
-        private function detectDeviceTypeFromUserAgent(): string
+                // get user by id
+            public function GetAttendanceById(AttendanceValidationIndex $request)
             {
-                $agent = strtolower(request()->userAgent() ?? '');
+                $validated = $request->validated();
 
-                if (str_contains($agent, 'android')) {
-                    return 'ANDROID';
+                $search      = $validated['search'] ?? null;
+                $perPage     = is_numeric($validated['per_page'] ?? null) ? $validated['per_page'] : 10;
+                $sortBy      = $validated['sort_by'] ?? 'attendance_date';
+                $sortDir     = $validated['sort_dir'] ?? 'desc';
+                $onlyDeleted = $validated['only_deleted'] ?? false;
+
+                //  JWT USER (INI YANG BENAR)
+                $user = auth('api')->user(); // atau auth('jwt')
+
+                if (!$user) {
+                    return ApiResponse::error('Unauthenticated', 401);
                 }
 
-                if (
-                    str_contains($agent, 'iphone') ||
-                    str_contains($agent, 'ipad') ||
-                    str_contains($agent, 'ios')
-                ) {
-                    return 'IOS';
+                $userId = $user->id_user;
+
+                $query = $this->Attendances
+                ->with(['user', 'employee'])
+                ->where('user_id', $userId)
+                ->when($onlyDeleted, fn ($q) => $q->onlyTrashed())
+                ->when($search, function ($q) use ($search) {
+                    $q->where(function ($sub) use ($search) {
+                        $sub->where('location_name', 'ILIKE', "%{$search}%")
+                            ->orWhere('attendance_type', 'ILIKE', "%{$search}%")
+                            ->orWhereRaw("attendance_date::text ILIKE ?", ["%{$search}%"])
+                            ->orWhereRaw("attendance_time::text ILIKE ?", ["%{$search}%"]);
+                    });
+                })
+                ->orderBy($sortBy, $sortDir)
+                ->orderBy('attendance_date', 'asc');
+                    $results = $query->paginate($perPage);
+                    return ApiResponse::paginate(
+                        new AttendanceResourceCollection($results),
+                        'Success'
+                    );
                 }
-                return 'WEB';
-            }
+
+                // detect Device User
+                private function detectDeviceTypeFromUserAgent(): string
+                    {
+                        $agent = strtolower(request()->userAgent() ?? '');
+
+                        if (str_contains($agent, 'android')) {
+                            return 'ANDROID';
+                        }
+
+                        if (
+                            str_contains($agent, 'iphone') ||
+                            str_contains($agent, 'ipad') ||
+                            str_contains($agent, 'ios')
+                        ) {
+                            return 'IOS';
+                        }
+                        return 'WEB';
+                    }
 
 
             public function showAttendance(string $id)
@@ -233,32 +217,11 @@ class Attendance extends Controller
                     // Simpan file di folder 'attendance/photos'
                     $file->storeAs('attendance/photos', $photoName, 'public');
                 }
-
-                $accuracy = (float) $request->accuracy;
-                // $maxAccuracyAllowed = 20; // meter
-                // $maxAccuracyAllowed = 200; // meter (aman untuk web)
-                // $maxAccuracyAllowed = $deviceType === 'WEB' ? 300 : 20;
-
-//                 $maxAccuracyAllowed = match ($deviceType) {
-//     'WEB' => 300,
-//     'ANDROID', 'IOS' => 20,
-//     default => 200,
-// };
-
-
-
-                    // if ($accuracy > $maxAccuracyAllowed) {
-                    //     DB::rollBack();
-                    //     return ApiResponse::error(
-                    //         'Akurasi lokasi terlalu rendah, silakan ulangi absensi',
-                    //         422
-                    //     );
-                    // }
-
-                
-
+                    $accuracy = (float) $request->accuracy;
                     //  code untuk ambil attendance_mode dari tabel employee
-                    $employee = MsEmployee::find($user->id_user);
+                    // $employee = MsEmployee::find($user->id_user);
+                    //  BENAR — cari lewat kolom user_id
+                    $employee = MsEmployee::where('user_id', $user->id_user)->first();
                     if (!$employee) {
                         DB::rollBack();
                         return ApiResponse::error('Employee tidak ditemukan', 422);
@@ -279,11 +242,12 @@ class Attendance extends Controller
                         }
                     }
 
-                     
                         // ===== SAVE =====
                         $attendance = Attendances::create([
                                 'user_id'         => $user->id_user,
-                                'employee_id'     => $user->id_user,
+                                // 'employee_id'     => $user->id_user,
+                                'employee_id' => $employee->id_employee,
+
 
                                 //  INI SEKARANG AKAN MASUK DB
                                 'attendance_mode' => $attendanceMode,
@@ -355,10 +319,7 @@ class Attendance extends Controller
                 return $earthRadius * $c;
             }
 
-
-
-
-
+            //  khsusu office attendance
             public function storeAttendanceOffice(AttendanceValidationRequest $request)
             {
                 $user = auth('api')->user();

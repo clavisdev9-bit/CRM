@@ -173,6 +173,57 @@
         </div>
       </div>
 
+
+      <!-- CONVERSION CUSTOMERS (card baru) -->
+<div class="chart-card conversion-card">
+  <div class="chart-header">
+    <div>
+      <div class="chart-title">Deal Rate</div>
+      <div class="chart-sub">Customer → Deal</div>
+    </div>
+    <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:20px;background:rgba(105,108,255,0.15);color:#696cff;">
+      CUSTOMER
+    </span>
+  </div>
+  <div class="conversion-main">
+    <div class="conversion-circle">
+      <svg viewBox="0 0 100 100">
+        <circle cx="50" cy="50" r="40" fill="none" stroke="#f1f5f9" stroke-width="10"/>
+        <circle cx="50" cy="50" r="40" fill="none" stroke="#696cff" stroke-width="10"
+          stroke-linecap="round"
+          :stroke-dasharray="`${conversionCustomers.conversion_rate * 2.51} 251`"
+          stroke-dashoffset="62.75"
+          transform="rotate(-90 50 50)"
+          style="transition: stroke-dasharray 1s ease"
+        />
+      </svg>
+      <div class="circle-text">
+        <div class="circle-rate" style="color:#696cff">{{ conversionCustomers.conversion_rate }}%</div>
+        <div class="circle-label">Rate</div>
+      </div>
+    </div>
+  </div>
+  <div class="conversion-stats">
+    <div class="conv-stat">
+      <div class="conv-num">{{ conversionCustomers.total_customers }}</div>
+      <div class="conv-label">Total Customers</div>
+    </div>
+    <div class="conv-divider"></div>
+    <div class="conv-stat">
+      <div class="conv-num" style="color:#696cff">{{ conversionCustomers.total_deal }}</div>
+      <div class="conv-label">Berhasil Deal</div>
+    </div>
+    <div class="conv-divider"></div>
+    <div class="conv-stat">
+      <div class="conv-num" style="color:#ff3e1d">{{ conversionCustomers.total_not_deal }}</div>
+      <div class="conv-label">Belum Deal</div>
+    </div>
+  </div>
+  <div class="chart-body conversion-chart-body">
+    <canvas ref="conversionCustomersChartRef"></canvas>
+  </div>
+</div>
+
       <!-- RECENT ACTIVITY -->
       <div class="chart-card recent-card">
         <div class="chart-header">
@@ -225,6 +276,8 @@ const visitStatus    = ref({ planned: 0, ongoing: 0, done: 0, total: 0, lead_vis
 const topSales       = ref([])
 const conversion     = ref({ total_leads: 0, total_converted: 0, converted_this_month: 0, conversion_rate: 0, monthly_labels: [], monthly_converted: [] })
 const recentActivity = ref([])
+const conversionCustomersChartRef = ref(null)
+let conversionCustomersChartInstance = null
 
 // Chart instances
 const visitChartRef      = ref(null)
@@ -233,6 +286,7 @@ const conversionChartRef = ref(null)
 let visitChartInstance      = null
 let statusChartInstance     = null
 let conversionChartInstance = null
+
 
 const periods = [
   { label: 'Harian',   value: 'daily'   },
@@ -297,6 +351,8 @@ const statusLegends = computed(() => [
   { label: 'Done',     value: visitStatus.value.done,     color: '#71dd37' },
 ])
 
+
+
 // --- HELPERS ---
 const formatTime = (dt) => {
   if (!dt) return '-'
@@ -324,6 +380,7 @@ const fetchAll = async () => {
     fetchConversion(),
     fetchVisitStatus(),
     fetchRecentActivity(),
+       fetchConversionCustomers(),
   ])
   lastUpdated.value = new Date().toLocaleTimeString('id-ID')
 }
@@ -358,17 +415,16 @@ const fetchConversion = async () => {
   renderConversionChart()
 }
 
-// const fetchVisitStatus = async () => {
-//   const res = await axios.get('/api/dashboard/visit-status')
-//   visitStatus.value = res.data.data ?? {}
-//   await nextTick()
-//   renderStatusChart()
-// }
+const fetchConversionCustomers = async () => {
+  const res = await axios.get('/api/dashboard/conversion-rate-customers', {
+    params: { month: selectedMonth.value }
+  })
+  conversionCustomers.value = res.data.data ?? {}
+  await nextTick()
+  renderConversionCustomersChart()
+}
 
-// const fetchRecentActivity = async () => {
-//   const res = await axios.get('/api/dashboard/recent-activity')
-//   recentActivity.value = res.data.data ?? []
-// }
+
 const fetchVisitStatus = async () => {
   // Ambil date_from dan date_to dari selectedMonth
   const start = selectedMonth.value + '-01'
@@ -520,6 +576,48 @@ const renderConversionChart = () => {
           grid: { color: '#f1f5f9' },
           ticks: { color: '#9ca3af', font: { family: 'DM Sans', size: 10 }, stepSize: 1 }
         }
+      }
+    }
+  })
+}
+
+
+
+
+// Render chart baru
+const conversionCustomers = ref({
+  total_customers: 0, total_deal: 0, total_not_deal: 0,
+  conversion_rate: 0, monthly_labels: [], monthly_converted: []
+})
+
+const renderConversionCustomersChart = () => {
+  if (!conversionCustomersChartRef.value) return
+  const Chart = window.Chart
+  if (conversionCustomersChartInstance) conversionCustomersChartInstance.destroy()
+
+  conversionCustomersChartInstance = new Chart(conversionCustomersChartRef.value, {
+    type: 'line',
+    data: {
+      labels: conversionCustomers.value.monthly_labels ?? [],
+      datasets: [{
+        label: 'Deal',
+        data: conversionCustomers.value.monthly_converted ?? [],
+        borderColor: '#696cff',
+        backgroundColor: 'rgba(105,108,255,0.1)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.4,
+        pointBackgroundColor: '#696cff',
+        pointRadius: 4,
+      }]
+    },
+    options: {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { grid: { display: false }, ticks: { color: '#9ca3af', font: { size: 10 } } },
+        y: { grid: { color: '#f1f5f9' }, ticks: { color: '#9ca3af', font: { size: 10 }, stepSize: 1 } }
       }
     }
   })
@@ -804,6 +902,14 @@ onMounted(async () => {
 .empty-state { text-align: center; padding: 24px; color: #9ca3af; }
 .empty-state i { font-size: 28px; display: block; margin-bottom: 6px; }
 .empty-state p { margin: 0; font-size: 12px; }
+
+.row-3 {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr 1fr;
+  gap: 16px;
+}
+@media (max-width: 1400px) { .row-3 { grid-template-columns: 1fr 1fr; } }
+@media (max-width: 768px)  { .row-3 { grid-template-columns: 1fr; } }
 
 /* ANIMATIONS */
 @keyframes fadeSlideUp {
