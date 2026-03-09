@@ -676,8 +676,8 @@ const submitAttendance = async () => {
             </button>
           </div>
         </div>
-         </div>
-          </div>
+        </div>
+        </div>
         </div>
 
 

@@ -415,6 +415,7 @@ const fpConfig = {
   time_24hr: true,
   dateFormat: 'Y-m-d H:i',
   minuteIncrement: 5,
+  minDate: 'today',
   allowInput: true
 }
 
