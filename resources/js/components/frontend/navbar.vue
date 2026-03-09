@@ -51,7 +51,7 @@
 
            <li class="nav-item">
             <router-link class="nav-link fw-semibold" to="/dashboard/sales">
-             <i class="fa-solid fa-chart-column"></i> Dashboard
+             <i class="fa-solid fa-chart-column me-2"></i> Dashboard
             </router-link>
           </li>
      
@@ -116,6 +116,30 @@
               <i class="fa-solid fa-house me-2"></i>
               Home
             </router-link>
+
+          <router-link
+              class="mobile-link fw-semibold mb-2 d-flex align-items-center"
+              to="/maps/tracking/sales"
+            >
+              <i class="fa-solid fa-map-location me-2"></i>
+              Realtime Maps Activity Sales
+          </router-link>
+
+           <router-link
+              class="mobile-link fw-semibold mb-2 d-flex align-items-center"
+              to="/history/monitoring/sales"
+            >
+              <i class="fa-solid fa-indent me-2"></i> Sales visit history & monitoring
+          </router-link>
+
+
+          <router-link
+              class="mobile-link fw-semibold mb-2 d-flex align-items-center"
+              to="/dashboard/sales"
+            >
+             <i class="fa-solid fa-chart-column me-2"></i> Dashboard
+          </router-link>
+
       </div>
     </div>
   </transition>
