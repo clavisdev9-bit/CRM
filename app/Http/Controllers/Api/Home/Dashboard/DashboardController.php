@@ -10,6 +10,38 @@ use Carbon\Carbon;
 
 class DashboardController extends Controller
 {
+
+public function homeStats()
+{
+    $totalLeads = DB::table('leads')
+        ->whereNull('deleted_at')
+        ->count();
+
+    $totalCustomers = DB::table('customers')
+        ->whereNull('deleted_at')
+        ->count();
+
+    $visitsToday = DB::table('visits')
+        ->whereNull('deleted_at')
+        ->whereDate('visit_at', Carbon::today())
+        ->count();
+
+    $dealsClosed = DB::table('follow_ups')
+        ->whereNull('deleted_at')
+        ->where('result', 'DEAL')
+        ->count();
+
+    return ApiResponse::success([
+        'total_leads'     => $totalLeads,
+        'total_customers' => $totalCustomers,
+        'visits_today'    => $visitsToday,
+        'deals_closed'    => $dealsClosed,
+    ], 'Success');
+}
+
+
+
+
    /*
     |--------------------------------------------------------------------------
     | 1. SUMMARY CARDS

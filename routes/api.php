@@ -210,6 +210,8 @@ Route::prefix('dashboard')->group(function () {
     Route::get('/visit-status',    [DashboardController::class, 'visitStatus']);
     Route::get('/recent-activity', [DashboardController::class, 'recentActivity']);
     Route::get('/conversion-rate-customers', [DashboardController::class, 'conversionRateCustomers']);
+    Route::get('/home-stats', [DashboardController::class, 'homeStats']);
+
 });
 // Route::get('dashboard/summary', [DashboardController::class, 'summary']);
 

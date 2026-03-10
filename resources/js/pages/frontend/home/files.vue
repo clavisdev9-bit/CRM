@@ -86,16 +86,12 @@
 
 <script setup>
 import { onMounted, ref } from "vue";
+import axios from "axios";
 import FrontendLayouts from "../../../layouts/frontendLayouts.vue";
 
 const bannerImages = '/images/man-with-laptop-light.png';
 
-const stats = ref([
-  { label: 'Total Leads',     value: 1240, icon: 'bx bx-user-plus',    color: '#696cff', bg: '#eeedff' },
-  { label: 'Total Customers', value: 870,  icon: 'bx bx-group',         color: '#03c3ec', bg: '#e0f7fc' },
-  { label: 'Visits Today',    value: 56,   icon: 'bx bx-map-pin',        color: '#71dd37', bg: '#eafbdf' },
-  { label: 'Deals Closed',    value: 320,  icon: 'bx bx-trophy',         color: '#ff3e1d', bg: '#ffe8e5' },
-]);
+
 
 const features = ref([
   {
@@ -142,36 +138,59 @@ const features = ref([
   },
 ]);
 
+
+
+const stats = ref([
+  { label: 'Total Leads',     value: 0, icon: 'bx bx-user-plus', color: '#696cff', bg: '#eeedff' },
+  { label: 'Total Customers', value: 0, icon: 'bx bx-group',      color: '#03c3ec', bg: '#e0f7fc' },
+  { label: 'Visits Today',    value: 0, icon: 'bx bx-map-pin',    color: '#71dd37', bg: '#eafbdf' },
+  { label: 'Deals Closed',    value: 0, icon: 'bx bx-trophy',     color: '#ff3e1d', bg: '#ffe8e5' },
+]);
+
 // Animate counter
 const animateCounters = () => {
-  const counters = document.querySelectorAll('.counter');
+  const counters = document.querySelectorAll('.counter')
   counters.forEach(counter => {
-    const target = +counter.getAttribute('data-target');
-    const duration = 1500;
-    const step = target / (duration / 16);
-    let current = 0;
+    const target = +counter.getAttribute('data-target')
+    const duration = 1500
+    const step = target / (duration / 16)
+    let current = 0
 
     const update = () => {
-      current += step;
+      current += step
       if (current < target) {
-        counter.textContent = Math.floor(current).toLocaleString();
-        requestAnimationFrame(update);
+        counter.textContent = Math.floor(current).toLocaleString()
+        requestAnimationFrame(update)
       } else {
-        counter.textContent = target.toLocaleString();
+        counter.textContent = target.toLocaleString()
       }
-    };
-    update();
-  });
-};
+    }
+    update()
+  })
+}
 
-onMounted(() => {
+onMounted(async () => {
   if (window.Helpers?.initNavbarDropdowns) {
-    window.Helpers.initNavbarDropdowns();
+    window.Helpers.initNavbarDropdowns()
   }
 
-  // Delay sedikit agar DOM siap
-  setTimeout(animateCounters, 300);
-});
+  try {
+    const res = await axios.get('/api/dashboard/home-stats')
+    const data = res.data.data ?? {}
+
+    stats.value = [
+      { label: 'Total Leads',     value: data.total_leads     ?? 0, icon: 'bx bx-user-plus', color: '#696cff', bg: '#eeedff' },
+      { label: 'Total Customers', value: data.total_customers ?? 0, icon: 'bx bx-group',      color: '#03c3ec', bg: '#e0f7fc' },
+      { label: 'Visits Today',    value: data.visits_today    ?? 0, icon: 'bx bx-map-pin',    color: '#71dd37', bg: '#eafbdf' },
+      { label: 'Deals Closed',    value: data.deals_closed    ?? 0, icon: 'bx bx-trophy',     color: '#ff3e1d', bg: '#ffe8e5' },
+    ]
+  } catch (e) {
+    console.error('Failed to fetch home stats:', e)
+  }
+
+  // Delay agar DOM update dulu setelah data masuk
+  setTimeout(animateCounters, 300)
+})
 </script>
 
 <style scoped>
