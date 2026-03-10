@@ -11,6 +11,56 @@
 
         <div class="content-wrapper">
 
+                    <!-- code khusus Auto logout -->
+                   <Transition name="fade">
+                        <div v-if="showWarning"
+                            class="position-fixed top-0 start-0 w-100 h-100 d-flex align-items-center justify-content-center"
+                            style="backdrop-filter: blur(8px); background: rgba(0,0,0,0.5); z-index: 99999;">
+
+                            <div class="card border-0 shadow-lg overflow-hidden" style="width: 320px;">
+
+                                <!-- Header -->
+                                <div class="card-header text-white text-center py-4 border-0"
+                                    style="background: linear-gradient(to right, #ef4444, #f97316);">
+                                    <div class="fs-2 mb-1">⏱️</div>
+                                    <h5 class="fw-bold mb-0">Sesi Akan Berakhir</h5>
+                                    <small class="opacity-75">Anda tidak aktif terlalu lama</small>
+                                </div>
+
+                                <!-- Body -->
+                                <div class="card-body text-center px-4 py-4">
+                                    <p class="text-muted small mb-3">Anda akan otomatis logout dalam</p>
+
+                                    <!-- Countdown circle -->
+                                    <div class="position-relative d-inline-flex align-items-center justify-content-center mb-4">
+                                        <svg style="width: 80px; height: 80px; transform: rotate(-90deg);" viewBox="0 0 100 100">
+                                            <circle cx="50" cy="50" r="40" fill="none" stroke="#fee2e2" stroke-width="8"/>
+                                            <circle cx="50" cy="50" r="40" fill="none" stroke="#ef4444" stroke-width="8"
+                                                stroke-linecap="round"
+                                                :stroke-dasharray="`${warningCountdown * 25.13} 251.3`"
+                                                style="transition: stroke-dasharray 1s linear"/>
+                                        </svg>
+                                        <div class="position-absolute text-center">
+                                            <span class="fw-bold text-danger" style="font-size: 1.4rem;">{{ warningCountdown }}</span>
+                                            <div class="text-muted" style="font-size: 9px;">detik</div>
+                                        </div>
+                                    </div>
+
+                                    <!-- Button -->
+                                    <button @click="stayLoggedIn"
+                                        class="btn btn-primary w-100 fw-semibold">
+                                        ✋ Tetap Login
+                                    </button>
+
+                                    <p class="text-muted mt-3 mb-0" style="font-size: 10px;">
+                                        Gerakkan mouse untuk tetap login
+                                    </p>
+                                </div>
+
+                            </div>
+                        </div>
+                    </Transition>
+
           <div class="container-xxl flex-grow-1 container-p-y">
             <slot />
           </div>
@@ -23,6 +73,8 @@
 
     <div v-if="isMenuExpanded" class="layout-overlay layout-menu-toggle"></div>
 
+    
+
   </div>
 </template>
 
@@ -33,6 +85,17 @@ import { useMenuStore } from "@/stores/menuStore";
 import Navbar from "../components/backend/navbar.vue";
 import Sidebar from "../components/backend/sidebar.vue";
 import Footer from "../components/backend/footer.vue";
+
+
+// untuk oauto logout ketika sesi habis 
+import { computed } from 'vue'
+import { useAutoLogout } from '@/utils/useAutoLogout'
+import { exportsLoginStore } from '@/stores/loginStore'
+
+// state khusus logout outomatik ketika sesi habis
+const loginStore = exportsLoginStore()
+const isAuthenticated = computed(() => !!loginStore.token)
+const { showWarning, warningCountdown, stayLoggedIn } = useAutoLogout(60) 
 
 
 // 1. STATE MANAGEMENT
@@ -138,3 +201,10 @@ onMounted(() => {
     document.body.classList.add(initialThemeClass);
 });
 </script>
+
+
+
+<style scoped>
+.fade-enter-active, .fade-leave-active { transition: opacity 0.3s ease; }
+.fade-enter-from, .fade-leave-to { opacity: 0; }
+</style>
