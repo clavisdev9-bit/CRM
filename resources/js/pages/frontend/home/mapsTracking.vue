@@ -31,6 +31,18 @@
                 </option>
             </select>
             </div>
+
+
+            <!-- Filter Status -->
+            <div class="filter-group">
+              <label>Status</label>
+              <select v-model="selectedStatus" @change="renderMarkers">
+                <option value="">All Status</option>
+                <option value="BELUM_CHECK_IN">Planned</option>
+                <option value="SEDANG_CHECK_IN">On-Site</option>
+                <option value="SELESAI">Done</option>
+              </select>
+            </div>
         </div>
 
       
@@ -40,6 +52,12 @@
         <span class="brand-dot"></span>
         Live · Updated {{ lastUpdated }}
         </div>
+
+        <!-- Tambahkan di topbar-right, sebelum stat-pill -->
+        <button class="export-btn" @click="exportMap" :disabled="isExporting">
+          <i class="bx bx-download"></i>
+          <span>{{ isExporting ? 'Exporting...' : 'Export Map' }}</span>
+        </button>
 
 
 
@@ -271,14 +289,31 @@ const salesList = computed(() => {
 })
 
 // Update filteredVisits dengan tambahan filter sales
+// const filteredVisits = computed(() => {
+//   const q = search.value.toLowerCase()
+//   return visits.value.filter(v => {
+//     const matchSearch = v.sales_name?.toLowerCase().includes(q) ||
+//                         v.target_name?.toLowerCase().includes(q)
+//     const matchSales  = selectedSalesId.value === '' || 
+//                         v.sales_id == selectedSalesId.value
+//     return matchSearch && matchSales
+//   })
+// })
+
+
+// filter by status
+const selectedStatus = ref('')
+// Update filteredVisits — tambah filter status
 const filteredVisits = computed(() => {
   const q = search.value.toLowerCase()
   return visits.value.filter(v => {
     const matchSearch = v.sales_name?.toLowerCase().includes(q) ||
                         v.target_name?.toLowerCase().includes(q)
-    const matchSales  = selectedSalesId.value === '' || 
+    const matchSales  = selectedSalesId.value === '' ||
                         v.sales_id == selectedSalesId.value
-    return matchSearch && matchSales
+    const matchStatus = selectedStatus.value === '' ||
+                        v.visit_status_label === selectedStatus.value // 👈 tambahkan
+    return matchSearch && matchSales && matchStatus
   })
 })
 
@@ -377,19 +412,73 @@ const renderMarkers = () => {
     const lng = parseFloat(visit.longitude)
     const color = markerColor(visit.visit_status_label)
 
+    // const icon = L.divIcon({
+    //   className: '',
+    //   html: `
+    //     <div style="position:relative;width:42px;height:42px;">
+    //       <div style="width:42px;height:42px;border-radius:50%;border:3px solid ${color};overflow:hidden;background:white;box-shadow:0 4px 12px rgba(0,0,0,0.25);">
+    //         <img src="${visit.sales_photo_url}" style="width:100%;height:100%;object-fit:cover;" />
+    //       </div>
+    //       <div style="position:absolute;bottom:-5px;right:-2px;width:14px;height:14px;border-radius:50%;background:${color};border:2px solid white;"></div>
+    //     </div>
+    //   `,
+    //   iconSize: [42, 42],
+    //   iconAnchor: [21, 42],
+    // })
+
     const icon = L.divIcon({
-      className: '',
-      html: `
-        <div style="position:relative;width:42px;height:42px;">
-          <div style="width:42px;height:42px;border-radius:50%;border:3px solid ${color};overflow:hidden;background:white;box-shadow:0 4px 12px rgba(0,0,0,0.25);">
-            <img src="${visit.sales_photo_url}" style="width:100%;height:100%;object-fit:cover;" />
-          </div>
-          <div style="position:absolute;bottom:-5px;right:-2px;width:14px;height:14px;border-radius:50%;background:${color};border:2px solid white;"></div>
+  className: '',
+  html: `
+    <div style="position:relative;width:46px;height:46px;">
+      
+      <!-- Ring luar: warna type (LEAD=ungu, CUSTOMER=biru) -->
+      <div style="
+        width:46px;height:46px;
+        border-radius:50%;
+        background: ${visit.target_type === 'LEAD' ? '#696cff' : '#03c3ec'};
+        display:flex;align-items:center;justify-content:center;
+        box-shadow:0 4px 12px rgba(0,0,0,0.3);
+      ">
+        <!-- Ring tengah: warna status -->
+        <div style="
+          width:38px;height:38px;
+          border-radius:50%;
+          border:3px solid ${color};
+          overflow:hidden;
+          background:white;
+        ">
+          <img src="${visit.sales_photo_url}" style="width:100%;height:100%;object-fit:cover;" />
         </div>
-      `,
-      iconSize: [42, 42],
-      iconAnchor: [21, 42],
-    })
+      </div>
+
+      <!-- Dot status pojok kanan bawah -->
+      <div style="
+        position:absolute;bottom:-2px;right:-2px;
+        width:14px;height:14px;
+        border-radius:50%;
+        background:${color};
+        border:2px solid #0f1117;
+      "></div>
+
+      <!-- Badge type pojok kiri atas -->
+      <div style="
+        position:absolute;top:-4px;left:-4px;
+        background:${visit.target_type === 'LEAD' ? '#696cff' : '#03c3ec'};
+        color:white;
+        font-size:7px;
+        font-weight:700;
+        padding:2px 4px;
+        border-radius:4px;
+        border:1px solid #0f1117;
+        line-height:1;
+        white-space:nowrap;
+      ">${visit.target_type}</div>
+
+    </div>
+  `,
+  iconSize: [46, 46],
+  iconAnchor: [23, 46],
+})
 
     const marker = L.marker([lat, lng], { icon })
       .on('click', () => selectVisit(visit))
@@ -537,6 +626,58 @@ const stopPolling = () => {
   }
 }
 
+
+
+// export gamabr 
+const isExporting = ref(false)
+
+const exportMap = async () => {
+  isExporting.value = true
+
+  try {
+    // Load html2canvas kalau belum ada
+    if (!window.html2canvas) {
+      await new Promise((resolve) => {
+        const script = document.createElement('script')
+        script.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js'
+        script.onload = resolve
+        document.head.appendChild(script)
+      })
+    }
+
+    // Ambil elemen map container
+    const mapEl = document.querySelector('.map-container')
+
+    const canvas = await window.html2canvas(mapEl, {
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: '#0f1117',
+      scale: 2, // resolusi lebih tinggi
+      logging: false,
+    })
+
+    // Tambahkan watermark tanggal
+    const ctx = canvas.getContext('2d')
+    const text = `Live Field Tracker · ${dateFrom.value} s/d ${dateTo.value} · Updated ${lastUpdated.value}`
+    ctx.fillStyle = 'rgba(0,0,0,0.5)'
+    ctx.fillRect(0, canvas.height - 36, canvas.width, 36)
+    ctx.fillStyle = '#ffffff'
+    ctx.font = '13px monospace'
+    ctx.fillText(text, 16, canvas.height - 12)
+
+    // Download
+    const link = document.createElement('a')
+    link.download = `field-tracker-${dateFrom.value}.png`
+    link.href = canvas.toDataURL('image/png')
+    link.click()
+
+  } catch (e) {
+    console.error('Export failed:', e)
+    alert('Export gagal, coba lagi.')
+  } finally {
+    isExporting.value = false
+  }
+}
 
 
 </script>
@@ -979,6 +1120,30 @@ const stopPolling = () => {
   padding: 2px 7px;
   border-radius: 4px;
 }
+
+.export-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(113,221,55,0.15);
+  border: 1px solid rgba(113,221,55,0.3);
+  color: #71dd37;
+  border-radius: 8px;
+  padding: 5px 12px;
+  font-size: 12px;
+  font-family: 'DM Sans', sans-serif;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+.export-btn:hover {
+  background: rgba(113,221,55,0.25);
+}
+.export-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.export-btn i { font-size: 14px; }
 
 /* ANIMATIONS */
 @keyframes pulse {
