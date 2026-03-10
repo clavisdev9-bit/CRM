@@ -408,14 +408,14 @@ const submitFollowUp = async () => {
 
 
 
-
+const today = new Date();
 // code desain form leads 
 const fpConfig = {
   enableTime: true,
   time_24hr: true,
   dateFormat: 'Y-m-d H:i',
   minuteIncrement: 5,
-  minDate: 'today',
+  minDate: today,
   allowInput: true
 }
 
