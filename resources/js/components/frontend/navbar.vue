@@ -152,7 +152,7 @@
 </template>
 
 <script setup>
-import { ref } from "vue";
+import { ref, onMounted } from "vue";
 const avatarDefault = '/images/avatar.png'
 // const logo = '/images/logo.png'
 
