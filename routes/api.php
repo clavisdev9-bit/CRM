@@ -189,6 +189,10 @@ Route::post('/customers/{customer}/start', [Visits::class, 'startVisitCustomer']
 Route::post('/visits/customers/{visit}/check-in', [Visits::class, 'checkInVisitCustomer']);
 // Check Out (PAKAI VISIT ID)
 Route::post('/visits/customers/{visit}/check-out', [Visits::class, 'checkOutCustomer']);
+
+
+
+// Route::get('/dashboard/sales', [DashboardController::class, 'salesDashboard']);
 });
 
 
@@ -214,6 +218,7 @@ Route::prefix('dashboard')->group(function () {
     Route::get('/home-stats', [DashboardController::class, 'homeStats']);
     Route::get('/activity-visits',     [DashboardController::class, 'activityVisits']);
     Route::get('/activity-follow-ups', [DashboardController::class, 'activityFollowUps']);
+     Route::get('/sales',                     [DashboardController::class, 'salesDashboard']);
 });
 // Route::get('dashboard/summary', [DashboardController::class, 'summary']);
 

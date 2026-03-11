@@ -651,4 +651,157 @@ public function activityFollowUps(Request $request)
         'has_more' => ($page * $perPage) < $total,
     ], 'Success');
 }
+
+
+
+
+
+
+
+
+
+/*
+|--------------------------------------------------------------------------
+| SALES PERSONAL DASHBOARD
+|--------------------------------------------------------------------------
+*/
+public function salesDashboard(Request $request)
+{
+    $userId = $request->input('user_id');
+    $today  = Carbon::today();
+    $start  = Carbon::now()->startOfMonth();
+    $end    = Carbon::now()->endOfMonth();
+
+    // --- VISIT HARI INI ---
+    $visitsToday = DB::table('visits as v')
+        ->select([
+            'v.id', 'v.visit_code', 'v.visit_at',
+            'v.check_in_at', 'v.check_out_at',
+            DB::raw("COALESCE(l.company_name, c.company_name) as company_name"),
+            DB::raw("CASE WHEN v.customer_id IS NOT NULL THEN 'CUSTOMER' ELSE 'LEAD' END as target_type"),
+            DB::raw("
+                CASE
+                    WHEN v.check_in_at IS NULL THEN 'PLANNED'
+                    WHEN v.check_in_at IS NOT NULL AND v.check_out_at IS NULL THEN 'ONGOING'
+                    ELSE 'DONE'
+                END as visit_progress
+            "),
+        ])
+        ->leftJoin('leads as l', 'l.id', '=', 'v.lead_id')
+        ->leftJoin('customers as c', 'c.id', '=', 'v.customer_id')
+        ->whereNull('v.deleted_at')
+        ->where('v.sales_id', $userId)
+        ->whereDate('v.visit_at', $today)
+        ->orderBy('v.visit_at', 'asc')
+        ->get();
+
+    // --- FOLLOW UP PENDING & OVERDUE ---
+    $followUpsPending = DB::table('follow_ups as f')
+        ->select([
+            'f.id', 'f.follow_up_code', 'f.follow_up_at',
+            'f.follow_up_type', 'f.status', 'f.subject',
+            DB::raw("COALESCE(l.company_name, c.company_name) as company_name"),
+            DB::raw("CASE WHEN f.customer_id IS NOT NULL THEN 'CUSTOMER' ELSE 'LEAD' END as target_type"),
+            DB::raw("
+                CASE
+                    WHEN f.follow_up_at < NOW() AND f.status = 'PENDING' THEN true
+                    ELSE false
+                END as is_overdue
+            "),
+        ])
+        ->leftJoin('leads as l', 'l.id', '=', 'f.lead_id')
+        ->leftJoin('customers as c', 'c.id', '=', 'f.customer_id')
+        ->whereNull('f.deleted_at')
+        ->where('f.assigned_to', $userId)
+        ->where('f.status', 'PENDING')
+        ->orderByRaw('f.follow_up_at ASC')
+        ->limit(10)
+        ->get();
+
+    // --- RANKING BULAN INI ---
+    $rankings = DB::table('visits as v')
+        ->select([
+            'v.sales_id',
+            'u.fullname as sales_name',
+            'u.image as sales_photo',
+            DB::raw("COUNT(v.id) as total_visits"),
+            DB::raw("SUM(CASE WHEN v.check_out_at IS NOT NULL THEN 1 ELSE 0 END) as done"),
+            DB::raw("
+                CASE
+                    WHEN u.image IS NOT NULL AND u.image != ''
+                        THEN CONCAT('" . asset('storage/users') . "/', u.image)
+                    ELSE '" . asset('storage/users/default.png') . "'
+                END as sales_photo_url
+            "),
+        ])
+        ->leftJoin('ms_users as u', 'u.id_user', '=', 'v.sales_id')
+        ->whereNull('v.deleted_at')
+        ->whereBetween('v.visit_at', [$start, $end])
+        ->groupBy('v.sales_id', 'u.fullname', 'u.image')
+        ->orderBy('total_visits', 'desc')
+        ->get();
+
+    // Cari ranking user ini
+    $myRank = $rankings->search(fn($r) => $r->sales_id == $userId);
+    $myRank = $myRank !== false ? $myRank + 1 : '-';
+    $myStats = $rankings->firstWhere('sales_id', $userId);
+
+    // --- TARGET VS AKTUAL ---
+    // Asumsi target default 20 visit/bulan (bisa dari config/settings)
+    $target = 20;
+    $actual = $myStats->total_visits ?? 0;
+    $achievement = $target > 0 ? round(($actual / $target) * 100, 1) : 0;
+
+    // Visit per hari bulan ini (untuk mini chart)
+    $visitPerDay = DB::select("
+        SELECT
+            TO_CHAR(visit_at::date, 'DD') as day,
+            COUNT(*) as total
+        FROM visits
+        WHERE deleted_at IS NULL
+            AND sales_id = ?
+            AND visit_at BETWEEN ? AND ?
+        GROUP BY visit_at::date
+        ORDER BY visit_at::date ASC
+    ", [$userId, $start, $end]);
+
+
+    // --- TOTAL LEADS YANG DIKELOLA ---
+$totalLeads = DB::table('leads')
+    ->whereNull('deleted_at')
+    ->where(function ($q) use ($userId) {
+        $q->where('assigned_to', $userId)
+          ->orWhere('id_user', $userId);
+    })
+    ->count();
+
+// --- TOTAL CUSTOMERS YANG DIKELOLA ---
+$totalCustomers = DB::table('customers')
+    ->whereNull('deleted_at')
+    ->where(function ($q) use ($userId) {
+        $q->where('assigned_to', $userId)
+          ->orWhere('id_user', $userId);
+    })
+    ->count();
+
+    return ApiResponse::success([
+        'visits_today'     => $visitsToday,
+        'follow_ups'       => $followUpsPending,
+        'ranking' => [
+            'rank'         => $myRank,
+            'total_sales'  => $rankings->count(),
+            'total_visits' => $actual,
+            'done_visits'  => $myStats->done ?? 0,
+            'leaderboard'  => $rankings->take(5)->values(),
+        ],
+        'target' => [
+            'target'      => $target,
+            'actual'      => $actual,
+            'achievement' => $achievement,
+            'per_day'     => $visitPerDay,
+        ],
+        'total_leads'     => $totalLeads,  
+        'total_customers' => $totalCustomers,
+    ], 'Success');
+}
 }
