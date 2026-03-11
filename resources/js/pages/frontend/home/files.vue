@@ -9,7 +9,7 @@
             <div class="d-flex align-items-end row">
               <div class="col-sm-7">
                 <div class="card-body">
-                  <h4 class="card-title text-primary mb-2">Welcome to Clavis CRM! 🎉</h4>
+                  <h4 class="card-title text-primary mb-2">Welcome to CRM Application! 🎉</h4>
                   <p class="mb-4">
                     Manage customers, monitor sales activity, and increase your team's productivity with ease.
                     Start your CRM journey now!

@@ -73,7 +73,7 @@
 </template>
 
 <script setup>
-import { onMounted, onUnmounted } from 'vue';
+import {ref, onMounted, onUnmounted } from 'vue';
 import { useRoute, useRouter } from 'vue-router'; 
 import SidebarLink from './SidebarLink.vue'; 
 import { useLogoutStore } from "@/stores/logoutStore"
