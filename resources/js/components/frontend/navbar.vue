@@ -9,7 +9,7 @@
       <div class="navbar-brand app-brand demo py-0 me-4 d-none d-xl-flex">
         <a href="#" class="app-brand-link">
         <span class="app-brand-logo demo">
-          <img :src="logo" width="150" alt="">
+          <img :src="logoUrl" width="150" alt="">
         </span>
         </a>
       </div>
@@ -20,7 +20,7 @@
       </button>
 
       <div class="mobile-logo-center d-xl-none">
-        <img :src="logo" alt="Logo" class="mobile-logo-img" />
+        <img :src="logoUrl" alt="Logo" class="mobile-logo-img" />
       </div>
 
       <!-- ========================================================= -->
@@ -154,7 +154,18 @@
 <script setup>
 import { ref } from "vue";
 const avatarDefault = '/images/avatar.png'
-const logo = '/images/logo.png'
+// const logo = '/images/logo.png'
+
+const logoUrl = ref('/images/logo.png')
+
+onMounted(async () => {
+    try {
+        const res = await axios.get('/api/asset-version')
+        logoUrl.value = `/images/logo.png?v=${res.data.v}`
+    } catch {
+        logoUrl.value = `/images/logo.png?v=${Date.now()}`
+    }
+})
 
 const isOpen = ref(false);
 const toggleMenu = () => {
