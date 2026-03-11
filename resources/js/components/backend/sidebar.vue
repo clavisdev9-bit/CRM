@@ -4,7 +4,7 @@
     <div class="app-brand demo"> 
       <a href="" class="app-brand-link">
         <span class="app-brand-logo demo">
-           <img :src="logo"  width="150" alt="">
+           <img :src="logoUrl"  width="150" alt="">
         </span>
       </a>
     </div>
@@ -96,6 +96,16 @@ const menuStore = useMenuStore();
 //   });
 // });
 
+const logoUrl = ref('/images/logo.png')
+
+onMounted(async () => {
+    try {
+        const res = await axios.get('/api/asset-version')
+        logoUrl.value = `/images/logo.png?v=${res.data.v}`
+    } catch {
+        logoUrl.value = `/images/logo.png?v=${Date.now()}`
+    }
+})
 
 onMounted(async () => {
   if (auth.user && auth.token) {

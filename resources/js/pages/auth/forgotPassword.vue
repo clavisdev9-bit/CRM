@@ -10,7 +10,7 @@
             <div class="app-brand justify-content-center mb-4">
               <RouterLink to="/" class="app-brand-link gap-2">
                 <span class="app-brand-logo demo">
-                  <img :src="logo" width="150" alt="Logo" />
+                  <img :src="logoUrl" width="150" alt="Logo" />
                 </span>
               </RouterLink>
             </div>
@@ -77,8 +77,19 @@ import { RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/forgotPasswordStore'
 
 const logo = '/images/logo.png'
-const email = ref('')
 
+const logoUrl = ref('/images/logo.png')
+
+onMounted(async () => {
+    try {
+        const res = await axios.get('/api/asset-version')
+        logoUrl.value = `/images/logo.png?v=${res.data.v}`
+    } catch {
+        logoUrl.value = `/images/logo.png?v=${Date.now()}`
+    }
+})
+
+const email = ref('')
 const auth = useAuthStore()
 
 const handleForgotPassword = async () => {

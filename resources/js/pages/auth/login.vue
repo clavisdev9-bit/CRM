@@ -10,7 +10,7 @@
             <div class="app-brand justify-content-center mb-4">
               <a class="app-brand-link gap-2">
                 <span class="app-brand-logo demo">
-                  <img :src="logo" width="150" alt="Logo">
+                  <img :src="logoUrl" width="150" alt="Logo">
                 </span>
               </a>
             </div>
@@ -121,7 +121,7 @@
 </template>
 
 <script setup>
-import { ref } from "vue"
+import { ref, onMounted } from "vue"
 import { useRouter } from "vue-router"
 import { exportsLoginStore } from "@/stores/loginStore"
 
@@ -130,6 +130,18 @@ const loginStore = exportsLoginStore()
 const homeUrl = window.location.origin
 
 const logo = "/images/logo.png"
+
+const logoUrl = ref('/images/logo.png')
+
+onMounted(async () => {
+    try {
+        const res = await axios.get('/api/asset-version')
+        logoUrl.value = `/images/logo.png?v=${res.data.v}`
+    } catch {
+        logoUrl.value = `/images/logo.png?v=${Date.now()}`
+    }
+})
+
 const showPassword = ref(false)
 const remember = ref(
   !!localStorage.getItem("remember_email") // auto centang jika email tersimpan

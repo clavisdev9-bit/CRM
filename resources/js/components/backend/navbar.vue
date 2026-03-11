@@ -18,7 +18,7 @@
     <div class="app-brand demo d-flex d-xl-none me-auto ms-auto"> 
       <a href="" class="app-brand-link">
         <span class="app-brand-logo demo">
-          <img :src="logo" width="150" alt="">
+          <img :src="logoUrl" width="150" alt="">
         </span>
       </a>
     </div>
@@ -101,6 +101,17 @@ const auth = exportsLoginStore()
 // Avatar & Logo
 const avatarDefault = '/images/avatar.png'
 const logo = '/images/logo.png'
+
+const logoUrl = ref('/images/logo.png')
+
+onMounted(async () => {
+    try {
+        const res = await axios.get('/api/asset-version')
+        logoUrl.value = `/images/logo.png?v=${res.data.v}`
+    } catch {
+        logoUrl.value = `/images/logo.png?v=${Date.now()}`
+    }
+})
 
 // Fetch profile on mount if not loaded
 onMounted(() => {

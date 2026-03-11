@@ -157,7 +157,6 @@ const avatarDefault = '/images/avatar.png'
 // const logo = '/images/logo.png'
 
 const logoUrl = ref('/images/logo.png')
-
 onMounted(async () => {
     try {
         const res = await axios.get('/api/asset-version')
