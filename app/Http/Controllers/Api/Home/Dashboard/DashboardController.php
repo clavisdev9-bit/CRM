@@ -972,4 +972,216 @@ public function itDashboard()
         ],
     ], 'Success');
 }
+
+
+
+
+/*
+|--------------------------------------------------------------------------
+| MANAGER DASHBOARD
+|--------------------------------------------------------------------------
+*/
+public function managerDashboard(Request $request)
+{
+    $today = Carbon::today();
+    $start = Carbon::now()->startOfMonth();
+    $end   = Carbon::now()->endOfMonth();
+
+    // --- SUMMARY CARDS ---
+    $totalLeadsThisMonth = DB::table('leads')
+        ->whereNull('deleted_at')
+        ->whereBetween('created_at', [$start, $end])
+        ->count();
+
+    $totalCustomersThisMonth = DB::table('customers')
+        ->whereNull('deleted_at')
+        ->whereBetween('created_at', [$start, $end])
+        ->count();
+
+    $totalVisitsToday = DB::table('visits')
+        ->whereNull('deleted_at')
+        ->whereDate('visit_at', $today)
+        ->count();
+
+    $totalVisitsThisMonth = DB::table('visits')
+        ->whereNull('deleted_at')
+        ->whereBetween('visit_at', [$start, $end])
+        ->count();
+
+    $totalDealsThisMonth = DB::table('follow_ups')
+        ->whereNull('deleted_at')
+        ->where('result', 'DEAL')
+        ->whereBetween('completed_at', [$start, $end])
+        ->count();
+
+    $totalOverdue = DB::table('follow_ups')
+        ->whereNull('deleted_at')
+        ->where('status', 'PENDING')
+        ->where('follow_up_at', '<', Carbon::now())
+        ->count();
+
+    // --- PERFORMA TIM SALES ---
+    $salesPerformance = DB::table('visits as v')
+        ->select([
+            'u.id_user as sales_id',
+            'u.fullname as sales_name',
+            'u.image as sales_photo',
+            DB::raw("COUNT(v.id) as total_visits"),
+            DB::raw("SUM(CASE WHEN v.check_out_at IS NOT NULL THEN 1 ELSE 0 END) as done"),
+            DB::raw("SUM(CASE WHEN v.check_in_at IS NOT NULL AND v.check_out_at IS NULL THEN 1 ELSE 0 END) as ongoing"),
+            DB::raw("SUM(CASE WHEN v.check_in_at IS NULL THEN 1 ELSE 0 END) as planned"),
+            DB::raw("
+                CASE
+                    WHEN u.image IS NOT NULL AND u.image != ''
+                        THEN CONCAT('" . asset('storage/users') . "/', u.image)
+                    ELSE '" . asset('storage/users/default.png') . "'
+                END as sales_photo_url
+            "),
+        ])
+        ->leftJoin('ms_users as u', 'u.id_user', '=', 'v.sales_id')
+        ->whereNull('v.deleted_at')
+        ->whereBetween('v.visit_at', [$start, $end])
+        ->groupBy('u.id_user', 'u.fullname', 'u.image')
+        ->orderBy('total_visits', 'desc')
+        ->get();
+
+    // Tambahkan deal count per sales
+    $salesPerformance = $salesPerformance->map(function ($s) use ($start, $end) {
+        $s->deals = DB::table('follow_ups')
+            ->whereNull('deleted_at')
+            ->where('result', 'DEAL')
+            ->where('assigned_to', $s->sales_id)
+            ->whereBetween('completed_at', [$start, $end])
+            ->count();
+        return $s;
+    });
+
+    // --- FOLLOW UP OVERDUE SEMUA SALES ---
+    $overdueFollowUps = DB::table('follow_ups as f')
+        ->select([
+            'f.id', 'f.follow_up_code', 'f.follow_up_at',
+            'f.follow_up_type', 'f.status', 'f.subject',
+            'u.fullname as sales_name',
+            DB::raw("
+                CASE
+                    WHEN u.image IS NOT NULL AND u.image != ''
+                        THEN CONCAT('" . asset('storage/users') . "/', u.image)
+                    ELSE '" . asset('storage/users/default.png') . "'
+                END as sales_photo_url
+            "),
+            DB::raw("COALESCE(l.company_name, c.company_name) as company_name"),
+            DB::raw("CASE WHEN f.customer_id IS NOT NULL THEN 'CUSTOMER' ELSE 'LEAD' END as target_type"),
+        ])
+        ->leftJoin('leads as l', 'l.id', '=', 'f.lead_id')
+        ->leftJoin('customers as c', 'c.id', '=', 'f.customer_id')
+        ->leftJoin('ms_users as u', 'u.id_user', '=', 'f.assigned_to')
+        ->whereNull('f.deleted_at')
+        ->where('f.status', 'PENDING')
+        ->where('f.follow_up_at', '<', Carbon::now())
+        ->orderBy('f.follow_up_at', 'asc')
+        ->limit(10)
+        ->get();
+
+    // --- VISIT HARI INI SEMUA SALES ---
+    $visitsToday = DB::table('visits as v')
+        ->select([
+            'v.id', 'v.visit_code', 'v.visit_at',
+            'v.check_in_at', 'v.check_out_at',
+            'u.fullname as sales_name',
+            DB::raw("
+                CASE
+                    WHEN u.image IS NOT NULL AND u.image != ''
+                        THEN CONCAT('" . asset('storage/users') . "/', u.image)
+                    ELSE '" . asset('storage/users/default.png') . "'
+                END as sales_photo_url
+            "),
+            DB::raw("COALESCE(l.company_name, c.company_name) as company_name"),
+            DB::raw("CASE WHEN v.customer_id IS NOT NULL THEN 'CUSTOMER' ELSE 'LEAD' END as target_type"),
+            DB::raw("
+                CASE
+                    WHEN v.check_in_at IS NULL THEN 'PLANNED'
+                    WHEN v.check_in_at IS NOT NULL AND v.check_out_at IS NULL THEN 'ONGOING'
+                    ELSE 'DONE'
+                END as visit_progress
+            "),
+        ])
+        ->leftJoin('leads as l', 'l.id', '=', 'v.lead_id')
+        ->leftJoin('customers as c', 'c.id', '=', 'v.customer_id')
+        ->leftJoin('ms_users as u', 'u.id_user', '=', 'v.sales_id')
+        ->whereNull('v.deleted_at')
+        ->whereDate('v.visit_at', $today)
+        ->orderBy('v.visit_at', 'desc')
+        ->get();
+
+    // --- SALES BELUM ADA AKTIVITAS HARI INI ---
+    $activeSalesIds = DB::table('visits')
+        ->whereNull('deleted_at')
+        ->whereDate('visit_at', $today)
+        ->pluck('sales_id')
+        ->unique();
+
+  $inactiveSales = DB::table('ms_users as u')
+    ->select([
+        'u.id_user', 'u.fullname', 'u.image',
+        DB::raw("
+            CASE
+                WHEN u.image IS NOT NULL AND u.image != ''
+                    THEN CONCAT('" . asset('storage/users') . "/', u.image)
+                ELSE '" . asset('storage/users/default.png') . "'
+            END as photo_url
+        "),
+    ])
+    ->join('ms_role as r', 'r.id_role', '=', 'u.role_id')
+    ->whereNull('u.deleted_at')
+    ->where('u.is_active', true)
+    ->where('r.role', 'sales')
+    ->whereNotIn('u.id_user', $activeSalesIds->toArray())
+    ->get();
+
+    // --- CONVERSION RATE TIM ---
+    $totalLeads = DB::table('leads')
+        ->whereNull('deleted_at')
+        ->whereBetween('created_at', [$start, $end])
+        ->count();
+
+    $convertedLeads = DB::table('leads')
+        ->whereNull('deleted_at')
+        ->whereBetween('created_at', [$start, $end])
+        ->whereNotNull('converted_at')
+        ->count();
+
+    $totalCustomers = DB::table('customers')
+        ->whereNull('deleted_at')
+        ->whereBetween('created_at', [$start, $end])
+        ->count();
+
+    $conversionLeadRate = $totalLeads > 0
+        ? round(($convertedLeads / $totalLeads) * 100, 1) : 0;
+
+    $dealRate = $totalCustomers > 0
+        ? round(($totalDealsThisMonth / $totalCustomers) * 100, 1) : 0;
+
+    return ApiResponse::success([
+        'summary' => [
+            'leads_this_month'     => $totalLeadsThisMonth,
+            'customers_this_month' => $totalCustomersThisMonth,
+            'visits_today'         => $totalVisitsToday,
+            'visits_this_month'    => $totalVisitsThisMonth,
+            'deals_this_month'     => $totalDealsThisMonth,
+            'overdue_follow_ups'   => $totalOverdue,
+        ],
+        'sales_performance' => $salesPerformance,
+        'overdue_follow_ups' => $overdueFollowUps,
+        'visits_today'       => $visitsToday,
+        'inactive_sales'     => $inactiveSales,
+        'conversion' => [
+            'total_leads'      => $totalLeads,
+            'converted_leads'  => $convertedLeads,
+            'lead_rate'        => $conversionLeadRate,
+            'total_customers'  => $totalCustomers,
+            'deals'            => $totalDealsThisMonth,
+            'deal_rate'        => $dealRate,
+        ],
+    ], 'Success');
+}
 }

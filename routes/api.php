@@ -193,6 +193,7 @@ Route::post('/visits/customers/{visit}/check-out', [Visits::class, 'checkOutCust
 
 // Route::get('/dashboard/it', [DashboardController::class, 'itDashboard']);
 // Route::get('/dashboard/sales', [DashboardController::class, 'salesDashboard']);
+// Route::get('/dashboard/manager', [DashboardController::class, 'managerDashboard']);
 });
 
 
@@ -220,6 +221,7 @@ Route::prefix('dashboard')->group(function () {
     Route::get('/activity-follow-ups', [DashboardController::class, 'activityFollowUps']);
      Route::get('/sales', [DashboardController::class, 'salesDashboard']);
      Route::get('/it', [DashboardController::class, 'itDashboard']);
+     Route::get('/manager', [DashboardController::class, 'managerDashboard']);
 });
 // Route::get('dashboard/summary', [DashboardController::class, 'summary']);
 
