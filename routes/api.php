@@ -191,7 +191,7 @@ Route::post('/visits/customers/{visit}/check-in', [Visits::class, 'checkInVisitC
 Route::post('/visits/customers/{visit}/check-out', [Visits::class, 'checkOutCustomer']);
 
 
-
+// Route::get('/dashboard/it', [DashboardController::class, 'itDashboard']);
 // Route::get('/dashboard/sales', [DashboardController::class, 'salesDashboard']);
 });
 
@@ -218,7 +218,8 @@ Route::prefix('dashboard')->group(function () {
     Route::get('/home-stats', [DashboardController::class, 'homeStats']);
     Route::get('/activity-visits',     [DashboardController::class, 'activityVisits']);
     Route::get('/activity-follow-ups', [DashboardController::class, 'activityFollowUps']);
-     Route::get('/sales',                     [DashboardController::class, 'salesDashboard']);
+     Route::get('/sales', [DashboardController::class, 'salesDashboard']);
+     Route::get('/it', [DashboardController::class, 'itDashboard']);
 });
 // Route::get('dashboard/summary', [DashboardController::class, 'summary']);
 

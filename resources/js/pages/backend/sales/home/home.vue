@@ -27,9 +27,9 @@
                   <p class="text-muted mb-3" style="font-size:13px;">
                     Bulan ini kamu sudah menyelesaikan
                     <strong style="color:#696cff">{{ stats.target?.actual ?? 0 }}</strong> 
-                    <!-- dari
-                    <strong>{{ stats.target?.target ?? 20 }}</strong> target visit -->
-                    <strong></strong> visit 
+                    dari
+                    <strong>{{ stats.target?.target ?? 20 }}</strong> target visit
+                    <!-- <strong></strong> visit  -->
                     <span v-if="stats.ranking?.rank !== '-'">
                       dan berada di posisi
                       <strong style="color:#ffab00">#{{ stats.ranking?.rank }}</strong>

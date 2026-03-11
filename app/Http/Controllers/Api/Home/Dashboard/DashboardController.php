@@ -846,4 +846,130 @@ $totalCustomers = DB::table('customers')
         'total_customers' => $totalCustomers,
     ], 'Success');
 }
+
+
+
+
+/*
+|--------------------------------------------------------------------------
+| IT DASHBOARD
+|--------------------------------------------------------------------------
+*/
+public function itDashboard()
+{
+    // --- TOTAL USERS ---
+    $totalUsers = DB::table('ms_users')->whereNull('deleted_at')->count();
+    $activeUsers = DB::table('ms_users')->whereNull('deleted_at')->where('is_active', true)->count();
+    $inactiveUsers = $totalUsers - $activeUsers;
+
+    // --- USERS PER ROLE ---
+    $usersPerRole = DB::table('ms_users as u')
+        ->select([
+            'r.role',
+            DB::raw('COUNT(u.id_user) as total'),
+            DB::raw('SUM(CASE WHEN u.is_active = true THEN 1 ELSE 0 END) as active'),
+        ])
+        ->leftJoin('ms_role as r', 'r.id_role', '=', 'u.role_id')
+        ->whereNull('u.deleted_at')
+        ->groupBy('r.role')
+        ->orderBy('total', 'desc')
+        ->get();
+
+    // --- USERS TERBARU (registered bulan ini) ---
+    $newUsersThisMonth = DB::table('ms_users')
+        ->whereNull('deleted_at')
+        ->whereMonth('created_at', Carbon::now()->month)
+        ->whereYear('created_at', Carbon::now()->year)
+        ->count();
+
+    // --- REGISTRASI USER PER BULAN (6 bulan terakhir) ---
+    $userGrowth = DB::select("
+        SELECT
+            TO_CHAR(DATE_TRUNC('month', created_at), 'Mon YYYY') as label,
+            COUNT(*) as total
+        FROM ms_users
+        WHERE deleted_at IS NULL
+            AND created_at >= NOW() - INTERVAL '6 months'
+        GROUP BY DATE_TRUNC('month', created_at)
+        ORDER BY DATE_TRUNC('month', created_at) ASC
+    ");
+
+    // --- AKTIVITAS LOGIN (user yang updated_at hari ini = aktif hari ini) ---
+    $activeToday = DB::table('ms_users')
+        ->whereNull('deleted_at')
+        ->where('is_active', true)
+        ->whereDate('updated_at', Carbon::today())
+        ->count();
+
+    // Aktivitas per hari (7 hari terakhir) berdasarkan updated_at
+    $loginActivity = DB::select("
+        SELECT
+            TO_CHAR(updated_at::date, 'DD Mon') as label,
+            COUNT(*) as total
+        FROM ms_users
+        WHERE deleted_at IS NULL
+            AND is_active = true
+            AND updated_at >= NOW() - INTERVAL '7 days'
+        GROUP BY updated_at::date
+        ORDER BY updated_at::date ASC
+    ");
+
+    // --- EMPLOYEES ---
+    $totalEmployees = DB::table('employees')->whereNull('deleted_at')->count();
+    $employeePerMode = DB::table('employees')
+        ->select('attendance_mode', DB::raw('COUNT(*) as total'))
+        ->whereNull('deleted_at')
+        ->groupBy('attendance_mode')
+        ->get();
+
+    // --- STORAGE (PHP) ---
+    $storagePath = storage_path();
+    $totalSpace  = disk_total_space($storagePath);
+    $freeSpace   = disk_free_space($storagePath);
+    $usedSpace   = $totalSpace - $freeSpace;
+
+    $formatBytes = function ($bytes) {
+        if ($bytes >= 1073741824) return round($bytes / 1073741824, 2) . ' GB';
+        if ($bytes >= 1048576)    return round($bytes / 1048576, 2) . ' MB';
+        return round($bytes / 1024, 2) . ' KB';
+    };
+
+    $storageUsagePercent = $totalSpace > 0
+        ? round(($usedSpace / $totalSpace) * 100, 1)
+        : 0;
+
+    // --- DATABASE SIZE ---
+    $dbSize = DB::select("
+        SELECT pg_size_pretty(pg_database_size(current_database())) as size,
+               pg_database_size(current_database()) as size_bytes
+    ");
+
+    return ApiResponse::success([
+        'users' => [
+            'total'             => $totalUsers,
+            'active'            => $activeUsers,
+            'inactive'          => $inactiveUsers,
+            'new_this_month'    => $newUsersThisMonth,
+            'active_today'      => $activeToday,
+            'per_role'          => $usersPerRole,
+            'growth_labels'     => array_column($userGrowth, 'label'),
+            'growth_data'       => array_map('intval', array_column($userGrowth, 'total')),
+        ],
+        'login_activity' => [
+            'labels' => array_column($loginActivity, 'label'),
+            'data'   => array_map('intval', array_column($loginActivity, 'total')),
+        ],
+        'employees' => [
+            'total'    => $totalEmployees,
+            'per_mode' => $employeePerMode,
+        ],
+        'storage' => [
+            'total'        => $formatBytes($totalSpace),
+            'used'         => $formatBytes($usedSpace),
+            'free'         => $formatBytes($freeSpace),
+            'used_percent' => $storageUsagePercent,
+            'db_size'      => $dbSize[0]->size ?? '-',
+        ],
+    ], 'Success');
+}
 }
