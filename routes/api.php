@@ -223,7 +223,13 @@ Route::prefix('dashboard')->group(function () {
      Route::get('/it', [DashboardController::class, 'itDashboard']);
      Route::get('/manager', [DashboardController::class, 'managerDashboard']);
 });
-// Route::get('dashboard/summary', [DashboardController::class, 'summary']);
+
+Route::get('/asset-version', function () {
+    $file = public_path('images/logo.png');
+    return response()->json([
+        'v' => file_exists($file) ? filemtime($file) : time()
+    ]);
+});
 
 
 
