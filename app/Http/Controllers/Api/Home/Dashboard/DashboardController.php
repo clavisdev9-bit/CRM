@@ -696,27 +696,69 @@ public function salesDashboard(Request $request)
         ->get();
 
     // --- FOLLOW UP PENDING & OVERDUE ---
+    // $followUpsPending = DB::table('follow_ups as f')
+    //     ->select([
+    //         'f.id', 'f.follow_up_code', 'f.follow_up_at',
+    //         'f.follow_up_type', 'f.status', 'f.subject',
+    //         DB::raw("COALESCE(l.company_name, c.company_name) as company_name"),
+    //         DB::raw("CASE WHEN f.customer_id IS NOT NULL THEN 'CUSTOMER' ELSE 'LEAD' END as target_type"),
+    //         DB::raw("
+    //             CASE
+    //                 WHEN f.follow_up_at < NOW() AND f.status = 'PENDING' THEN true
+    //                 ELSE false
+    //             END as is_overdue
+    //         "),
+    //     ])
+    //     ->leftJoin('leads as l', 'l.id', '=', 'f.lead_id')
+    //     ->leftJoin('customers as c', 'c.id', '=', 'f.customer_id')
+    //     ->whereNull('f.deleted_at')
+    //     ->where('f.assigned_to', $userId)
+    //     ->where('f.status', 'PENDING')
+    //     ->orderByRaw('f.follow_up_at ASC')
+    //     ->limit(10)
+    //     ->get();
     $followUpsPending = DB::table('follow_ups as f')
-        ->select([
-            'f.id', 'f.follow_up_code', 'f.follow_up_at',
-            'f.follow_up_type', 'f.status', 'f.subject',
-            DB::raw("COALESCE(l.company_name, c.company_name) as company_name"),
-            DB::raw("CASE WHEN f.customer_id IS NOT NULL THEN 'CUSTOMER' ELSE 'LEAD' END as target_type"),
-            DB::raw("
-                CASE
-                    WHEN f.follow_up_at < NOW() AND f.status = 'PENDING' THEN true
-                    ELSE false
-                END as is_overdue
-            "),
-        ])
-        ->leftJoin('leads as l', 'l.id', '=', 'f.lead_id')
-        ->leftJoin('customers as c', 'c.id', '=', 'f.customer_id')
-        ->whereNull('f.deleted_at')
-        ->where('f.assigned_to', $userId)
-        ->where('f.status', 'PENDING')
-        ->orderByRaw('f.follow_up_at ASC')
-        ->limit(10)
-        ->get();
+    ->select([
+        'f.id', 'f.follow_up_code', 'f.follow_up_at',
+        'f.follow_up_type', 'f.status', 'f.subject',
+        DB::raw("COALESCE(l.company_name, c.company_name) as company_name"),
+        DB::raw("CASE WHEN f.customer_id IS NOT NULL THEN 'CUSTOMER' ELSE 'LEAD' END as target_type"),
+        DB::raw("
+            CASE
+                WHEN f.follow_up_at < NOW() AND f.status = 'PENDING' THEN true
+                ELSE false
+            END as is_overdue
+        "),
+    ])
+    ->leftJoin('leads as l', 'l.id', '=', 'f.lead_id')
+    ->leftJoin('customers as c', 'c.id', '=', 'f.customer_id')
+    ->leftJoin('ms_users as u', 'u.id_user', '=', 'f.assigned_to')
+    ->whereNull('f.deleted_at')
+    ->where('f.status', 'PENDING')
+    ->where(function ($q) use ($userId) {
+        $q->where('f.assigned_to', $userId)           // assigned langsung ke dia
+          ->orWhere(function ($q2) use ($userId) {
+              // follow up lead yang assigned_to null, tapi lead-nya milik dia
+              $q2->whereNull('f.assigned_to')
+                 ->whereNotNull('f.lead_id')
+                 ->where(function ($q3) use ($userId) {
+                     $q3->where('l.assigned_to', $userId)
+                        ->orWhere('l.id_user', $userId);
+                 });
+          })
+          ->orWhere(function ($q2) use ($userId) {
+              // follow up customer yang assigned_to null, tapi customer-nya milik dia
+              $q2->whereNull('f.assigned_to')
+                 ->whereNotNull('f.customer_id')
+                 ->where(function ($q3) use ($userId) {
+                     $q3->where('c.assigned_to', $userId)
+                        ->orWhere('c.id_user', $userId);
+                 });
+          });
+    })
+    ->orderByRaw('f.follow_up_at ASC')
+    ->limit(10)
+    ->get();
 
     // --- RANKING BULAN INI ---
     $rankings = DB::table('visits as v')
