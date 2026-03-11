@@ -201,6 +201,7 @@ Route::get('/data-visits-leads-map', [Visits::class, 'getVisitTargetMap'])->name
 Route::get('/data-visits-all-data', [Visits::class, 'getVisitAllData'])->name('api.data.visits.all');
 
 
+
 // Dashboard
 Route::prefix('dashboard')->group(function () {
     Route::get('/summary',         [DashboardController::class, 'summary']);
@@ -211,7 +212,8 @@ Route::prefix('dashboard')->group(function () {
     Route::get('/recent-activity', [DashboardController::class, 'recentActivity']);
     Route::get('/conversion-rate-customers', [DashboardController::class, 'conversionRateCustomers']);
     Route::get('/home-stats', [DashboardController::class, 'homeStats']);
-
+    Route::get('/activity-visits',     [DashboardController::class, 'activityVisits']);
+    Route::get('/activity-follow-ups', [DashboardController::class, 'activityFollowUps']);
 });
 // Route::get('dashboard/summary', [DashboardController::class, 'summary']);
 

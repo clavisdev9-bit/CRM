@@ -38,7 +38,7 @@
 
           <li class="nav-item">
             <router-link class="nav-link fw-semibold" to="/maps/tracking/sales">
-              <i class="fa-solid fa-map-location me-2"></i> Realtime Tracking Maps Activity Sales
+              <i class="fa-solid fa-map-location me-2"></i> Realtime Maps Activity Sales
             </router-link>
           </li>
 
@@ -52,6 +52,12 @@
            <li class="nav-item">
             <router-link class="nav-link fw-semibold" to="/dashboard/sales">
              <i class="fa-solid fa-chart-column me-2"></i> Dashboard
+            </router-link>
+          </li>
+
+          <li class="nav-item">
+            <router-link class="nav-link fw-semibold" to="/dashboard/activity/feed">
+            <i class="bx bx-pulse"></i> Activity Feed
             </router-link>
           </li>
      

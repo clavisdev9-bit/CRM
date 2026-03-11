@@ -565,6 +565,20 @@ watch(() => form.status, (newStatus) => {
     form.potential_order_detail = ''
   }
 })
+
+
+// Label dinamis berdasarkan status yang dipilih
+const complaintLabel = computed(() => {
+  return form.status === 'at_risk'
+    ? 'Problem from Customer / Complaint Detail'
+    : 'Complaint Detail'
+})
+
+const potentialOrderLabel = computed(() => {
+  return form.status === 'at_risk'
+    ? 'Insight / Solution to Win Back Customer'
+    : 'Potential Order Detail'
+})
 </script>
 
 
@@ -806,13 +820,7 @@ watch(() => form.status, (newStatus) => {
                     </td>
                     </td>
                   </tr>
-                
                 </tbody>
-            
-
-                
-            
-              
               </table>
             </div>
           </div>
@@ -1094,71 +1102,14 @@ watch(() => form.status, (newStatus) => {
             </div>
           </div>
 
-          <!-- 3. Complaint -->
-          <!-- <div class="col-12">
-            <div class="border rounded p-3">
-              <div class="form-check form-switch mb-2">
-                <input
-                  class="form-check-input"
-                  type="checkbox"
-                  id="hasComplaint"
-                  v-model="form.has_complaint"
-                >
-                <label class="form-check-label fw-bold" for="hasComplaint">
-                  <i class="fa-solid fa-triangle-exclamation text-danger me-1"></i> Any Complaint?
-                </label>
-              </div>
-              <div v-if="form.has_complaint">
-                <textarea
-                  class="form-control"
-                  v-model="form.complaint_detail"
-                  rows="2"
-                  placeholder="Describe the complaint..."
-                  :class="{ 'is-invalid': errors?.complaint_detail }"
-                ></textarea>
-                <div v-if="errors?.complaint_detail" class="invalid-feedback d-block">
-                  {{ errors.complaint_detail[0] }}
-                </div>
-              </div>
-            </div>
-          </div> -->
-
-          <!-- 4. Potential Order -->
-          <!-- <div class="col-12">
-            <div class="border rounded p-3">
-              <div class="form-check form-switch mb-2">
-                <input
-                  class="form-check-input"
-                  type="checkbox"
-                  id="hasPotentialOrder"
-                  v-model="form.has_potential_order"
-                >
-                <label class="form-check-label fw-bold" for="hasPotentialOrder">
-                  <i class="fa-solid fa-sack-dollar text-success me-1"></i> Potential Order / Upsell?
-                </label>
-              </div>
-              <div v-if="form.has_potential_order">
-                <textarea
-                  class="form-control"
-                  v-model="form.potential_order_detail"
-                  rows="2"
-                  placeholder="Describe the potential order..."
-                  :class="{ 'is-invalid': errors?.potential_order_detail }"
-                ></textarea>
-                <div v-if="errors?.potential_order_detail" class="invalid-feedback d-block">
-                  {{ errors.potential_order_detail[0] }}
-                </div>
-              </div>
-            </div>
-          </div> -->
-
+       
           <!-- 3. Complaint -->
           <div class="col-12" v-if="form.has_complaint">
             <div class="border border-danger rounded p-3">
-              <label class="fw-bold mb-2">
-                <i class="fa-solid fa-triangle-exclamation text-danger me-1"></i> Complaint Detail
-                <small class="text-danger">**</small>
-              </label>
+               <label class="fw-bold mb-2">
+                  <i class="fa-solid fa-triangle-exclamation text-danger me-1"></i>
+                  {{ complaintLabel }} <small class="text-danger">**</small>
+                </label>
               <textarea
                 class="form-control"
                 v-model="form.complaint_detail"
@@ -1176,8 +1127,8 @@ watch(() => form.status, (newStatus) => {
             <div class="col-12" v-if="form.has_potential_order">
               <div class="border border-success rounded p-3">
                 <label class="fw-bold mb-2">
-                  <i class="fa-solid fa-sack-dollar text-success me-1"></i> Potential Order Detail
-                  <small class="text-danger">**</small>
+                  <i class="fa-solid fa-sack-dollar text-success me-1"></i>
+                  {{ potentialOrderLabel }} <small class="text-danger">**</small>
                 </label>
                 <textarea
                   class="form-control"

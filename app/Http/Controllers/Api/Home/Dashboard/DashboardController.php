@@ -512,4 +512,143 @@ public function conversionRateCustomers(Request $request)
         'monthly_converted' => array_map('intval', array_column($monthlyData, 'deal')),
     ], 'Success');
 }
+
+
+
+
+
+/*
+|--------------------------------------------------------------------------
+| 7. ACTIVITY FEED - VISITS
+|--------------------------------------------------------------------------
+*/
+public function activityVisits(Request $request)
+{
+    $month   = $request->input('month', Carbon::now()->format('Y-m'));
+    $page    = $request->input('page', 1);
+    $perPage = 10;
+
+    try {
+        $start = Carbon::createFromFormat('Y-m', $month)->startOfMonth();
+        $end   = Carbon::createFromFormat('Y-m', $month)->endOfMonth();
+    } catch (\Exception $e) {
+        $start = Carbon::now()->startOfMonth();
+        $end   = Carbon::now()->endOfMonth();
+    }
+
+    $total = DB::table('visits as v')
+        ->whereNull('v.deleted_at')
+        ->whereBetween('v.visit_at', [$start, $end])
+        ->count();
+
+    $data = DB::table('visits as v')
+        ->select([
+            'v.id',
+            'v.visit_code',
+            'v.visit_at',
+            'v.check_in_at',
+            'v.check_out_at',
+            'v.visit_result',
+            'u.fullname as sales_name',
+            'u.image as sales_photo',
+            DB::raw("COALESCE(l.company_name, c.company_name) as company_name"),
+            DB::raw("CASE WHEN v.customer_id IS NOT NULL THEN 'CUSTOMER' ELSE 'LEAD' END as target_type"),
+            DB::raw("
+                CASE
+                    WHEN v.check_in_at IS NULL THEN 'PLANNED'
+                    WHEN v.check_in_at IS NOT NULL AND v.check_out_at IS NULL THEN 'ONGOING'
+                    ELSE 'DONE'
+                END as visit_progress
+            "),
+            DB::raw("
+                CASE
+                    WHEN u.image IS NOT NULL AND u.image != ''
+                        THEN CONCAT('" . asset('storage/users') . "/', u.image)
+                    ELSE '" . asset('storage/users/default.png') . "'
+                END as sales_photo_url
+            "),
+        ])
+        ->leftJoin('leads as l', 'l.id', '=', 'v.lead_id')
+        ->leftJoin('customers as c', 'c.id', '=', 'v.customer_id')
+        ->leftJoin('ms_users as u', 'u.id_user', '=', 'v.sales_id')
+        ->whereNull('v.deleted_at')
+        ->whereBetween('v.visit_at', [$start, $end])
+        ->orderBy('v.visit_at', 'desc')
+        ->offset(($page - 1) * $perPage)
+        ->limit($perPage)
+        ->get();
+
+    return ApiResponse::success([
+        'data'        => $data,
+        'total'       => $total,
+        'page'        => (int) $page,
+        'per_page'    => $perPage,
+        'has_more'    => ($page * $perPage) < $total,
+    ], 'Success');
+}
+
+/*
+|--------------------------------------------------------------------------
+| 8. ACTIVITY FEED - FOLLOW UPS
+|--------------------------------------------------------------------------
+*/
+public function activityFollowUps(Request $request)
+{
+    $month   = $request->input('month', Carbon::now()->format('Y-m'));
+    $page    = $request->input('page', 1);
+    $perPage = 10;
+
+    try {
+        $start = Carbon::createFromFormat('Y-m', $month)->startOfMonth();
+        $end   = Carbon::createFromFormat('Y-m', $month)->endOfMonth();
+    } catch (\Exception $e) {
+        $start = Carbon::now()->startOfMonth();
+        $end   = Carbon::now()->endOfMonth();
+    }
+
+    $total = DB::table('follow_ups as f')
+        ->whereNull('f.deleted_at')
+        ->whereBetween('f.follow_up_at', [$start, $end])
+        ->count();
+
+    $data = DB::table('follow_ups as f')
+        ->select([
+            'f.id',
+            'f.follow_up_code',
+            'f.follow_up_at',
+            'f.follow_up_type',
+            'f.status',
+            'f.result',
+            'f.subject',
+            'f.completed_at',
+            'u.fullname as sales_name',
+            'u.image as sales_photo',
+            DB::raw("COALESCE(l.company_name, c.company_name) as company_name"),
+            DB::raw("CASE WHEN f.customer_id IS NOT NULL THEN 'CUSTOMER' ELSE 'LEAD' END as target_type"),
+            DB::raw("
+                CASE
+                    WHEN u.image IS NOT NULL AND u.image != ''
+                        THEN CONCAT('" . asset('storage/users') . "/', u.image)
+                    ELSE '" . asset('storage/users/default.png') . "'
+                END as sales_photo_url
+            "),
+        ])
+        ->leftJoin('leads as l', 'l.id', '=', 'f.lead_id')
+        ->leftJoin('customers as c', 'c.id', '=', 'f.customer_id')
+        ->leftJoin('ms_users as u', 'u.id_user', '=', 'f.assigned_to')
+        ->whereNull('f.deleted_at')
+        ->whereBetween('f.follow_up_at', [$start, $end])
+        ->orderBy('f.follow_up_at', 'desc')
+        ->offset(($page - 1) * $perPage)
+        ->limit($perPage)
+        ->get();
+
+    return ApiResponse::success([
+        'data'     => $data,
+        'total'    => $total,
+        'page'     => (int) $page,
+        'per_page' => $perPage,
+        'has_more' => ($page * $perPage) < $total,
+    ], 'Success');
+}
 }
