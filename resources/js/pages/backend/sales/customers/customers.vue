@@ -392,34 +392,8 @@ const handleImportExcel = () => {
          <div class="card mb-4">
       <div class="card-header d-flex gap-2 flex-wrap align-items-center">
     
-    <!-- Tombol kiri -->
-    <div class="d-flex gap-2 flex-wrap">
- 
-     <div class="dropdown d-inline-block me-2">
-            <button
-                class="btn btn-primary btn-sm dropdown-toggle"
-                type="button"
-                data-bs-toggle="dropdown"
-                aria-expanded="false"
-            >
-                <i class="fa-solid fa-upload"></i> Export
-            </button>
-
-            <ul class="dropdown-menu dropdown-menu-end">
-                <li>
-                <button class="dropdown-item" @click="openExportModalPdf">
-                    <i class="fas fa-file-pdf"></i> Export PDF
-                </button>
-                </li>
-                <li>
-                <button class="dropdown-item" @click="openExportModal">
-                    <i class="fas fa-file-excel"></i> Export Excel
-                </button>
-                </li>
-               
-             </ul>
-           </div>
-
+         <!-- Tombol kiri -->
+          <div class="d-flex gap-2 flex-wrap">
             <div class="dropdown d-inline-block">
                 <button
                     class="btn btn-primary btn-sm dropdown-toggle"
