@@ -553,6 +553,13 @@ const errors = computed(() => dataLeadsVisit.errors)
                     <option>100</option>
                     </select>
                 </div>
+
+                 <router-link
+                  to="/sales-visit"
+                  class="btn btn-secondary"
+                >
+                  <i class="fa-solid fa-arrow-left"></i> Back
+                </router-link>
                 </div>
 
 
@@ -567,13 +574,13 @@ const errors = computed(() => dataLeadsVisit.errors)
                 <!-- Urutan -->
                 <div class="d-flex gap-2 align-items-center">
                     <label class="mb-0 fw-semibold">Sort:</label>
-                    <select class="form-select w-auto"  v-model="dataLeadsVisit.sort.column" @change="dataLeadsVisit.changeSorting">
-                    <option value="company_name">By Company Name</option>
-                    <option value="created_at">By Created Date</option>
+                    <select class="form-select w-auto" v-model="dataLeadsVisit.sort.column" @change="dataLeadsVisit.changeSorting">
+                    <option value="company_name">Name</option>
+                    <option value="created_at">Created</option>
                     </select>
                     <select class="form-select w-auto" v-model="dataLeadsVisit.sort.direction" @change="dataLeadsVisit.changeSorting">
-                    <option value="asc">Ascending</option>
-                    <option value="desc">Descending</option>
+                    <option value="asc">ASC</option>
+                    <option value="desc">DESC</option>
                     </select>
                 </div>
                 </div>

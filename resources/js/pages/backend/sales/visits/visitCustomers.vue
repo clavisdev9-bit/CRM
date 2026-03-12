@@ -672,12 +672,12 @@ const potentialOrderLabel = computed(() => {
                 <div class="d-flex gap-2 align-items-center">
                     <label class="mb-0 fw-semibold">Sort:</label>
                     <select class="form-select w-auto" v-model="dataCustomerVisit.sort.column" @change="dataCustomerVisit.changeSorting">
-                    <option value="company_name">By Name</option>
-                    <option value="created_at">By Created Date</option>
+                    <option value="company_name">Name</option>
+                    <option value="created_at">Created</option>
                     </select>
                     <select class="form-select w-auto" v-model="dataCustomerVisit.sort.direction" @change="dataCustomerVisit.changeSorting">
-                    <option value="asc">Ascending</option>
-                    <option value="desc">Descending</option>
+                    <option value="asc">ASC</option>
+                    <option value="desc">DESC</option>
                     </select>
                 </div>
                 </div>

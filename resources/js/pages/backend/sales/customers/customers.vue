@@ -489,7 +489,7 @@ const handleImportExcel = () => {
 
 
               <!-- Kanan -->
-             <div class="d-flex flex-column gap-3 align-items-end" style="min-width:300px;">
+             <div class="d-flex flex-column gap-3 align-items-end" style="min-width:200px;">
                 <!-- Pencarian -->
                 <div class="input-group">
                     <input type="text" class="form-control" placeholder="Searching...." v-model="dataCustomers.searchCustomers">
@@ -500,15 +500,15 @@ const handleImportExcel = () => {
                 <div class="d-flex gap-2 align-items-center">
                     <label class="mb-0 fw-semibold">Sort:</label>
                     <select class="form-select w-auto" v-model="dataCustomers.sort.column" @change="dataCustomers.changeSorting">
-                    <option value="company_name">By Company Name</option>
-                    <option value="created_at">By Created Date</option>
+                    <option value="company_name">Name</option>
+                    <option value="created_at">Created</option>
                     </select>
                     <select class="form-select w-auto" v-model="dataCustomers.sort.direction" @change="dataCustomers.changeSorting">
-                    <option value="asc">Ascending</option>
-                    <option value="desc">Descending</option>
+                    <option value="asc">Asc</option>
+                    <option value="desc">Desc</option>
                     </select>
                 </div>
-                </div>
+              </div>
             </div>
           </div>
 

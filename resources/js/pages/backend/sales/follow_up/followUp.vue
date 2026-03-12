@@ -982,14 +982,14 @@ const submitDirectFollowUpCustomer = async () => {
                     <select class="form-select w-auto" 
                      v-model="followUpStore.sort.column"
                       @change="followUpStore.changeSorting()">
-                    <option value="company_name">By Company Name</option>
-                    <option value="created_at">By Created Date</option>
+                    <option value="company_name">Name</option>
+                    <option value="created_at">Created</option>
                     </select>
                     <select class="form-select w-auto" 
                       v-model="followUpStore.sort.direction"
                       @change="followUpStore.changeSorting()">
-                    <option value="asc">Ascending</option>
-                    <option value="desc">Descending</option>
+                    <option value="asc">ASC</option>
+                    <option value="desc">DESC</option>
                     </select>
                 </div>
                 </div>

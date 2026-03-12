@@ -250,7 +250,7 @@ const visitPhotoUrl = computed(() => {
                                   to="/sales-visit-customers"
                                   class="btn btn-success"
                                 >
-                                   <i class="fa-solid fa-person-walking-dashed-line-arrow-right"></i> Costumer Visit
+                                   <i class="fa-solid fa-person-walking-dashed-line-arrow-right"></i> Cust Visit
                                 </router-link>
 
                                <router-link
@@ -260,7 +260,6 @@ const visitPhotoUrl = computed(() => {
                                   <i class="fa-solid fa-mobile-vibrate"></i> Follow Up
                                 </router-link>
 
-                                
                             </div>
                             </div>
                         </div>
@@ -291,18 +290,18 @@ const visitPhotoUrl = computed(() => {
                     <option>100</option>
                     </select>
                 </div>
-                <div class="dropdown">
-                    <button 
+                <!-- <div class="dropdown"> -->
+                    <!-- <button 
                       class="btn btn-secondary btn-sm dropdown-toggle" 
                       type="button" 
                       data-bs-toggle="dropdown" 
                       aria-expanded="false"
                     >
                     <i class="fa-solid fa-filter"></i> Filter Data Visits By
-                  </button>
-                  <ul class="dropdown-menu">
+                  </button> -->
+                  <!-- <ul class="dropdown-menu"> -->
 
-                    <li>
+                    <!-- <li>
                       <button 
                         class="dropdown-item" 
                         type="button" 
@@ -310,9 +309,9 @@ const visitPhotoUrl = computed(() => {
                       >
                         Visit All
                       </button>
-                    </li>
+                    </li> -->
 
-                    <li>
+                    <!-- <li>
                       <button 
                         class="dropdown-item" 
                         type="button" 
@@ -320,9 +319,9 @@ const visitPhotoUrl = computed(() => {
                       >
                         Visit Leads
                       </button>
-                    </li>
+                    </li> -->
 
-                    <li>
+                    <!-- <li>
                       <button 
                         class="dropdown-item" 
                         type="button" 
@@ -330,9 +329,9 @@ const visitPhotoUrl = computed(() => {
                       >
                         Visit Customer
                       </button>
-                    </li>
-                  </ul>
-                  </div>
+                    </li> -->
+                  <!-- </ul>
+                  </div> -->
                 </div>
 
 
@@ -351,8 +350,8 @@ const visitPhotoUrl = computed(() => {
                     v-model="dataVisit.sort.column"
                     @change="dataVisit.changeSorting()"
                   >
-                    <option value="company_name">By Company Name</option>
-                    <option value="created_at">By Created Date</option>
+                    <option value="company_name">Name</option>
+                    <option value="created_at">Created</option>
                   </select>
 
                   <select

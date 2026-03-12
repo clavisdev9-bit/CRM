@@ -506,8 +506,8 @@ const canDeleteLead = (lead) => {
                       v-model="dataLeads.sort.column"
                       @change="dataLeads.changeSorting()"
                     >
-                      <option value="company_name">By Company</option>
-                      <option value="created_at">By Created Date</option>
+                      <option value="company_name">Name</option>
+                      <option value="created_at">Created</option>
                     </select>
 
                     <!-- SORT DIRECTION -->
@@ -516,8 +516,8 @@ const canDeleteLead = (lead) => {
                       v-model="dataLeads.sort.direction"
                       @change="dataLeads.changeSorting()"
                     >
-                      <option value="asc">Ascending</option>
-                      <option value="desc">Descending</option>
+                      <option value="asc">ASC</option>
+                      <option value="desc">DESC</option>
                     </select>
                   </div>
                 </div>
