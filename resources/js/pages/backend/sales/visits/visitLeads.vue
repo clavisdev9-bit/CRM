@@ -556,7 +556,7 @@ const errors = computed(() => dataLeadsVisit.errors)
 
                  <router-link
                   to="/sales-visit"
-                  class="btn btn-secondary"
+                  class="btn btn-outline-secondary"
                 >
                   <i class="fa-solid fa-arrow-left"></i> Back
                 </router-link>
@@ -564,7 +564,7 @@ const errors = computed(() => dataLeadsVisit.errors)
 
 
               <!-- Kanan -->
-             <div class="d-flex flex-column gap-3 align-items-end" style="min-width:300px;">
+             <div class="d-flex flex-column gap-3 align-items-end" style="min-width:200px;">
                 <!-- Pencarian -->
                 <div class="input-group">
                     <input type="text" class="form-control" placeholder="Searching...." v-model="dataLeadsVisit.searchLeadVisit">

@@ -336,7 +336,7 @@ const visitPhotoUrl = computed(() => {
 
 
               <!-- Kanan -->
-             <div class="d-flex flex-column gap-3 align-items-end" style="min-width:300px;">
+             <div class="d-flex flex-column gap-3 align-items-end" style="min-width:210px;">
                 <!-- Pencarian -->
                 <div class="input-group">
                     <input type="text" class="form-control" placeholder="Searching...." @input="e => dataVisit.searchWithDelay(e.target.value)">
@@ -359,8 +359,8 @@ const visitPhotoUrl = computed(() => {
                     v-model="dataVisit.sort.direction"
                     @change="dataVisit.changeSorting()"
                   >
-                    <option value="asc">Ascending</option>
-                    <option value="desc">Descending</option>
+                    <option value="asc">ASC</option>
+                    <option value="desc">DESC</option>
                   </select>
                 </div>
                 </div>
