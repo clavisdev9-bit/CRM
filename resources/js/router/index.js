@@ -28,6 +28,9 @@ import masterEmployee from '../pages/backend/sales/master/employee.vue'
 import masterLeads from '../pages/backend/sales/master/leads.vue'
 
 import presensi from '../pages/backend/sales/attendance/presensi.vue'
+import reportsAbsensi from '../pages/backend/sales/attendance/reports.vue'
+import reportHistoryAbsensi from '../pages/backend/sales/attendance/reportHistory.vue'
+
 import leads from '../pages/backend/sales/leads/leads.vue'
 import followUp from '../pages/backend/sales/follow_up/followUp.vue'
 import costumers from '../pages/backend/sales/customers/customers.vue'
@@ -132,9 +135,22 @@ const routes = [
   // meta: { requiresAuth: true }   
   },
 
+
   {
   path: '/sales-timesheets-leave-attendance',
   component: presensi,
+  // meta: { requiresAuth: true }   
+  },
+
+  {
+  path: '/sales-timesheets-leave-reports',
+  component: reportsAbsensi,
+  // meta: { requiresAuth: true }   
+  },
+
+  {
+  path: '/sales-timesheets-leave-reports-history',
+  component: reportHistoryAbsensi,
   // meta: { requiresAuth: true }   
   },
   

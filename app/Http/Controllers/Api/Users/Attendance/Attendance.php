@@ -552,4 +552,166 @@ class Attendance extends Controller
                         );
                     }
                 }
+
+
+
+
+                // =====================================================================
+    // LAPORAN BULANAN — hanya data milik user yang login (sales)
+    // GET /api/attendance/my-report?month=8&year=2021
+    // =====================================================================
+    public function myReport(Request $request)
+    {
+        $user = auth('api')->user();
+ 
+        if (!$user) {
+            return ApiResponse::error('Unauthenticated', 401);
+        }
+ 
+        $request->validate([
+            'month' => 'nullable|integer|min:1|max:12',
+            'year'  => 'nullable|integer|min:2020|max:2100',
+        ]);
+ 
+        $month = (int) ($request->month ?? now()->month);
+        $year  = (int) ($request->year  ?? now()->year);
+ 
+        // Ambil semua absensi bulan ini milik user login
+        $attendances = Attendances::where('user_id', $user->id_user)
+            ->whereMonth('attendance_date', $month)
+            ->whereYear('attendance_date', $year)
+            ->orderBy('attendance_date', 'asc')
+            ->orderBy('attendance_time', 'asc')
+            ->get();
+ 
+        // Jumlah hari dalam bulan
+        $daysInMonth = Carbon::create($year, $month, 1)->daysInMonth;
+ 
+        // Bangun data per hari (1 s/d akhir bulan)
+        $attendanceDays = [];
+ 
+        for ($d = 1; $d <= $daysInMonth; $d++) {
+            $date    = Carbon::create($year, $month, $d);
+            $dayRecs = $attendances->filter(
+                fn($a) => Carbon::parse($a->attendance_date)->day === $d
+            );
+ 
+            $checkIn  = $dayRecs->where('attendance_type', 'IN')->sortBy('attendance_time')->first();
+            $checkOut = $dayRecs->where('attendance_type', 'OUT')->sortByDesc('attendance_time')->first();
+ 
+            // Status hari: pakai status dari check-in, atau L kalau weekend
+            $status = null;
+            if ($date->isWeekend()) {
+                $status = 'L';
+            } elseif ($checkIn) {
+                $status = $checkIn->attendance_status; // ONTIME / LATE / COMPLETED
+            }
+ 
+            $attendanceDays[] = [
+                'day'        => $d,
+                'date'       => $date->toDateString(),
+                'day_name'   => $date->locale('id')->isoFormat('ddd'),
+                'is_weekend' => $date->isWeekend(),
+                'status'     => $status,
+                'check_in'   => $checkIn ? [
+                    'id'              => $checkIn->id,
+                    'time'            => $checkIn->attendance_time,
+                    'photo_url'       => $checkIn->photo_path
+                                          ? asset('storage/attendance/photos/' . $checkIn->photo_path)
+                                          : null,
+                    'location_name'   => $checkIn->location_name,
+                    'latitude'        => $checkIn->latitude,
+                    'longitude'       => $checkIn->longitude,
+                    'policy_status'   => $checkIn->policy_status,
+                    'accuracy_status' => $checkIn->accuracy_status,
+                    'distance'        => $checkIn->distance_from_office,
+                    'attendance_mode' => $checkIn->attendance_mode,
+                    'device_type'     => $checkIn->device_type,
+                ] : null,
+                'check_out'  => $checkOut ? [
+                    'id'              => $checkOut->id,
+                    'time'            => $checkOut->attendance_time,
+                    'photo_url'       => $checkOut->photo_path
+                                          ? asset('storage/attendance/photos/' . $checkOut->photo_path)
+                                          : null,
+                    'location_name'   => $checkOut->location_name,
+                    'latitude'        => $checkOut->latitude,
+                    'longitude'       => $checkOut->longitude,
+                    'policy_status'   => $checkOut->policy_status,
+                    'attendance_mode' => $checkOut->attendance_mode,
+                    'device_type'     => $checkOut->device_type,
+                ] : null,
+            ];
+        }
+ 
+        // Rekap summary
+        $checkIns = $attendances->where('attendance_type', 'IN');
+ 
+        $summary = [
+            'ONTIME'    => $checkIns->where('attendance_status', 'ONTIME')->count(),
+            'LATE'      => $checkIns->where('attendance_status', 'LATE')->count(),
+            'COMPLETED' => $checkIns->where('attendance_status', 'COMPLETED')->count(),
+            'LIBUR'     => collect($attendanceDays)->where('is_weekend', true)->count(),
+            'TOTAL_HADIR' => $checkIns->count(),
+            'TOTAL_CHECKOUT' => $attendances->where('attendance_type', 'OUT')->count(),
+        ];
+ 
+        return ApiResponse::success([
+            'user' => [
+                'id_user'  => $user->id_user,
+                'fullname' => $user->fullname,
+                'username' => $user->username,
+                'email'    => $user->email,
+            ],
+            'period' => [
+                'month'      => $month,
+                'year'       => $year,
+                'label'      => Carbon::create($year, $month)->locale('id')->isoFormat('MMMM YYYY'),
+                'days_total' => $daysInMonth,
+            ],
+            'summary'         => $summary,
+            'attendance_days' => $attendanceDays,
+        ], 'Success');
+    }
+ 
+    // =====================================================================
+    // RIWAYAT — list absensi milik user login (paginated)
+    // GET /api/attendance/my-history?month=8&year=2021&per_page=15
+    // =====================================================================
+    public function myHistory(Request $request)
+    {
+        $user = auth('api')->user();
+ 
+        if (!$user) {
+            return ApiResponse::error('Unauthenticated', 401);
+        }
+ 
+        $perPage = is_numeric($request->per_page ?? null) ? (int) $request->per_page : 15;
+        $sortDir = $request->sort_dir ?? 'desc';
+ 
+        $query = $this->Attendances
+            ->with(['user', 'employee'])
+            ->where('user_id', $user->id_user)
+            ->when($request->filled('month') && $request->filled('year'), function ($q) use ($request) {
+                $q->whereMonth('attendance_date', $request->month)
+                  ->whereYear('attendance_date', $request->year);
+            })
+            ->when($request->filled('search'), function ($q) use ($request) {
+                $search = $request->search;
+                $q->where(function ($sub) use ($search) {
+                    $sub->where('location_name', 'ILIKE', "%{$search}%")
+                        ->orWhere('attendance_type', 'ILIKE', "%{$search}%")
+                        ->orWhereRaw("attendance_date::text ILIKE ?", ["%{$search}%"]);
+                });
+            })
+            ->orderBy('attendance_date', $sortDir)
+            ->orderBy('attendance_time', $sortDir);
+ 
+        $results = $query->paginate($perPage);
+ 
+        return ApiResponse::paginate(
+            new AttendanceResourceCollection($results),
+            'Success'
+        );
+    }
 }

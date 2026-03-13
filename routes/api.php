@@ -109,6 +109,11 @@ Route::post('/attendance/process-office-location', [Attendance::class, 'storeAtt
 Route::delete('/attendance/delete/{id_attendance}', [Attendance::class, 'deleteAttendance'])->name('api.delete.attendance');
 // Route::put('/attendance/update/{id}', [Attendance::class, 'updateAttendance'])->name('api.update.attendance');
 Route::Post('/attendance/update/{id}', [Attendance::class, 'updateAttendance'])->name('api.update.attendance');
+ // ===== TAMBAHAN — laporan untuk sales yang login =====
+Route::get('attendance/my-report',  [Attendance::class, 'myReport'])->name('api.my.report');
+Route::get('attendance/my-history', [Attendance::class, 'myHistory'])->name('api.my.history');
+
+
 
 
 // api Sales Leads
@@ -190,10 +195,6 @@ Route::post('/visits/customers/{visit}/check-in', [Visits::class, 'checkInVisitC
 // Check Out (PAKAI VISIT ID)
 Route::post('/visits/customers/{visit}/check-out', [Visits::class, 'checkOutCustomer']);
 
-
-// Route::get('/dashboard/it', [DashboardController::class, 'itDashboard']);
-// Route::get('/dashboard/sales', [DashboardController::class, 'salesDashboard']);
-// Route::get('/dashboard/manager', [DashboardController::class, 'managerDashboard']);
 });
 
 
