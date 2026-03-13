@@ -1,4 +1,3 @@
-
 <template>
   <backendLayouts>
     <div class="container-xxl flex-grow-1 container-p-y">
@@ -88,7 +87,7 @@
                       <th class="bg-primary text-white text-center" style="min-width:70px;">Waktu</th>
                       <th class="bg-primary text-white text-center" style="min-width:60px;">Tipe</th>
                       <th class="bg-primary text-white text-center" style="min-width:80px;">Status</th>
-                      <th class="bg-primary text-white text-center" style="min-width:70px;">Mode</th>
+                      <!-- <th class="bg-primary text-white text-center" style="min-width:70px;">Mode</th> -->
                       <th class="bg-primary text-white" style="min-width:200px;">Lokasi</th>
                       <th class="bg-primary text-white text-center" style="min-width:70px;">Device</th>
                       <th class="bg-primary text-white text-center" style="min-width:60px;">Foto</th>
@@ -135,9 +134,9 @@
                       <td class="text-center">
                         <span class="badge" :class="store.getStatusBadgeClass(item.attendance_status)">{{ item.attendance_status }}</span>
                       </td>
-                      <td class="text-center">
+                      <!-- <td class="text-center">
                         <span class="badge bg-secondary">{{ item.attendance_mode }}</span>
-                      </td>
+                      </td> -->
                       <td>
                         <span class="text-muted" style="font-size:11px;">
                           <i class="bx bx-map-pin me-1 text-danger"></i>{{ item.location_name ?? '-' }}
@@ -224,7 +223,7 @@
                     <tr><td class="text-muted">Waktu</td><td class="fw-semibold">{{ selectedItem.attendance_time }}</td></tr>
                     <tr><td class="text-muted">Tipe</td><td><span class="badge" :class="store.getTypeBadgeClass(selectedItem.attendance_type)">{{ selectedItem.attendance_type }}</span></td></tr>
                     <tr><td class="text-muted">Status</td><td><span class="badge" :class="store.getStatusBadgeClass(selectedItem.attendance_status)">{{ selectedItem.attendance_status }}</span></td></tr>
-                    <tr><td class="text-muted">Mode</td><td><span class="badge bg-secondary">{{ selectedItem.attendance_mode }}</span></td></tr>
+                    <!-- <tr><td class="text-muted">Mode</td><td><span class="badge bg-secondary">{{ selectedItem.attendance_mode }}</span></td></tr> -->
                     <tr><td class="text-muted">Device</td><td><span class="badge bg-info">{{ selectedItem.device_type }}</span></td></tr>
                     <tr><td class="text-muted">IP Address</td><td>{{ selectedItem.ip_address }}</td></tr>
                     <tr>

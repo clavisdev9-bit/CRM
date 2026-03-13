@@ -119,7 +119,7 @@
                     <i class="fa-solid fa-timeline"></i> Lihat Riwayat
                   </router-link>
               </div>
-              
+
               <div class="card-body p-0">
                 <div class="table-responsive">
                   <table class="table table-bordered table-hover mb-0 text-center align-middle" style="min-width:900px;font-size:12px;">
@@ -127,7 +127,7 @@
                       <tr>
                         <th class="bg-primary text-white" style="min-width:40px;" rowspan="2">No</th>
                         <th class="bg-primary text-white" style="min-width:130px;" rowspan="2">Nama</th>
-                        <th class="bg-primary text-white" style="min-width:90px;" rowspan="2">Username</th>
+                        <th class="bg-primary text-white" style="min-width:90px;" rowspan="2">Email</th>
                         <th
                           v-for="day in mergedDays" :key="'h-'+day.day"
                           class="text-white"
@@ -142,12 +142,18 @@
                         <th class="bg-primary text-white" style="min-width:55px;" rowspan="2">Total<br/>Hadir</th>
                       </tr>
                       <tr>
-                        <th
+                        <!-- <th
                           v-for="day in mergedDays" :key="'dn-'+day.day"
                           class="text-white"
                           :class="day.is_off ? 'bg-secondary' : 'bg-info'"
                           style="padding:2px;font-size:10px;"
-                        >{{ day.day_name }}</th>
+                        >{{ day.day_name }}</th> -->
+                        <th
+                        v-for="day in mergedDays" :key="'dn-'+day.day"
+                        class="text-white"
+                        :class="day.is_weekend ? 'bg-danger' : (day.is_holiday ? 'bg-secondary' : 'bg-info')"
+                        style="padding:2px;font-size:10px;"
+                      >{{ day.day_name }}</th>
                         <th class="bg-success   text-white" style="min-width:34px;">H</th>
                         <th class="bg-warning   text-dark"  style="min-width:34px;">T</th>
                         <th class="bg-secondary text-white" style="min-width:34px;">L</th>
@@ -159,7 +165,7 @@
                       <tr>
                         <td>1</td>
                         <td class="text-start ps-2 fw-semibold">{{ store.reportData?.user?.fullname }}</td>
-                        <td class="text-start ps-2 text-muted">{{ store.reportData?.user?.username }}</td>
+                        <td class="text-start ps-2 text-muted">{{ store.reportData?.user?.email }}</td>
                         <td
                           v-for="day in mergedDays" :key="'att-'+day.day"
                           :class="getCellClass(day)"
@@ -187,7 +193,7 @@
                     <div class="d-flex flex-wrap gap-2">
                       <span class="badge bg-success   px-3 py-2">H = Hadir (Ontime)</span>
                       <span class="badge bg-warning text-dark px-3 py-2">T = Terlambat</span>
-                      <span class="badge bg-secondary px-3 py-2">L = Libur Weekend</span>
+                      <span class="badge bg-danger px-3 py-2">L = Libur Weekend</span>
                       <span class="badge px-3 py-2" style="background:#8b5cf6;">N = Libur Nasional</span>
                       <span class="badge bg-danger    px-3 py-2">A = Absen</span>
                     </div>
