@@ -240,7 +240,7 @@
                   <p class="mb-1 text-muted" style="font-size:11px;">{{ selectedDay.check_in.location_name }}</p>
                   <div class="d-flex flex-wrap gap-1">
                     <span class="badge" :class="selectedDay.check_in.policy_status === 'ALLOWED' ? 'bg-success' : 'bg-danger'">{{ selectedDay.check_in.policy_status }}</span>
-                    <span class="badge bg-secondary">{{ selectedDay.check_in.attendance_mode }}</span>
+                    <!-- <span class="badge bg-secondary">{{ selectedDay.check_in.attendance_mode }}</span> -->
                     <span class="badge bg-info">{{ selectedDay.check_in.device_type }}</span>
                   </div>
                 </div>
@@ -255,7 +255,8 @@
                   <p class="mb-1 text-muted" style="font-size:11px;">{{ selectedDay.check_out.location_name }}</p>
                   <div class="d-flex flex-wrap gap-1">
                     <span class="badge" :class="selectedDay.check_out.policy_status === 'ALLOWED' ? 'bg-success' : 'bg-danger'">{{ selectedDay.check_out.policy_status }}</span>
-                    <span class="badge bg-secondary">{{ selectedDay.check_out.attendance_mode }}</span>
+                    <!-- <span class="badge bg-secondary">{{ selectedDay.check_out.attendance_mode }}</span> -->
+                      <span class="badge bg-info">{{ selectedDay.check_out.device_type }}</span>
                   </div>
                 </div>
               </div>

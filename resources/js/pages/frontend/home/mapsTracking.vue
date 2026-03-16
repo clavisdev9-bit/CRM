@@ -288,17 +288,6 @@ const salesList = computed(() => {
   return Object.values(map).sort((a, b) => a.name.localeCompare(b.name))
 })
 
-// Update filteredVisits dengan tambahan filter sales
-// const filteredVisits = computed(() => {
-//   const q = search.value.toLowerCase()
-//   return visits.value.filter(v => {
-//     const matchSearch = v.sales_name?.toLowerCase().includes(q) ||
-//                         v.target_name?.toLowerCase().includes(q)
-//     const matchSales  = selectedSalesId.value === '' || 
-//                         v.sales_id == selectedSalesId.value
-//     return matchSearch && matchSales
-//   })
-// })
 
 
 // filter by status
@@ -325,9 +314,9 @@ const statusSummary = computed(() => {
   const ongoing  = visits.value.filter(v => v.visit_status_label === 'SEDANG_CHECK_IN').length
   const done     = visits.value.filter(v => v.visit_status_label === 'SELESAI').length
   return [
-    { label: 'Planned',  count: planned, cls: 'pill-planned'  },
-    { label: 'On-Site',  count: ongoing, cls: 'pill-ongoing'  },
-    { label: 'Done',     count: done,    cls: 'pill-done'     },
+    { label: 'Planned (Sedang Visit)',  count: planned, cls: 'pill-planned'  },
+    { label: 'On-Site (Sedang Check IN)',  count: ongoing, cls: 'pill-ongoing'  },
+    { label: 'Done (Check OUT Selesai)',     count: done,    cls: 'pill-done'     },
   ]
 })
 
@@ -412,19 +401,7 @@ const renderMarkers = () => {
     const lng = parseFloat(visit.longitude)
     const color = markerColor(visit.visit_status_label)
 
-    // const icon = L.divIcon({
-    //   className: '',
-    //   html: `
-    //     <div style="position:relative;width:42px;height:42px;">
-    //       <div style="width:42px;height:42px;border-radius:50%;border:3px solid ${color};overflow:hidden;background:white;box-shadow:0 4px 12px rgba(0,0,0,0.25);">
-    //         <img src="${visit.sales_photo_url}" style="width:100%;height:100%;object-fit:cover;" />
-    //       </div>
-    //       <div style="position:absolute;bottom:-5px;right:-2px;width:14px;height:14px;border-radius:50%;background:${color};border:2px solid white;"></div>
-    //     </div>
-    //   `,
-    //   iconSize: [42, 42],
-    //   iconAnchor: [21, 42],
-    // })
+
 
     const icon = L.divIcon({
   className: '',
