@@ -233,14 +233,24 @@ class Attendance extends Controller
                     $attendanceStatus = 'COMPLETED';
 
                     // HANYA UNTUK CHECK IN
-                    if ($request->attendance_type === 'IN') {
-                        // Jam batas (08:30 WIB)
-                        $lateLimit = $now->copy()->setTime(8, 30, 0);
+                    // if ($request->attendance_type === 'IN') {
+                    //     // Jam batas (08:30 WIB)
+                    //     $lateLimit = $now->copy()->setTime(8, 30, 0);
 
-                        if ($now->gt($lateLimit)) {
-                            $attendanceStatus = 'LATE';
-                        }
-                    }
+                    //     if ($now->gt($lateLimit)) {
+                    //         $attendanceStatus = 'LATE';
+                    //     }
+                    // }
+
+                    if ($request->attendance_type === 'IN') {
+                                $lateLimit = $now->copy()->setTime(8, 30, 0);
+
+                                if ($now->gt($lateLimit)) {
+                                    $attendanceStatus = 'LATE';
+                                } else {
+                                    $attendanceStatus = 'ONTIME'; 
+                                }
+                            }
 
                         // ===== SAVE =====
                         $attendance = Attendances::create([

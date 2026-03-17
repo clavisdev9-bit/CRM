@@ -65,7 +65,8 @@ return new class extends Migration
                     'READY',      // siap diproses / validasi
                     'COMPLETED',  // absensi sukses (tepat waktu / normal)
                     'LATE',       // terlambat (khusus IN)
-                    'REJECTED'    // ditolak (policy / accuracy / dll)
+                    'REJECTED',    // ditolak (policy / accuracy / dll)
+                    'ONTIME' 
                 ]
             )->default('READY');
 
