@@ -133,74 +133,40 @@ const openAddModal = () => {
 }
 
 
-// const openEditUser = async (user) => {
-//   editUserId.value = user.id_user;
-//   // 2. Pastikan data options tersedia
-//   await Promise.all([
-//     dataUsers.fetchDivisionSelect(),
-//     dataUsers.fetchGroupSelect(),
-//     dataUsers.fetchRoleSelect()
-//   ]);
-//   // 3. Reset form
-//   formUser.value = {
-//     fullname: '',
-//     role_id: null,
-//     divisi_id: null,
-//     group_id: null,
-//     is_active: 1
-//   };
-//   await nextTick();
-//   // 4. Pengisian dengan Fallback Key (Menangani perbedaan nama field)
-//   formUser.value = {
-//     fullname: user.fullname,
-//     username: user.username,
-//     email: user.email,
-//     password: '', 
-    
-//     // Konversi ke Number() sangat krusial
-//     role_id: user.role_id ? Number(user.role_id) : null,
-    
-//     // Periksa apakah fieldnya 'division_id' atau 'divisi_id'
-//     divisi_id: (user.divisi_id || user.divisi_id) ? Number(user.divisi_id || user.divisi_id) : null,
-//      formUser.divisi_id  = user.divisi_id 
-    
-//     // Periksa apakah fieldnya 'group_id' atau 'id_group'
-//     group_id: (user.group_id || user.id_group) ? Number(user.group_id || user.id_group) : null,
-    
-//     is_active: Number(user.is_active),
-//   };
-
-
-//   imagePreview.value = user.image_url || '/storage/users/default.png';
-// };
-
 
 const openEditUser = async (user) => {
   editUserId.value = user.id_user
 
-  await dataUsers.fetchDivisionSelect()
+  formUser.value = {
+    fullname: '', username: '', email: '', password: '',
+    role_id: null, divisi_id: null, group_id: null, is_active: 1,
+  }
+
+  await Promise.all([
+    dataUsers.fetchDivisionSelect(true),
+    dataUsers.fetchGroupSelect(true),
+    dataUsers.fetchRoleSelect(true),
+  ])
+
+  await nextTick()
 
   formUser.value = {
     fullname: user.fullname,
     username: user.username,
     email: user.email,
     password: '',
-
-    // 🔑 KUNCI UTAMA
-    divisi_id: user.divisi_id !== null
-      ? Number(user.divisi_id)
-      : null,
-
     role_id: Number(user.role_id),
-    group_id: Number(user.group_id),
-    is_active: Number(user.is_active),
+
+    divisi_id: user.division?.id ? Number(user.division.id) : null,  // ← FIX
+    group_id: user.groups?.id_group ? Number(user.groups.id_group) : null,  // ← FIX
+
+    is_active: user.is_active ? 1 : 0,
   }
 
-  imagePreview.value = user.image
+  imagePreview.value = user.image && user.image !== 'default.png'
     ? `/storage/users/${user.image}`
     : '/storage/users/default.png'
 }
-
 
 
 /* ===== RESET ===== */
@@ -965,14 +931,13 @@ const handleImportExcel = () => {
                         valueProp="id"
                         placeholder="Pilih Divisi" -->
                       <Multiselect
-                      :key="formUser.divisi_id"
-                      v-model="formUser.divisi_id"
-                      :options="dataUsers.divisionSelect"
-                      label="name_division"
-                      valueProp="id"
-                      :reduce="option => option.id"
-                      placeholder="Select Division"
-                    />
+  :key="formUser.divisi_id"
+  v-model="formUser.divisi_id"
+  :options="dataUsers.divisionSelect"
+  label="name_division"
+  valueProp="id"
+  placeholder="Select Division"
+/>
 
 
                      
@@ -984,13 +949,13 @@ const handleImportExcel = () => {
                   <div class="col-md-6 mb-3">
                       <label class="form-label">Select Group</label>
                       <Multiselect
-                        v-model="formUser.group_id"
-                        :options="dataUsers.groupSelect"
-                        label="name_group"
-                        valueProp="id_group"
-                        :reduce="option => option.id_group"
-                        placeholder="Select Group"
-                      />
+  :key="formUser.group_id"
+  v-model="formUser.group_id"
+  :options="dataUsers.groupSelect"
+  label="name_group"
+  valueProp="id_group"
+  placeholder="Select Group"
+/>
 
                       <div v-if="dataUsers.errorUsers?.group_id" class="invalid-feedback d-block">
                           {{ dataUsers.errorUsers.group_id[0] }}

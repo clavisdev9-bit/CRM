@@ -218,20 +218,20 @@ export const useMasterSalesStore = defineStore('Data-Master-Sales', () => {
                                 }
 
 
-                                    const fetchOfficeSelect = async (officeId = null) => {
-                                    loadingSelect.value = true
-                                        try {
-                                            const { data } = await axios.get('/api/select-office-for-employee', {
-                                            params: {
-                                                id: officeId
-                                            },
-                                            headers: getAuthHeader(),
-                                            })
-                                            officeSelect.value = data
-                                        } finally {
-                                            loadingSelect.value = false
-                                        }
-                                    }
+                                    // const fetchOfficeSelect = async (officeId = null) => {
+                                    // loadingSelect.value = true
+                                    //     try {
+                                    //         const { data } = await axios.get('/api/select-office-for-employee', {
+                                    //         params: {
+                                    //             id: officeId
+                                    //         },
+                                    //         headers: getAuthHeader(),
+                                    //         })
+                                    //         officeSelect.value = data
+                                    //     } finally {
+                                    //         loadingSelect.value = false
+                                    //     }
+                                    // }
 
                                    
 
@@ -316,6 +316,19 @@ export const useMasterSalesStore = defineStore('Data-Master-Sales', () => {
                                       deletingMasterSalesData.value = false
                                     }
                                   }
+
+
+                                  const fetchOfficeSelect = async () => {  // ← hapus parameter officeId
+                                        loadingSelect.value = true
+                                        try {
+                                          const { data } = await axios.get('/api/select-office-for-employee', {
+                                            headers: getAuthHeader(),
+                                          })
+                                          officeSelect.value = data
+                                        } finally {
+                                          loadingSelect.value = false
+                                        }
+                                      }
 
 
 

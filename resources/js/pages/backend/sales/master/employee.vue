@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted, watch, computed  } from 'vue'
+import { ref, onMounted, watch, computed, nextTick  } from 'vue'
 import backendLayouts from "../../../../layouts/backendLayouts.vue";
 import { useMasterSalesStore } from '../../../../stores/masterSalesStore';
 import { useMenuStore } from "@/stores/menuStore";
@@ -142,56 +142,41 @@ const statusBadgeClass = computed(() => {
   }
 })
 
-
 const openEditModal = async (employee) => {
   editMasterSalesId.value = employee.id_employee
+  console.log('FULL employee:', JSON.parse(JSON.stringify(employee)))
 
-  await dataMastersales.fetchUserSelect(employee.id_employee)
-   await dataMastersales.fetchOfficeSelect(employee.office_id)
+  // Reset form dulu
+  form.value = {
+    user_id: null, office_id: null, nik: '',
+    tempat_lahir: '', tanggal_lahir: '', jenis_kelamin: '',
+    alamat: '', no_hp: '', tanggal_masuk: '',
+    status_karyawan: '', attendance_mode: '',
+  }
+
+  // Fetch options — tanpa parameter
+  await dataMastersales.fetchUserSelect()
+  await dataMastersales.fetchOfficeSelect()  // ← tanpa argument
+
+  await nextTick()
+
+  // Debug cek dulu struktur office
+  console.log('office nested:', employee.office)
 
   form.value = {
-    user_id: employee.user_id,
-    office_id: employee.office_id,
-    nik: employee.nik,
-    tempat_lahir: employee.tempat_lahir,
-    tanggal_lahir: employee.tanggal_lahir,
-    jenis_kelamin: employee.jenis_kelamin,
-    alamat: employee.alamat,
-    no_hp: employee.no_hp,
-    tanggal_masuk: employee.tanggal_masuk,
-    status_karyawan: employee.status_karyawan,
-    attendance_mode: employee.attendance_mode,
-  }
+  user_id: employee.user_id,
+office_id: employee.office_id ?? null,   // ← coba dari user
+  nik: employee.nik,
+  tempat_lahir: employee.tempat_lahir,
+  tanggal_lahir: employee.tanggal_lahir,
+  jenis_kelamin: employee.jenis_kelamin,
+  alamat: employee.alamat,
+  no_hp: employee.no_hp,
+  tanggal_masuk: employee.tanggal_masuk,
+  status_karyawan: employee.status_karyawan,
+  attendance_mode: employee.attendance_mode,
 }
-// const openEditModal = async (employee) => {
-//   editMasterSalesId.value = employee.id_employee
-
-//   // Pastikan data select sudah ter-load
-//   await dataMastersales.fetchUserSelect(employee.id_employee)
-//   await dataMastersales.fetchOfficeSelect() // Load semua list kantor agar bisa dipilih
-
-//   form.value = {
-//     user_id: employee.user_id,
-    
-//     // PERBAIKAN DI SINI:
-//     // 1. Pastikan key-nya 'office_id' (sesuai v-model di template)
-//     // 2. Gunakan Number() jika ID di database adalah integer agar cocok dengan valueProp="id"
-//     office_id: employee.office_id ? Number(employee.office_id) : '', 
-    
-//     nik: employee.nik,
-//     tempat_lahir: employee.tempat_lahir,
-//     tanggal_lahir: employee.tanggal_lahir,
-//     jenis_kelamin: employee.jenis_kelamin,
-//     alamat: employee.alamat,
-//     no_hp: employee.no_hp,
-//     tanggal_masuk: employee.tanggal_masuk,
-//     status_karyawan: employee.status_karyawan,
-//     attendance_mode: employee.attendance_mode,
-//   }
-  
-//   // Debug untuk memastikan data masuk ke form
-//   console.log("Data Form Office ID:", form.value.office_id);
-// }
+}
 
 
 watch(
@@ -1118,19 +1103,15 @@ const handleImportExcel = () => {
                 class="multiselect-wrapper"
                 :class="{ 'is-invalid': dataMastersales.errorMasterSalesData?.office_id }"
               >
-               <Multiselect
+              <Multiselect
+                  :key="form.office_id"
                   v-model="form.office_id"
                   :options="dataMastersales.officeSelect"
                   label="office_name"
                   valueProp="id"
                   placeholder="Select Office..."
                   :searchable="true"
-                  :loading="dataMastersales.loadingSelect"
                 />
-
-
-
-
            </div>
           <div
               v-if="dataMastersales.errorMasterSalesData?.office_id"

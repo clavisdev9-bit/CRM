@@ -17,8 +17,15 @@ class GroupCompanySeeder extends Seeder
 
         DB::table('group_companies')->insert([
             [
-                'name_group' => 'Clavis Berjaya Group',
-                'description_group' => 'Clavis Berjaya Group',
+                'name_group' => 'PT. Clavisindo Berjaya',
+                'description_group' => 'PT. Clavisindo Berjaya',
+                'is_active' => true,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ],
+            [
+                'name_group' => 'PT. Duta Indomandiri',
+                'description_group' => 'PT. Duta Indomandiri',
                 'is_active' => true,
                 'created_at' => $now,
                 'updated_at' => $now,
@@ -31,8 +38,16 @@ class GroupCompanySeeder extends Seeder
                 'updated_at' => $now,
             ],
             [
-                'name_group' => 'PT DIRA',
-                'description_group' => 'PT DIRA',
+                'name_group' => 'PT Duta Indo Raya',
+                'description_group' => 'PT Duta Indo Raya',
+                'is_active' => true,
+                'created_at' => $now,
+                'updated_at' => $now,
+            ],
+
+            [
+                'name_group' => 'PT My Everything Indonesia',
+                'description_group' => 'PT My Everything Indonesia',
                 'is_active' => true,
                 'created_at' => $now,
                 'updated_at' => $now,

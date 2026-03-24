@@ -28,29 +28,54 @@ class Master extends Controller
     }
 
 
-     public function Employee(EmployeeValidationindex $request) 
-       {
-            $validated = $request->validated();
-            $search = $validated['search'] ?? null;
-            $perPage = is_numeric($validated['per_page'] ?? null) ? $validated['per_page'] : 10;
-            $sortBy = $validated['sort_by'] ?? 'created_at';
-            $sortDir = $validated['sort_dir'] ?? 'desc';
-            $onlyDeleted = $validated['only_deleted'] ?? false;
+    //  public function Employee(EmployeeValidationindex $request) 
+    //    {
+    //         $validated = $request->validated();
+    //         $search = $validated['search'] ?? null;
+    //         $perPage = is_numeric($validated['per_page'] ?? null) ? $validated['per_page'] : 10;
+    //         $sortBy = $validated['sort_by'] ?? 'created_at';
+    //         $sortDir = $validated['sort_dir'] ?? 'desc';
+    //         $onlyDeleted = $validated['only_deleted'] ?? false;
 
-        $query = $this->MsEmployee
-        ->with([
-            'user:id_user,fullname,username,email,image,is_active,divisi_id,group_id',
-            'user.division:id,name_division',
-            'user.groups:id_group,name_group',
-        ])
-        ->onlyDeleted($onlyDeleted)
-        ->search($search)
-        ->sort($sortBy, $sortDir);
+    //     $query = $this->MsEmployee
+    //     ->with([
+    //         'user:id_user,fullname,username,email,image,is_active,divisi_id,group_id',
+    //         'user.division:id,name_division',
+    //         'user.groups:id_group,name_group',
+    //     ])
+    //     ->onlyDeleted($onlyDeleted)
+    //     ->search($search)
+    //     ->sort($sortBy, $sortDir);
 
-            $results = $query->paginate($perPage);
-            $message = $results->isEmpty() ? "Data yang Anda cari tidak ditemukan" : "Success";
-            return ApiResponse::paginate(new EmployeeResourcesCollection($results), $message);
-       }
+    //         $results = $query->paginate($perPage);
+    //         $message = $results->isEmpty() ? "Data yang Anda cari tidak ditemukan" : "Success";
+    //         return ApiResponse::paginate(new EmployeeResourcesCollection($results), $message);
+    //    }
+
+    public function Employee(EmployeeValidationindex $request) 
+{
+    $validated = $request->validated();
+    $search = $validated['search'] ?? null;
+    $perPage = is_numeric($validated['per_page'] ?? null) ? $validated['per_page'] : 10;
+    $sortBy = $validated['sort_by'] ?? 'created_at';
+    $sortDir = $validated['sort_dir'] ?? 'desc';
+    $onlyDeleted = $validated['only_deleted'] ?? false;
+
+    $query = $this->MsEmployee
+    ->with([
+        'user:id_user,fullname,username,email,image,is_active,divisi_id,group_id',
+        'user.division:id,name_division',
+        'user.groups:id_group,name_group',
+        'office:id,office_name',  // ← TAMBAHKAN INI
+    ])
+    ->onlyDeleted($onlyDeleted)
+    ->search($search)
+    ->sort($sortBy, $sortDir);
+
+    $results = $query->paginate($perPage);
+    $message = $results->isEmpty() ? "Data yang Anda cari tidak ditemukan" : "Success";
+    return ApiResponse::paginate(new EmployeeResourcesCollection($results), $message);
+}
 
 
        public function showEmployee(int $id)
