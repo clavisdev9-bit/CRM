@@ -498,6 +498,13 @@ watch(filteredVisits, () => {
   if (mapInstance.value && mapInstance.value.getContainer()) {
     nextTick(() => renderMarkers())
   }
+
+watch(sidebarCollapsed, () => {
+  setTimeout(() => {
+    mapInstance.value?.invalidateSize()
+  }, 350) // tunggu transition sidebar selesai (0.3s + sedikit buffer)
+})
+  
 })
 
 
