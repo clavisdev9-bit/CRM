@@ -504,11 +504,17 @@ class Administrator extends Controller
         $sortDir = $validated['sort_dir'] ?? 'asc';
 
         $query = DB::table('ms_menu as mm')
-            ->leftJoin('ms_access_menu as mam', function ($join) use ($roleId) {
-                $join->on('mm.id_menu', '=', 'mam.id_menu')
-                    ->whereNull('mam.deleted_at')
-                    ->where('mam.id_role', '=', $roleId);
-            })
+            // ->leftJoin('ms_access_menu as mam', function ($join) use ($roleId) {
+            //     $join->on('mm.id_menu', '=', 'mam.id_menu')
+            //         ->whereNull('mam.deleted_at')
+            //         ->where('mam.id_role', '=', $roleId);
+            // })
+             ->whereNull('mm.deleted_at') // ⬅️ tambahan
+    ->leftJoin('ms_access_menu as mam', function ($join) use ($roleId) {
+        $join->on('mm.id_menu', '=', 'mam.id_menu')
+            ->whereNull('mam.deleted_at')
+            ->where('mam.id_role', '=', $roleId);
+    })
             ->select(
                 'mm.id_menu',
                 'mm.menu',
@@ -819,16 +825,26 @@ class Administrator extends Controller
         }
 
 
-            public function selectSubmenu()
-            {
-                return response()->json(
-                    MsSubmenu::query()
-                        ->select('id_submenu', 'title', 'parent_id')
-                        ->where('is_active', true)
-                        ->orderBy('id_submenu', 'asc')
-                        ->get()
-                );
-            }
+                public function selectSubmenu()
+                {
+                    return response()->json(
+                        MsSubmenu::query()
+                            ->select('id_submenu', 'title', 'parent_id')
+                            ->where('is_active', true)
+                            ->orderBy('id_submenu', 'asc')
+                            ->get()
+                    );
+                }
+
+              public function selectMenu()
+                {
+                    return response()->json(
+                        DB::table('ms_menu')
+                            ->select('id_menu', 'menu')
+                            ->orderBy('menu', 'asc')
+                            ->get()
+                    );
+                }
 
                 public function selectRole()
                 {

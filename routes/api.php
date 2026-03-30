@@ -32,13 +32,13 @@ Route::get('/sidebar-access-submenu', [Sidebar::class, 'getSubmenu'])->name('api
 Route::get('/permission-button', [Sidebar::class, 'getUserPermissions'])->name('api.permission.button');
 
 
-
 // api administrator role management 
 Route::get('/role-management', [Administrator::class, 'Role'])->name('api.role.management');
 Route::get('/role-management-show/{id}', [Administrator::class, 'showRole'])->name('api.show.role.management');
 Route::post('/store-role-management', [Administrator::class, 'storeRole'])->name('api.store.role.management');
 Route::put('/update-role-management/{id}', [Administrator::class, 'updateRole'])->name('api.update.role.management');
 Route::delete('/delete-role-management/{id}', [Administrator::class, 'destroyRole'])->name('api.delete.role.management');
+
 
 // api administrator menu management
 Route::get('/menu-management', [Administrator::class, 'Menu'])->name('api.menu.management');
@@ -47,12 +47,14 @@ Route::post('/store-menu-management', [Administrator::class, 'storeMenu'])->name
 Route::put('/update-menu-management/{id}', [Administrator::class, 'updateMenu'])->name('api.update.menu.management');
 Route::delete('/delete-menu-management/{id}', [Administrator::class, 'destroyMenu'])->name('api.delete.menu.management');
 
+
 // api administrator submenu management
 Route::get('/submenu-management', [Administrator::class, 'Submenu'])->name('api.submenu.management');
 Route::get('/submenu-management-show/{id}', [Administrator::class, 'showSubmenu'])->name('api.show.submenu.management');
 Route::post('/store-submenu-management', [Administrator::class, 'storeSubmenu'])->name('api.store.submenu.management');
 Route::put('/update-submenu-management/{id}', [Administrator::class, 'updateSubMenu'])->name('api.update.submenu.management');
 Route::delete('/delete-submenu-management/{id}', [Administrator::class, 'destroySubmenu'])->name('api.delete.submenu.management');
+Route::get('/get-menu-for-form', [Administrator::class, 'selectMenu'])->name('api.get.menu.for.form');
 
 // api administrator access role to menu management
 Route::get('/access-role-to-menu/{id_role}', [Administrator::class, 'AccessRoleToMenu'])->name('api.access.role.to.menu');
