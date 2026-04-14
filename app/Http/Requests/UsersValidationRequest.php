@@ -116,11 +116,16 @@ class UsersValidationRequest extends FormRequest
 
 
     protected function prepareForValidation(): void
-    {
-        $this->merge([
-            'fullname' => trim($this->fullname),
-            'username' => trim($this->username),
-            'email'    => trim($this->email),
-        ]);
-    }
+{
+    $this->merge([
+        'fullname'  => trim($this->fullname),
+        'username'  => trim($this->username),
+        'email'     => trim($this->email),
+        // ✅ cast ke tipe yang benar karena FormData selalu kirim string
+        'is_active' => filter_var($this->is_active, FILTER_VALIDATE_BOOLEAN, FILTER_NULL_ON_FAILURE),
+        'role_id'   => $this->role_id   ? (int) $this->role_id   : null,
+        'divisi_id' => $this->divisi_id ? (int) $this->divisi_id : null,
+        'group_id'  => $this->group_id  ? (int) $this->group_id  : null,
+    ]);
+}
 }
