@@ -113,6 +113,30 @@ class MsSubMenuSeeder extends Seeder
             ],
 
 
+              // ================================
+            // ADMINISTRATOR MASTER
+            // ================================
+            [
+                'id_menu' => 1,
+                'url' => '/administrator-master-data',
+                'icon' => 'nav-icon fas fa-folder-open',
+                'title' => 'Master',
+                'noted' => 'Master administrator Data Management',
+                'is_active' => true,
+                'parent_id' => null,
+            ],
+
+            [
+                'id_menu' => 1,
+                'url' => '/data-master-employee',
+                'icon' => null,
+                'title' => 'Master Employe',
+                'noted' => 'Master Employe Page',
+                'is_active' => true,
+                'parent_id' => 9,
+            ],
+
+
              // ================================
             // SALES HOME
             // ================================
@@ -135,15 +159,7 @@ class MsSubMenuSeeder extends Seeder
                 'is_active' => true,
                 'parent_id' => null,
             ],
-             [
-                'id_menu' => 2,
-                'url' => '/data-master-employee',
-                'icon' => null,
-                'title' => 'Master Employe',
-                'noted' => 'Master Employe Page',
-                'is_active' => true,
-                'parent_id' => 10,
-            ],
+             
 
             [
                 'id_menu' => 2,
@@ -162,7 +178,7 @@ class MsSubMenuSeeder extends Seeder
                 'title' => 'Attendance',
                 'noted' => 'Attendance Page',
                 'is_active' => true,
-                'parent_id' => 12,
+                'parent_id' => 13,
             ],
 
             [
@@ -172,7 +188,7 @@ class MsSubMenuSeeder extends Seeder
                 'title' => 'Leave',
                 'noted' => 'Leave Page',
                 'is_active' => true,
-                'parent_id' => 12,
+                'parent_id' => 13,
             ],
 
             [
@@ -182,7 +198,7 @@ class MsSubMenuSeeder extends Seeder
                 'title' => 'Work routes',
                 'noted' => 'Work routes Page',
                 'is_active' => true,
-                'parent_id' => 12,
+                'parent_id' => 13,
             ],
 
             [
@@ -192,7 +208,7 @@ class MsSubMenuSeeder extends Seeder
                 'title' => 'Work Shift Table',
                 'noted' => 'Work Shift Table',
                 'is_active' => true,
-                'parent_id' => 12,
+                'parent_id' => 13,
             ],
 
             [
@@ -202,7 +218,7 @@ class MsSubMenuSeeder extends Seeder
                 'title' => 'Shift',
                 'noted' => 'Shift page',
                 'is_active' => true,
-                'parent_id' => 12,
+                'parent_id' => 13,
             ],
 
             [
@@ -212,7 +228,7 @@ class MsSubMenuSeeder extends Seeder
                 'title' => 'Shift Categories',
                 'noted' => 'Shift Categories page',
                 'is_active' => true,
-                'parent_id' => 12,
+                'parent_id' => 13,
             ],
             [
                 'id_menu' => 2,
@@ -221,7 +237,7 @@ class MsSubMenuSeeder extends Seeder
                 'title' => 'Workplace',
                 'noted' => 'Workplace',
                 'is_active' => true,
-                'parent_id' => 12,
+                'parent_id' => 13,
             ],
             [
                 'id_menu' => 2,
@@ -230,7 +246,7 @@ class MsSubMenuSeeder extends Seeder
                 'title' => 'Reports',
                 'noted' => 'Reports',
                 'is_active' => true,
-                'parent_id' => 12,
+                'parent_id' => 13,
             ],
             [
                 'id_menu' => 2,
@@ -239,7 +255,7 @@ class MsSubMenuSeeder extends Seeder
                 'title' => 'Settings',
                 'noted' => 'Settings',
                 'is_active' => true,
-                'parent_id' => 12,
+                'parent_id' => 13,
             ],
 
              [
@@ -259,7 +275,7 @@ class MsSubMenuSeeder extends Seeder
                 'title' => 'Proposals',
                 'noted' => 'Proposals Management Page',
                 'is_active' => true,
-                'parent_id' => 20,
+                'parent_id' => 23,
             ],
             [
                 'id_menu' => 2,
@@ -268,7 +284,7 @@ class MsSubMenuSeeder extends Seeder
                 'title' => 'Estimates',
                 'noted' => 'Estimates Management Page',
                 'is_active' => true,
-                'parent_id' => 20,
+                'parent_id' => 23,
             ],
               [
                 'id_menu' => 2,
@@ -277,7 +293,7 @@ class MsSubMenuSeeder extends Seeder
                 'title' => 'Invoices',
                 'noted' => 'Invoices Management Page',
                 'is_active' => true,
-                'parent_id' => 20,
+                'parent_id' => 23,
             ],
 
               [
@@ -287,7 +303,7 @@ class MsSubMenuSeeder extends Seeder
                 'title' => 'Payments',
                 'noted' => 'Payments Management Page',
                 'is_active' => true,
-                'parent_id' => 20,
+                'parent_id' => 23,
             ],
 
               [
@@ -297,7 +313,7 @@ class MsSubMenuSeeder extends Seeder
                 'title' => 'Credit Notes',
                 'noted' => 'Credit Notes Management Page',
                 'is_active' => true,
-                'parent_id' => 20,
+                'parent_id' => 23,
             ],
             
               [
@@ -307,7 +323,7 @@ class MsSubMenuSeeder extends Seeder
                 'title' => 'Items',
                 'noted' => 'Items Management Page',
                 'is_active' => true,
-                'parent_id' => 20,
+                'parent_id' => 23,
             ],
 
               
@@ -318,7 +334,7 @@ class MsSubMenuSeeder extends Seeder
                 'title' => 'Leads',
                 'noted' => 'Leads Management Page',
                 'is_active' => true,
-                'parent_id' => 22,
+                'parent_id' => 23,
             ],
 
               [
@@ -388,7 +404,7 @@ class MsSubMenuSeeder extends Seeder
                 'title' => 'Customers',
                 'noted' => 'Customers Management Page',
                 'is_active' => true,
-                'parent_id' => 22,
+                'parent_id' => 23,
             ],
 
             [
@@ -408,7 +424,7 @@ class MsSubMenuSeeder extends Seeder
                 'title' => 'Sales Visits',
                 'noted' => 'Sales Visits',
                 'is_active' => true,
-                'parent_id' => 22,
+                'parent_id' => 23,
             ],
 
             [
@@ -418,7 +434,7 @@ class MsSubMenuSeeder extends Seeder
                 'title' => 'Follow Up',
                 'noted' => 'Follow Up',
                 'is_active' => true,
-                'parent_id' => 22,
+                'parent_id' => 23,
             ],
 
             [
@@ -428,7 +444,7 @@ class MsSubMenuSeeder extends Seeder
                 'title' => 'Sales Reports',
                 'noted' => 'sales reports visits and followup',
                 'is_active' => true,
-                'parent_id' => 22,
+                'parent_id' => 23,
             ],
 
 
@@ -464,7 +480,7 @@ class MsSubMenuSeeder extends Seeder
                 'title' => 'Example Report one',
                 'noted' => 'Example Report one Page',
                 'is_active' => true,
-                'parent_id' => 37,
+                'parent_id' => 43,
             ],
 
              [
@@ -474,7 +490,7 @@ class MsSubMenuSeeder extends Seeder
                 'title' => 'Example Report two',
                 'noted' => 'Example Report two Page',
                 'is_active' => true,
-                'parent_id' => 37,
+                'parent_id' => 43,
             ],
             
              [
@@ -484,7 +500,7 @@ class MsSubMenuSeeder extends Seeder
                 'title' => 'Example Report three',
                 'noted' => 'Example Report three Page',
                 'is_active' => true,
-                'parent_id' => 37,
+                'parent_id' => 43,
             ],
 
 
@@ -495,7 +511,7 @@ class MsSubMenuSeeder extends Seeder
                 'title' => 'Master Leads Admin',
                 'noted' => 'Master Leads Admin Page',
                 'is_active' => true,
-                'parent_id' => 10,
+                'parent_id' => 12,
             ],
 
 
