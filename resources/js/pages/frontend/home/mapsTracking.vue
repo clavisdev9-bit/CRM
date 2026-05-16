@@ -20,46 +20,38 @@
           </div>
         </div>
 
-
         <!-- Filter Sales -->
-            <div class="filter-group">
-            <label>Sales</label>
-            <select v-model="selectedSalesId" @change="renderMarkers">
-                <option value="">All Sales</option>
-                <option v-for="s in salesList" :key="s.id" :value="s.id">
-                {{ s.name }}
-                </option>
-            </select>
-            </div>
-
-
-            <!-- Filter Status -->
-            <div class="filter-group">
-              <label>Status</label>
-              <select v-model="selectedStatus" @change="renderMarkers">
-                <option value="">All Status</option>
-                <option value="BELUM_CHECK_IN">Planned</option>
-                <option value="SEDANG_CHECK_IN">On-Site</option>
-                <option value="SELESAI">Done</option>
-              </select>
-            </div>
+        <div class="filter-group">
+          <label>Sales</label>
+          <select v-model="selectedSalesId" @change="renderMarkers">
+            <option value="">All Sales</option>
+            <option v-for="s in salesList" :key="s.id" :value="s.id">
+              {{ s.name }}
+            </option>
+          </select>
         </div>
 
-      
+        <!-- Filter Status -->
+        <div class="filter-group">
+          <label>Status</label>
+          <select v-model="selectedStatus" @change="renderMarkers">
+            <option value="">All Status</option>
+            <option value="BELUM_CHECK_IN">Planned</option>
+            <option value="SEDANG_CHECK_IN">On-Site</option>
+            <option value="SELESAI">Done</option>
+          </select>
+        </div>
+      </div>
 
-      <!-- di topbar-right, sebelum stat-pill -->
-        <div class="last-update">
+      <div class="last-update">
         <span class="brand-dot"></span>
         Live · Updated {{ lastUpdated }}
-        </div>
+      </div>
 
-        <!-- Tambahkan di topbar-right, sebelum stat-pill -->
-        <button class="export-btn" @click="exportMap" :disabled="isExporting">
-          <i class="bx bx-download"></i>
-          <span>{{ isExporting ? 'Exporting...' : 'Export Map' }}</span>
-        </button>
-
-
+      <button class="export-btn" @click="exportMap" :disabled="isExporting">
+        <i class="bx bx-download"></i>
+        <span>{{ isExporting ? 'Exporting...' : 'Export Map' }}</span>
+      </button>
 
       <div class="topbar-right">
         <div class="stat-pill" v-for="s in statusSummary" :key="s.label" :class="s.cls">
@@ -129,92 +121,171 @@
           <div class="loader-ring"></div>
           <span>Loading visits...</span>
         </div>
+      </div>
 
-        <!-- SELECTED POPUP CARD -->
-        <transition name="slide-up">
-          <div class="detail-card" v-if="selectedVisit">
-            <button class="detail-close" @click="selectedVisit = null">
+      <!-- LEGEND -->
+      <div class="map-legend">
+        <div class="legend-title">Status</div>
+        <div class="legend-item" v-for="l in legends" :key="l.label">
+          <span class="legend-dot" :style="{ background: l.color }"></span>
+          {{ l.label }}
+        </div>
+        <div class="legend-divider"></div>
+        <div class="legend-title">Type</div>
+        <div class="legend-item">
+          <span class="legend-badge badge-lead">LEAD</span>
+        </div>
+        <div class="legend-item">
+          <span class="legend-badge badge-customer">CUSTOMER</span>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- MODAL DETAIL -->
+    <transition name="modal-fade">
+      <div class="modal-overlay" v-if="selectedVisit" @click.self="selectedVisit = null">
+        <div class="modal-card">
+
+          <!-- Header -->
+          <div class="modal-header" :class="statusClass(selectedVisit.visit_status_label)">
+            <button class="modal-close" @click="selectedVisit = null">
               <i class="bx bx-x"></i>
             </button>
-            <div class="detail-header">
-              <img :src="selectedVisit.sales_photo_url" class="detail-avatar" />
-              <div>
-                <div class="detail-sales">{{ selectedVisit.sales_name }}</div>
-                <div class="detail-status" :class="statusClass(selectedVisit.visit_status_label)">
+            <div class="modal-hero">
+              <div class="modal-avatar-wrap">
+                <img
+                  :src="selectedVisit.sales_photo_url"
+                  class="modal-avatar"
+                  @error="$event.target.src=`https://ui-avatars.com/api/?name=${encodeURIComponent(selectedVisit.sales_name)}&background=1e2535&color=fff&size=80&bold=true`"
+                />
+                <span class="modal-avatar-ring" :class="statusClass(selectedVisit.visit_status_label)"></span>
+              </div>
+              <div class="modal-hero-info">
+                <div class="modal-sales-name">{{ selectedVisit.sales_name }}</div>
+                <div class="modal-status-badge" :class="statusClass(selectedVisit.visit_status_label)">
+                  <span class="badge-dot"></span>
                   {{ selectedVisit.visit_status_label }}
                 </div>
               </div>
             </div>
-            <div class="detail-body">
-              <div class="detail-row">
+          </div>
+
+          <!-- Body -->
+          <div class="modal-body">
+
+            <!-- Visit Code -->
+            <div class="modal-code">
+              <i class="bx bx-barcode"></i>
+              {{ selectedVisit.visit_code }}
+            </div>
+
+            <!-- Target -->
+            <div class="modal-section">
+              <div class="modal-section-title">Target</div>
+              <div class="modal-info-row">
                 <i class="bx bx-buildings"></i>
-                <span>
+                <div>
                   <span class="type-badge" :class="selectedVisit.target_type === 'LEAD' ? 'badge-lead' : 'badge-customer'">
                     {{ selectedVisit.target_type }}
                   </span>
-                  {{ selectedVisit.target_name }}
-                </span>
+                  <span class="modal-info-value">{{ selectedVisit.target_name }}</span>
+                </div>
               </div>
-              <div class="detail-row">
+              <div class="modal-info-row" v-if="selectedVisit.target_contact">
+                <i class="bx bx-user"></i>
+                <span class="modal-info-value">{{ selectedVisit.target_contact }}</span>
+              </div>
+              <div class="modal-info-row">
                 <i class="bx bx-map-pin"></i>
-                <span>{{ selectedVisit.gps_snapshot ?? 'No address' }}</span>
-              </div>
-              <div class="detail-row">
-                <i class="bx bx-time"></i>
-                <span>Visit: {{ formatTime(selectedVisit.visit_at) }}</span>
-              </div>
-              <div class="detail-row" v-if="selectedVisit.check_in_at">
-                <i class="bx bx-log-in"></i>
-                <span>Check-in: {{ formatTime(selectedVisit.check_in_at) }}</span>
-              </div>
-              <div class="detail-row" v-if="selectedVisit.check_out_at">
-                <i class="bx bx-log-out"></i>
-                <span>Check-out: {{ formatTime(selectedVisit.check_out_at) }}</span>
+                <span class="modal-info-value">{{ selectedVisit.gps_snapshot ?? 'No address' }}</span>
               </div>
             </div>
+
+            <!-- Timeline -->
+            <div class="modal-section">
+              <div class="modal-section-title">Timeline</div>
+              <div class="modal-timeline">
+                <div class="timeline-item">
+                  <div class="timeline-dot dot-plan"></div>
+                  <div class="timeline-content">
+                    <div class="timeline-label">Planned</div>
+                    <div class="timeline-time">{{ formatTime(selectedVisit.visit_at) }}</div>
+                  </div>
+                </div>
+                <div class="timeline-line"></div>
+                <div class="timeline-item">
+                  <div class="timeline-dot" :class="selectedVisit.check_in_at ? 'dot-checkin' : 'dot-empty'"></div>
+                  <div class="timeline-content">
+                    <div class="timeline-label">Check-in</div>
+                    <div class="timeline-time">{{ selectedVisit.check_in_at ? formatTime(selectedVisit.check_in_at) : '-' }}</div>
+                  </div>
+                </div>
+                <div class="timeline-line"></div>
+                <div class="timeline-item">
+                  <div class="timeline-dot" :class="selectedVisit.check_out_at ? 'dot-checkout' : 'dot-empty'"></div>
+                  <div class="timeline-content">
+                    <div class="timeline-label">Check-out</div>
+                    <div class="timeline-time">{{ selectedVisit.check_out_at ? formatTime(selectedVisit.check_out_at) : '-' }}</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Duration -->
+            <div class="modal-duration" v-if="selectedVisit.check_in_at && selectedVisit.check_out_at">
+              <i class="bx bx-time-five"></i>
+              <span>Durasi kunjungan: <strong>{{ calcDuration(selectedVisit.check_in_at, selectedVisit.check_out_at) }}</strong></span>
+            </div>
+
           </div>
-        </transition>
+
+          <!-- Footer -->
+          <div class="modal-footer">
+            <a
+              :href="`https://www.google.com/maps?q=${selectedVisit.latitude},${selectedVisit.longitude}`"
+              target="_blank"
+              class="modal-btn btn-maps"
+            >
+              <i class="bx bx-map-alt"></i> Buka di Maps
+            </a>
+            <button class="modal-btn btn-close" @click="selectedVisit = null">
+              Tutup
+            </button>
+          </div>
+
+        </div>
       </div>
+    </transition>
 
-      <!-- LEGEND -->
-<div class="map-legend">
-  <div class="legend-title">Status</div>
-  <div class="legend-item" v-for="l in legends" :key="l.label">
-    <span class="legend-dot" :style="{ background: l.color }"></span>
-    {{ l.label }}
-  </div>
-  <div class="legend-divider"></div>
-  <div class="legend-title">Type</div>
-  <div class="legend-item">
-    <span class="legend-badge badge-lead">LEAD</span>
-  </div>
-  <div class="legend-item">
-    <span class="legend-badge badge-customer">CUSTOMER</span>
-  </div>
-</div>
-
-    </div>
   </div>
 </template>
 
 <script setup>
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch, nextTick, markRaw } from 'vue'
 import axios from 'axios'
 
 // --- STATE ---
-const mapRef = ref(null)
-const mapInstance = ref(null)
-const markersLayer = ref(null)
-const visits = ref([])
+const mapRef        = ref(null)
+const mapInstance   = ref(null)
+const visits        = ref([])
 const selectedVisit = ref(null)
-const isLoading = ref(false)
+const isLoading     = ref(false)
 const sidebarCollapsed = ref(false)
-const search = ref('')
-const polylinesLayer = ref(null)
+const search        = ref('')
+const googleMarkers = ref([])
+const activePolylines = ref([])
+const AdvancedMarkerElement = ref(null)
 
-const today = new Date().toISOString().split('T')[0]
+const today    = new Date().toISOString().split('T')[0]
 const dateFrom = ref(today)
-const dateTo = ref(today)
+const dateTo   = ref(today)
+const lastUpdated  = ref('-')
+const isExporting  = ref(false)
+const pollingInterval = ref(null)
+
+const selectedSalesId = ref('')
+const selectedStatus  = ref('')
 
 const legends = [
   { label: 'Belum Check-in', color: '#ffab00' },
@@ -223,61 +294,32 @@ const legends = [
   { label: 'Unknown',         color: '#8592a3' },
 ]
 
-// untuk realtime
-
+// --- LIFECYCLE ---
 onMounted(async () => {
-  if (!document.getElementById('leaflet-css')) {
-    const link = document.createElement('link')
-    link.id = 'leaflet-css'
-    link.rel = 'stylesheet'
-    link.href = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.css'
-    document.head.appendChild(link)
+  document.getElementById('leaflet-css')?.remove()
+
+  if (!document.getElementById('google-maps-script')) {
+    const script = document.createElement('script')
+    script.id  = 'google-maps-script'
+    script.src = `https://maps.googleapis.com/maps/api/js?key=AIzaSyAukPU7EoLvUeD4yGtxYkgyeOuxIgATl2A&libraries=marker,geometry&v=weekly`
+    script.async = true
+    script.defer = true
+    script.onload = async () => {
+      await initMap()
+      await fetchVisits()
+      startPolling()
+    }
+    document.head.appendChild(script)
+  } else {
+    await initMap()
+    await fetchVisits()
+    startPolling()
   }
-
-  if (!window.L) {
-    await new Promise((resolve) => {
-      const script = document.createElement('script')
-      script.src = 'https://unpkg.com/leaflet@1.9.4/dist/leaflet.js'
-      script.onload = resolve
-      document.head.appendChild(script)
-    })
-
-    // jika suatu saat pakai googlr maps aktifkan ini
-    // GANTI dengan:
-        // await new Promise((resolve) => {
-        //   const script = document.createElement('script')
-        //   script.src = `https://maps.googleapis.com/maps/api/js?key=YOUR_API_KEY`
-        //   script.onload = resolve
-        //   document.head.appendChild(script)
-        // })
-  }
-
-  initMap()
-  await fetchVisits()
-  startPolling() // 👈 tambahkan ini
 })
 
-onUnmounted(() => {
-  stopPolling() // 👈 tambahkan ini
-})
-
-
+onUnmounted(() => stopPolling())
 
 // --- COMPUTED ---
-// const filteredVisits = computed(() => {
-//   const q = search.value.toLowerCase()
-//   return visits.value.filter(v =>
-//     v.sales_name?.toLowerCase().includes(q) ||
-//     v.target_name?.toLowerCase().includes(q)
-//   )
-// })
-
-
-// code untuk filter
-// STATE baru
-const selectedSalesId = ref('')
-
-// Computed list sales dari data visit (tidak perlu API baru)
 const salesList = computed(() => {
   const map = {}
   visits.value.forEach(v => {
@@ -288,89 +330,92 @@ const salesList = computed(() => {
   return Object.values(map).sort((a, b) => a.name.localeCompare(b.name))
 })
 
-
-
-// filter by status
-const selectedStatus = ref('')
-// Update filteredVisits — tambah filter status
 const filteredVisits = computed(() => {
   const q = search.value.toLowerCase()
   return visits.value.filter(v => {
-    const matchSearch = v.sales_name?.toLowerCase().includes(q) ||
-                        v.target_name?.toLowerCase().includes(q)
-    const matchSales  = selectedSalesId.value === '' ||
-                        v.sales_id == selectedSalesId.value
-    const matchStatus = selectedStatus.value === '' ||
-                        v.visit_status_label === selectedStatus.value // 👈 tambahkan
+    const matchSearch = v.sales_name?.toLowerCase().includes(q) || v.target_name?.toLowerCase().includes(q)
+    const matchSales  = selectedSalesId.value === '' || v.sales_id == selectedSalesId.value
+    const matchStatus = selectedStatus.value  === '' || v.visit_status_label === selectedStatus.value
     return matchSearch && matchSales && matchStatus
   })
 })
 
-
-
-
 const statusSummary = computed(() => {
-  const planned  = visits.value.filter(v => v.visit_status_label === 'BELUM_CHECK_IN').length
-  const ongoing  = visits.value.filter(v => v.visit_status_label === 'SEDANG_CHECK_IN').length
-  const done     = visits.value.filter(v => v.visit_status_label === 'SELESAI').length
+  const planned = visits.value.filter(v => v.visit_status_label === 'BELUM_CHECK_IN').length
+  const ongoing = visits.value.filter(v => v.visit_status_label === 'SEDANG_CHECK_IN').length
+  const done    = visits.value.filter(v => v.visit_status_label === 'SELESAI').length
   return [
-    { label: 'Planned (Sedang Visit)',  count: planned, cls: 'pill-planned'  },
-    { label: 'On-Site (Sedang Check IN)',  count: ongoing, cls: 'pill-ongoing'  },
-    { label: 'Done (Check OUT Selesai)',     count: done,    cls: 'pill-done'     },
+    { label: 'Planned (Sedang Visit)',    count: planned, cls: 'pill-planned' },
+    { label: 'On-Site (Sedang Check IN)', count: ongoing, cls: 'pill-ongoing' },
+    { label: 'Done (Check OUT Selesai)',  count: done,    cls: 'pill-done'    },
   ]
 })
 
 // --- HELPERS ---
 const statusClass = (label) => {
-  if (label === 'BELUM_CHECK_IN') return 'status-planned'
+  if (label === 'BELUM_CHECK_IN')  return 'status-planned'
   if (label === 'SEDANG_CHECK_IN') return 'status-ongoing'
-  if (label === 'SELESAI') return 'status-done'
+  if (label === 'SELESAI')         return 'status-done'
   return 'status-unknown'
 }
 
 const formatTime = (dt) => {
   if (!dt) return '-'
-  return new Date(dt).toLocaleString('id-ID', { hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short' })
+  return new Date(dt).toLocaleString('id-ID', {
+    hour: '2-digit', minute: '2-digit', day: '2-digit', month: 'short'
+  })
 }
 
 const markerColor = (label) => {
-  if (label === 'BELUM_CHECK_IN') return '#ffab00'
+  if (label === 'BELUM_CHECK_IN')  return '#ffab00'
   if (label === 'SEDANG_CHECK_IN') return '#03c3ec'
-  if (label === 'SELESAI') return '#71dd37'
+  if (label === 'SELESAI')         return '#71dd37'
   return '#8592a3'
 }
 
-// --- MAP INIT ---
-const initMap = () => {
-  if (mapInstance.value) return
-  const L = window.L
-  mapInstance.value = L.map(mapRef.value, {
-    center: [-6.2, 106.8],
-    zoom: 11,
-    zoomControl: false,
-  })
-  L.control.zoom({ position: 'bottomright' }).addTo(mapInstance.value)
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap'
-  }).addTo(mapInstance.value)
-
-  markersLayer.value = window.L.layerGroup().addTo(mapInstance.value)
+const salesColor = (salesId) => {
+  const colors = ['#03c3ec', '#ffab00', '#ff3e1d', '#71dd37', '#696cff', '#20c997', '#fd7e14']
+  return colors[salesId % colors.length]
 }
 
-// jika suatu saat mengunkan google maps aktifkan ini
-// const initMap = () => {
-//   if (mapInstance.value) return
-//   mapInstance.value = new google.maps.Map(mapRef.value, {
-//     center: { lat: -6.2, lng: 106.8 },
-//     zoom: 11,
-//   })
-//   markersLayer.value = [] // Google Maps tidak pakai layerGroup
-// }
+const calcDuration = (checkIn, checkOut) => {
+  const diff = new Date(checkOut) - new Date(checkIn)
+  const mins = Math.floor(diff / 60000)
+  if (mins < 60) return `${mins} menit`
+  const h = Math.floor(mins / 60)
+  const m = mins % 60
+  return m > 0 ? `${h} jam ${m} menit` : `${h} jam`
+}
 
+// --- MAP INIT ---
+const initMap = async () => {
+  if (mapInstance.value || !window.google) return
+
+  const [{ Map }, { AdvancedMarkerElement: AME }] = await Promise.all([
+    google.maps.importLibrary("maps"),
+    google.maps.importLibrary("marker"),
+  ])
+
+  AdvancedMarkerElement.value = markRaw(AME)
+
+  const map = new Map(mapRef.value, {
+    center: { lat: -6.1574, lng: 106.7110 },
+    zoom: 20,
+    mapId: 'b690a5c1fdb329231a42c571',
+    mapTypeId: 'hybrid',
+    streetViewControl: true,
+    streetViewControlOptions: { position: google.maps.ControlPosition.LEFT_BOTTOM },
+    fullscreenControl: true,
+    fullscreenControlOptions: { position: google.maps.ControlPosition.LEFT_BOTTOM },
+    zoomControl: true,
+    zoomControlOptions: { position: google.maps.ControlPosition.RIGHT_BOTTOM },
+    disableDefaultUI: false,
+  })
+
+  mapInstance.value = markRaw(map)
+}
 
 // --- FETCH ---
-const lastUpdated = ref('-')
-
 const fetchVisits = async () => {
   isLoading.value = true
   try {
@@ -389,218 +434,320 @@ const fetchVisits = async () => {
 
 // --- MARKERS ---
 const renderMarkers = () => {
-  if (!mapInstance.value || !markersLayer.value) return // 👈 guard
-  
-  const L = window.L
-  markersLayer.value.clearLayers()
-  const bounds = []
+  if (!mapInstance.value || !AdvancedMarkerElement.value) return
 
-  filteredVisits.value.forEach(visit => {
-    if (!visit.show_on_map || !visit.latitude || !visit.longitude) return
-    const lat = parseFloat(visit.latitude)
-    const lng = parseFloat(visit.longitude)
+  googleMarkers.value.forEach(m => (m.map = null))
+  googleMarkers.value = []
+
+  const bounds = new google.maps.LatLngBounds()
+
+  // Sort ascending visit_at — terlama = no. 1
+  const sorted = [...filteredVisits.value].sort((a, b) =>
+    new Date(a.visit_at) - new Date(b.visit_at)
+  )
+
+  // Counter nomor urut per sales
+  const salesCounter = {}
+
+//   sorted.forEach((visit, index) => {
+//     if (!visit.latitude || !visit.longitude) return
+
+//     if (!salesCounter[visit.sales_id]) salesCounter[visit.sales_id] = 0
+//     salesCounter[visit.sales_id]++
+//     const number = salesCounter[visit.sales_id]
+
+//     const lat   = parseFloat(visit.latitude)
+//     const lng   = parseFloat(visit.longitude)
+//     const color = markerColor(visit.visit_status_label)
+
+//     const markerEl = document.createElement('div')
+//     markerEl.style.cssText = `
+//       display: flex;
+//       flex-direction: column;
+//       align-items: center;
+//       cursor: pointer;
+//       transition: transform 0.2s ease;
+//     `
+//     markerEl.innerHTML = `
+//       <div style="position: relative; width: 44px; height: 44px;">
+
+//         <!-- Nomor urut per sales -->
+//         <div style="
+//           position: absolute; top: -6px; left: -6px;
+//           width: 18px; height: 18px; border-radius: 50%;
+//           background: #0f1117; border: 2px solid ${color}; color: ${color};
+//           font-size: 9px; font-weight: 700; font-family: 'Space Mono', monospace;
+//           display: flex; align-items: center; justify-content: center;
+//           z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+//         ">${number}</div>
+
+//         <!-- Ring warna status -->
+//         <div style="
+//           position: absolute; inset: 0; border-radius: 50%;
+//           border: 3px solid ${color}; box-shadow: 0 0 10px ${color}88;
+//         "></div>
+
+//         <!-- Foto sales -->
+//         <img
+//           src="${visit.sales_photo_url}"
+//           style="width:100%; height:100%; border-radius:50%; object-fit:cover; border:2px solid white; display:block;"
+//           onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(visit.sales_name)}&background=1e2535&color=ffffff&size=44&bold=true'"
+//         />
+
+//         <!-- Badge status dot kanan bawah -->
+//         <div style="
+//           position: absolute; bottom: 0; right: 0;
+//           width: 12px; height: 12px; border-radius: 50%;
+//           background: ${color}; border: 2px solid white;
+//           box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+//         "></div>
+//       </div>
+
+//       <!-- Ekor pin segitiga -->
+//       <div style="
+//         width:0; height:0;
+//         border-left:6px solid transparent; border-right:6px solid transparent;
+//         border-top:8px solid ${color}; margin-top:-1px;
+//         filter: drop-shadow(0 2px 2px rgba(0,0,0,0.3));
+//       "></div>
+
+//       <!-- Label nama + badge type -->
+//       <!-- Label nama + badge type -->
+// <div style="
+//   margin-top: 3px; background: rgba(15,17,23,0.85); color: white;
+//   font-size: 10px; font-weight: 600; font-family: 'DM Sans', sans-serif;
+//   padding: 2px 7px; border-radius: 10px; white-space: nowrap;
+//   border: 1px solid ${color}55; box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+//   max-width: 120px; overflow: hidden; text-overflow: ellipsis;
+//   display: flex; align-items: center; gap: 4px;
+// ">
+//   <span style="
+//     font-size: 8px; font-weight: 700; padding: 1px 4px; border-radius: 3px; flex-shrink: 0;
+//     background: ${visit.target_type === 'LEAD' ? 'rgba(105,108,255,0.3)' : 'rgba(3,195,236,0.3)'};
+//     color: ${visit.target_type === 'LEAD' ? '#696cff' : '#03c3ec'};
+//     border: 1px solid ${visit.target_type === 'LEAD' ? '#696cff55' : '#03c3ec55'};
+//   ">${visit.target_type}</span>
+//   ${visit.sales_name.split(' ')[0]}
+// </div>
+
+// <!-- Nama perusahaan -->
+// <div style="
+//   margin-top: 2px; background: rgba(15,17,23,0.75); color: #94a3b8;
+//   font-size: 9px; font-weight: 500; font-family: 'DM Sans', sans-serif;
+//   padding: 1px 6px; border-radius: 8px; white-space: nowrap;
+//   max-width: 130px; overflow: hidden; text-overflow: ellipsis;
+//   text-align: center;
+// ">${visit.target_name}</div>
+//     `
+
+//     markerEl.addEventListener('mouseenter', () => {
+//       markerEl.style.transform = 'scale(1.15) translateY(-4px)'
+//       markerEl.style.zIndex = '999'
+//     })
+//     markerEl.addEventListener('mouseleave', () => {
+//       markerEl.style.transform = 'scale(1)'
+//       markerEl.style.zIndex = ''
+//     })
+
+//     try {
+//       const marker = new AdvancedMarkerElement.value({
+//         map: mapInstance.value,
+//         position: { lat, lng },
+//         content: markerEl,
+//         title: `#${number} · ${visit.sales_name} - ${visit.target_name}`,
+//       })
+
+//       marker.addEventListener('gmp-click', () => selectVisit(visit))
+//       googleMarkers.value.push(markRaw(marker))
+//       bounds.extend({ lat, lng })
+//     } catch (err) {
+//       console.error(`Marker [${index}] FAILED:`, err)
+//     }
+//   })
+
+sorted.forEach((visit, index) => {
+    if (!visit.latitude || !visit.longitude) return
+
+    if (!salesCounter[visit.sales_id]) salesCounter[visit.sales_id] = 0
+    salesCounter[visit.sales_id]++
+    const number = salesCounter[visit.sales_id]
+
+    const lat   = parseFloat(visit.latitude)
+    const lng   = parseFloat(visit.longitude)
     const color = markerColor(visit.visit_status_label)
 
-
-
-    const icon = L.divIcon({
-  className: '',
-  html: `
-    <div style="position:relative;width:46px;height:46px;">
-      
-      <!-- Ring luar: warna type (LEAD=ungu, CUSTOMER=biru) -->
-      <div style="
-        width:46px;height:46px;
-        border-radius:50%;
-        background: ${visit.target_type === 'LEAD' ? '#696cff' : '#03c3ec'};
-        display:flex;align-items:center;justify-content:center;
-        box-shadow:0 4px 12px rgba(0,0,0,0.3);
-      ">
-        <!-- Ring tengah: warna status -->
+    const markerEl = document.createElement('div')
+    markerEl.style.cssText = `
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      cursor: pointer;
+      transition: transform 0.2s ease;
+    `
+    markerEl.innerHTML = `
+      <div style="position: relative; width: 44px; height: 44px;">
         <div style="
-          width:38px;height:38px;
-          border-radius:50%;
-          border:3px solid ${color};
-          overflow:hidden;
-          background:white;
-        ">
-          <img src="${visit.sales_photo_url}" style="width:100%;height:100%;object-fit:cover;" />
-        </div>
+          position: absolute; top: -6px; left: -6px;
+          width: 18px; height: 18px; border-radius: 50%;
+          background: #0f1117; border: 2px solid ${color}; color: ${color};
+          font-size: 9px; font-weight: 700; font-family: 'Space Mono', monospace;
+          display: flex; align-items: center; justify-content: center;
+          z-index: 10; box-shadow: 0 2px 4px rgba(0,0,0,0.5);
+        ">${number}</div>
+        <div style="
+          position: absolute; inset: 0; border-radius: 50%;
+          border: 3px solid ${color}; box-shadow: 0 0 10px ${color}88;
+        "></div>
+        <img
+          src="${visit.sales_photo_url}"
+          style="width:100%; height:100%; border-radius:50%; object-fit:cover; border:2px solid white; display:block;"
+          onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(visit.sales_name)}&background=1e2535&color=ffffff&size=44&bold=true'"
+        />
+        <div style="
+          position: absolute; bottom: 0; right: 0;
+          width: 12px; height: 12px; border-radius: 50%;
+          background: ${color}; border: 2px solid white;
+          box-shadow: 0 1px 3px rgba(0,0,0,0.4);
+        "></div>
       </div>
-
-      <!-- Dot status pojok kanan bawah -->
       <div style="
-        position:absolute;bottom:-2px;right:-2px;
-        width:14px;height:14px;
-        border-radius:50%;
-        background:${color};
-        border:2px solid #0f1117;
+        width:0; height:0;
+        border-left:6px solid transparent; border-right:6px solid transparent;
+        border-top:8px solid ${color}; margin-top:-1px;
+        filter: drop-shadow(0 2px 2px rgba(0,0,0,0.3));
       "></div>
-
-      <!-- Badge type pojok kiri atas -->
       <div style="
-        position:absolute;top:-4px;left:-4px;
-        background:${visit.target_type === 'LEAD' ? '#696cff' : '#03c3ec'};
-        color:white;
-        font-size:7px;
-        font-weight:700;
-        padding:2px 4px;
-        border-radius:4px;
-        border:1px solid #0f1117;
-        line-height:1;
-        white-space:nowrap;
-      ">${visit.target_type}</div>
+        margin-top: 3px; background: rgba(15,17,23,0.85); color: white;
+        font-size: 10px; font-weight: 600; font-family: 'DM Sans', sans-serif;
+        padding: 2px 7px; border-radius: 10px; white-space: nowrap;
+        border: 1px solid ${color}55; box-shadow: 0 2px 6px rgba(0,0,0,0.4);
+        max-width: 120px; overflow: hidden; text-overflow: ellipsis;
+        display: flex; align-items: center; gap: 4px;
+      ">
+        <span style="
+          font-size: 8px; font-weight: 700; padding: 1px 4px; border-radius: 3px; flex-shrink: 0;
+          background: ${visit.target_type === 'LEAD' ? 'rgba(105,108,255,0.3)' : 'rgba(3,195,236,0.3)'};
+          color: ${visit.target_type === 'LEAD' ? '#696cff' : '#03c3ec'};
+          border: 1px solid ${visit.target_type === 'LEAD' ? '#696cff55' : '#03c3ec55'};
+        ">${visit.target_type}</span>
+        ${visit.sales_name.split(' ')[0]}
+      </div>
+      <div style="
+        margin-top: 2px; background: rgba(15,17,23,0.75); color: #94a3b8;
+        font-size: 9px; font-weight: 500; font-family: 'DM Sans', sans-serif;
+        padding: 1px 6px; border-radius: 8px; white-space: nowrap;
+        max-width: 130px; overflow: hidden; text-overflow: ellipsis;
+        text-align: center;
+      ">${visit.target_name}</div>
+    `
 
-    </div>
-  `,
-  iconSize: [46, 46],
-  iconAnchor: [23, 46],
-})
+    // ✅ TARUH DI SINI — setelah innerHTML, sebelum try
+    markerEl.addEventListener('click', () => selectVisit(visit))
 
-    const marker = L.marker([lat, lng], { icon })
-      .on('click', () => selectVisit(visit))
-    markersLayer.value.addLayer(marker)
-    bounds.push([lat, lng])
+    markerEl.addEventListener('mouseenter', () => {
+      markerEl.style.transform = 'scale(1.15) translateY(-4px)'
+      markerEl.style.zIndex = '999'
+    })
+    markerEl.addEventListener('mouseleave', () => {
+      markerEl.style.transform = 'scale(1)'
+      markerEl.style.zIndex = ''
+    })
+
+    try {
+      const marker = new AdvancedMarkerElement.value({
+        map: mapInstance.value,
+        position: { lat, lng },
+        content: markerEl,
+        title: `#${number} · ${visit.sales_name} - ${visit.target_name}`,
+      })
+
+      marker.addEventListener('gmp-click', () => selectVisit(visit))
+      googleMarkers.value.push(markRaw(marker))
+      bounds.extend({ lat, lng })
+    } catch (err) {
+      console.error(`Marker [${index}] FAILED:`, err)
+    }
   })
 
-   //jilka suatu saat mengunkan google maps aktifkan ini
-  // Leaflet: L.marker([lat, lng])
-    // Google Maps:
-    // new google.maps.Marker({
-    //   position: { lat, lng },
-    //   map: mapInstance.value,
-    //   icon: { ... }
-    // })
-
-  // 👈 Tambahkan try-catch di fitBounds
-  if (bounds.length > 0) {
-    try {
-      mapInstance.value.fitBounds(bounds, { padding: [60, 60] })
-    } catch (e) {
-      console.warn('fitBounds error:', e)
-    }
+  if (googleMarkers.value.length > 0) {
+    mapInstance.value.fitBounds(bounds, { padding: 80 })
   }
 
-  nextTick(() => renderPolylines()) // 👈 delay polyline sampai map selesai render
+  renderPolylines()
 }
-
-
 
 // --- SELECT VISIT ---
 const selectVisit = (visit) => {
   selectedVisit.value = visit
-  if (visit.latitude && visit.longitude) {
-    mapInstance.value.setView([visit.latitude, visit.longitude], 15, { animate: true })
+
+  if (visit.latitude && visit.longitude && mapInstance.value) {
+    const pos = {
+      lat: parseFloat(visit.latitude),
+      lng: parseFloat(visit.longitude)
+    }
+
+    mapInstance.value.setZoom(11)
+
+    setTimeout(() => {
+      mapInstance.value.panTo(pos)
+      setTimeout(() => {
+        mapInstance.value.setZoom(18)
+      }, 600)
+    }, 300)
   }
 }
 
+// --- POLYLINES ---
+const renderPolylines = () => {
+  if (!mapInstance.value || !window.google) return
+
+  activePolylines.value.forEach(p => p.setMap(null))
+  activePolylines.value = []
+
+  const grouped = {}
+  filteredVisits.value.forEach(v => {
+    if (!v.latitude || !v.longitude) return
+    if (!grouped[v.sales_id]) grouped[v.sales_id] = []
+    grouped[v.sales_id].push(v)
+  })
+
+  Object.entries(grouped).forEach(([salesId, salesVisits]) => {
+    if (salesVisits.length < 2) return
+
+    const sorted = [...salesVisits].sort((a, b) => new Date(a.visit_at) - new Date(b.visit_at))
+    const path   = sorted.map(v => ({ lat: parseFloat(v.latitude), lng: parseFloat(v.longitude) }))
+    const color  = salesColor(parseInt(salesId))
+
+    const line = new google.maps.Polyline({
+      path,
+      strokeColor: color,
+      strokeOpacity: 0.6,
+      strokeWeight: 2,
+      map: mapInstance.value,
+      icons: [{
+        icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 2 },
+        offset: '0',
+        repeat: '10px'
+      }],
+    })
+    activePolylines.value.push(line)
+  })
+}
+
+// --- WATCHERS ---
 watch(filteredVisits, () => {
-  if (mapInstance.value && mapInstance.value.getContainer()) {
-    nextTick(() => renderMarkers())
-  }
+  if (mapInstance.value) nextTick(() => renderMarkers())
+}, { deep: true })
 
 watch(sidebarCollapsed, () => {
   setTimeout(() => {
-    mapInstance.value?.invalidateSize()
-  }, 350) // tunggu transition sidebar selesai (0.3s + sedikit buffer)
-})
-  
+    if (mapInstance.value) google.maps.event.trigger(mapInstance.value, "resize")
+  }, 350)
 })
 
-
-// Gambar polyline per sales
-const renderPolylines = () => {
-if (!mapInstance.value || !window.L) return // 👈 guard
-
-  const L = window.L
-
-  // Hapus polyline lama kalau ada
-  if (polylinesLayer.value) {
-    polylinesLayer.value.clearLayers()
-  }
-  polylinesLayer.value = L.layerGroup().addTo(mapInstance.value)
-
-  // Group visit per sales_id
-  const grouped = {}
-  filteredVisits.value.forEach(visit => {
-    if (!visit.latitude || !visit.longitude) return
-    if (!grouped[visit.sales_id]) grouped[visit.sales_id] = []
-    grouped[visit.sales_id].push(visit)
-  })
-
-  // Buat polyline per sales, urut berdasarkan visit_at
-  Object.values(grouped).forEach(salesVisits => {
-    if (salesVisits.length < 2) return // minimal 2 titik baru bisa dibuat garis
-
-    const sorted = [...salesVisits].sort(
-      (a, b) => new Date(a.visit_at) - new Date(b.visit_at)
-    )
-
-    const coords = sorted.map(v => [parseFloat(v.latitude), parseFloat(v.longitude)])
-    const color  = salesColor(sorted[0].sales_id)
-
-    // Garis utama
-    L.polyline(coords, {
-      color,
-      weight: 2,
-      opacity: 0.6,
-      dashArray: '8, 6',  // <-- efek putus-putus
-    }).addTo(polylinesLayer.value)
-
-    //jika suatu saat menggunkan google maps
-    // Leaflet: L.polyline(coords)
-        // Google Maps:
-        // new google.maps.Polyline({
-        //   path: coords.map(([lat, lng]) => ({ lat, lng })),
-        //   map: mapInstance.value,
-        //   strokeColor: color,
-        //   strokeOpacity: 0.6,
-        //   strokeWeight: 2,
-        //   icons: [{ icon: { path: 'M 0,-1 0,1', strokeOpacity: 1, scale: 3 }, repeat: '15px' }]
-        // })
-
-    // Nomor urut di tiap titik
-    sorted.forEach((visit, index) => {
-      const numIcon = L.divIcon({
-        className: '',
-        html: `
-          <div style="
-            background: ${color};
-            color: white;
-            width: 20px; height: 20px;
-            border-radius: 50%;
-            font-size: 10px;
-            font-weight: 700;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            border: 2px solid white;
-            box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-          ">${index + 1}</div>
-        `,
-        iconSize: [20, 20],
-        iconAnchor: [10, 10],
-      })
-      L.marker([parseFloat(visit.latitude), parseFloat(visit.longitude)], { icon: numIcon })
-        .addTo(polylinesLayer.value)
-    })
-  })
-}
-
-// Warna unik per sales (biar beda-beda garisnya)
-const salesColor = (salesId) => {
-  const colors = ['#03c3ec', '#ffab00', '#ff3e1d', '#71dd37', '#696cff', '#20c997', '#fd7e14']
-  return colors[salesId % colors.length]
-}
-
-// Ref untuk polling
-const pollingInterval = ref(null)
-
-// Jalankan polling setiap 30 detik
+// --- POLLING ---
 const startPolling = () => {
-  pollingInterval.value = setInterval(() => {
-    fetchVisits()
-  }, 30000) // 30 detik
+  pollingInterval.value = setInterval(() => fetchVisits(), 30000)
 }
 
 const stopPolling = () => {
@@ -610,16 +757,10 @@ const stopPolling = () => {
   }
 }
 
-
-
-// export gamabr 
-const isExporting = ref(false)
-
+// --- EXPORT MAP ---
 const exportMap = async () => {
   isExporting.value = true
-
   try {
-    // Load html2canvas kalau belum ada
     if (!window.html2canvas) {
       await new Promise((resolve) => {
         const script = document.createElement('script')
@@ -629,19 +770,13 @@ const exportMap = async () => {
       })
     }
 
-    // Ambil elemen map container
     const mapEl = document.querySelector('.map-container')
-
     const canvas = await window.html2canvas(mapEl, {
-      useCORS: true,
-      allowTaint: true,
-      backgroundColor: '#0f1117',
-      scale: 2, // resolusi lebih tinggi
-      logging: false,
+      useCORS: true, allowTaint: true,
+      backgroundColor: '#0f1117', scale: 2, logging: false,
     })
 
-    // Tambahkan watermark tanggal
-    const ctx = canvas.getContext('2d')
+    const ctx  = canvas.getContext('2d')
     const text = `Live Field Tracker · ${dateFrom.value} s/d ${dateTo.value} · Updated ${lastUpdated.value}`
     ctx.fillStyle = 'rgba(0,0,0,0.5)'
     ctx.fillRect(0, canvas.height - 36, canvas.width, 36)
@@ -649,12 +784,10 @@ const exportMap = async () => {
     ctx.font = '13px monospace'
     ctx.fillText(text, 16, canvas.height - 12)
 
-    // Download
     const link = document.createElement('a')
     link.download = `field-tracker-${dateFrom.value}.png`
     link.href = canvas.toDataURL('image/png')
     link.click()
-
   } catch (e) {
     console.error('Export failed:', e)
     alert('Export gagal, coba lagi.')
@@ -662,8 +795,6 @@ const exportMap = async () => {
     isExporting.value = false
   }
 }
-
-
 </script>
 
 <style scoped>
@@ -692,449 +823,331 @@ const exportMap = async () => {
   flex-shrink: 0;
   gap: 16px;
 }
-.topbar-left { display: flex; align-items: center; gap: 24px; }
+.topbar-left  { display: flex; align-items: center; gap: 24px; }
 .topbar-right { display: flex; align-items: center; gap: 8px; }
 
 .brand {
   font-family: 'Space Mono', monospace;
-  font-size: 13px;
-  font-weight: 700;
-  color: #fff;
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  white-space: nowrap;
+  font-size: 13px; font-weight: 700; color: #fff;
+  display: flex; align-items: center; gap: 8px; white-space: nowrap;
 }
 .brand-dot {
-  width: 8px; height: 8px;
-  border-radius: 50%;
-  background: #03c3ec;
-  box-shadow: 0 0 8px #03c3ec;
+  width: 8px; height: 8px; border-radius: 50%;
+  background: #03c3ec; box-shadow: 0 0 8px #03c3ec;
   animation: pulse 2s infinite;
 }
 
-.date-filter {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-}
+.date-filter { display: flex; align-items: center; gap: 8px; }
 .filter-group {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: #1e2535;
-  border: 1px solid #2a3348;
-  border-radius: 8px;
-  padding: 4px 10px;
+  display: flex; align-items: center; gap: 6px;
+  background: #1e2535; border: 1px solid #2a3348;
+  border-radius: 8px; padding: 4px 10px;
 }
 .filter-group label {
-  font-size: 10px;
-  color: #64748b;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
+  font-size: 10px; color: #64748b;
+  text-transform: uppercase; letter-spacing: 0.5px;
 }
-.filter-group input {
-  background: transparent;
-  border: none;
-  color: #e2e8f0;
-  font-size: 12px;
-  font-family: 'DM Sans', sans-serif;
-  outline: none;
-  cursor: pointer;
+.filter-group input, .filter-group select {
+  background: transparent; border: none; color: #e2e8f0;
+  font-size: 12px; font-family: 'DM Sans', sans-serif;
+  outline: none; cursor: pointer; max-width: 140px;
 }
+.filter-group select option { background: #1e2535; color: #e2e8f0; }
 .filter-sep { color: #64748b; font-size: 12px; }
 
 .stat-pill {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 4px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  font-weight: 500;
+  display: flex; align-items: center; gap: 6px;
+  padding: 4px 12px; border-radius: 20px;
+  font-size: 12px; font-weight: 500;
 }
-.pill-dot {
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: currentColor;
+.pill-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+.pill-planned { background: rgba(255,171,0,0.15);  color: #ffab00; }
+.pill-ongoing { background: rgba(3,195,236,0.15);  color: #03c3ec; }
+.pill-done    { background: rgba(113,221,55,0.15); color: #71dd37; }
+
+.last-update {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; color: #475569;
+  font-family: 'Space Mono', monospace;
 }
-.pill-planned  { background: rgba(255,171,0,0.15);  color: #ffab00; }
-.pill-ongoing  { background: rgba(3,195,236,0.15);  color: #03c3ec; }
-.pill-done     { background: rgba(113,221,55,0.15); color: #71dd37; }
+
+.export-btn {
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(113,221,55,0.15); border: 1px solid rgba(113,221,55,0.3);
+  color: #71dd37; border-radius: 8px; padding: 5px 12px;
+  font-size: 12px; font-family: 'DM Sans', sans-serif;
+  cursor: pointer; transition: all 0.2s; white-space: nowrap;
+}
+.export-btn:hover    { background: rgba(113,221,55,0.25); }
+.export-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.export-btn i { font-size: 14px; }
 
 /* MAIN LAYOUT */
-.main-layout {
-  display: flex;
-  flex: 1;
-  overflow: hidden;
-}
+.main-layout { display: flex; flex: 1; overflow: hidden; position: relative; }
 
 /* SIDEBAR */
 .sidebar {
-  width: 320px;
-  background: #161b27;
+  width: 320px; background: #161b27;
   border-right: 1px solid #1e2535;
-  display: flex;
-  flex-direction: column;
-  transition: width 0.3s ease;
-  flex-shrink: 0;
+  display: flex; flex-direction: column;
+  transition: width 0.3s ease; flex-shrink: 0;
 }
 .sidebar.collapsed { width: 48px; }
 
 .sidebar-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 12px;
-  border-bottom: 1px solid #1e2535;
-  font-size: 13px;
-  font-weight: 600;
-  color: #94a3b8;
-  white-space: nowrap;
-  overflow: hidden;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 12px; border-bottom: 1px solid #1e2535;
+  font-size: 13px; font-weight: 600; color: #94a3b8;
+  white-space: nowrap; overflow: hidden;
 }
 .sidebar-header em { color: #03c3ec; font-style: normal; margin-left: 4px; }
 
 .collapse-btn {
-  background: #1e2535;
-  border: none;
-  color: #94a3b8;
-  width: 28px; height: 28px;
-  border-radius: 6px;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  transition: background 0.2s;
+  background: #1e2535; border: none; color: #94a3b8;
+  width: 28px; height: 28px; border-radius: 6px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; transition: background 0.2s;
 }
 .collapse-btn:hover { background: #2a3348; color: #fff; }
 
 .sidebar-search {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 12px;
-  border-bottom: 1px solid #1e2535;
+  display: flex; align-items: center; gap: 8px;
+  padding: 10px 12px; border-bottom: 1px solid #1e2535;
 }
 .sidebar-search i { color: #64748b; font-size: 16px; }
 .sidebar-search input {
-  background: transparent;
-  border: none;
-  color: #e2e8f0;
-  font-size: 13px;
-  font-family: 'DM Sans', sans-serif;
-  outline: none;
-  width: 100%;
+  background: transparent; border: none; color: #e2e8f0;
+  font-size: 13px; font-family: 'DM Sans', sans-serif;
+  outline: none; width: 100%;
 }
 .sidebar-search input::placeholder { color: #4a5568; }
 
-.visit-list {
-  overflow-y: auto;
-  flex: 1;
-}
+.visit-list { overflow-y: auto; flex: 1; }
 .visit-list::-webkit-scrollbar { width: 4px; }
 .visit-list::-webkit-scrollbar-track { background: transparent; }
 .visit-list::-webkit-scrollbar-thumb { background: #2a3348; border-radius: 4px; }
 
 .visit-item {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px;
-  border-bottom: 1px solid #1a2030;
-  cursor: pointer;
-  transition: background 0.15s;
+  display: flex; align-items: center; gap: 10px;
+  padding: 12px; border-bottom: 1px solid #1a2030;
+  cursor: pointer; transition: background 0.15s;
 }
-.visit-item:hover { background: #1a2232; }
+.visit-item:hover  { background: #1a2232; }
 .visit-item.active { background: #1e2a3a; border-left: 3px solid #03c3ec; }
 
-.visit-avatar {
-  position: relative;
-  flex-shrink: 0;
-}
+.visit-avatar { position: relative; flex-shrink: 0; }
 .visit-avatar img {
-  width: 36px; height: 36px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid #2a3348;
+  width: 36px; height: 36px; border-radius: 50%;
+  object-fit: cover; border: 2px solid #2a3348;
 }
 .status-dot {
-  position: absolute;
-  bottom: 0; right: 0;
-  width: 10px; height: 10px;
-  border-radius: 50%;
+  position: absolute; bottom: 0; right: 0;
+  width: 10px; height: 10px; border-radius: 50%;
   border: 2px solid #161b27;
 }
 
 .visit-info { flex: 1; min-width: 0; }
 .visit-sales {
-  font-size: 13px;
-  font-weight: 600;
-  color: #e2e8f0;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  font-size: 13px; font-weight: 600; color: #e2e8f0;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .visit-company {
-  font-size: 11px;
-  color: #64748b;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-top: 2px;
+  font-size: 11px; color: #64748b;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  display: flex; align-items: center; gap: 4px; margin-top: 2px;
 }
 .visit-time {
-  font-size: 10px;
-  color: #475569;
-  margin-top: 2px;
+  font-size: 10px; color: #475569; margin-top: 2px;
   font-family: 'Space Mono', monospace;
 }
-
 .visit-status-badge {
-  font-size: 9px;
-  font-weight: 700;
-  padding: 3px 7px;
-  border-radius: 20px;
-  white-space: nowrap;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-  flex-shrink: 0;
+  font-size: 9px; font-weight: 700; padding: 3px 7px;
+  border-radius: 20px; white-space: nowrap;
+  text-transform: uppercase; letter-spacing: 0.3px; flex-shrink: 0;
 }
 
 .type-badge {
-  font-size: 9px;
-  font-weight: 700;
-  padding: 2px 5px;
-  border-radius: 4px;
-  flex-shrink: 0;
+  font-size: 9px; font-weight: 700;
+  padding: 2px 5px; border-radius: 4px; flex-shrink: 0;
 }
 .badge-lead     { background: rgba(105,108,255,0.2); color: #696cff; }
 .badge-customer { background: rgba(3,195,236,0.2);   color: #03c3ec; }
 
-/* STATUS COLORS */
-.status-planned  { background: rgba(255,171,0,0.15);  color: #ffab00; }
-.status-ongoing  { background: rgba(3,195,236,0.15);  color: #03c3ec; }
-.status-done     { background: rgba(113,221,55,0.15); color: #71dd37; }
-.status-unknown  { background: rgba(133,146,163,0.15); color: #8592a3; }
+.status-planned { background: rgba(255,171,0,0.15);   color: #ffab00; }
+.status-ongoing { background: rgba(3,195,236,0.15);   color: #03c3ec; }
+.status-done    { background: rgba(113,221,55,0.15);  color: #71dd37; }
+.status-unknown { background: rgba(133,146,163,0.15); color: #8592a3; }
+
+.empty-state {
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; gap: 8px; padding: 40px 20px;
+  color: #475569; font-size: 13px;
+}
+.empty-state i { font-size: 32px; }
 
 /* MAP */
-.map-container {
-  flex: 1;
-  position: relative;
-}
-#leaflet-map {
-  width: 100%;
-  height: 100%;
-}
+.map-container { flex: 1; position: relative; }
+#leaflet-map   { width: 100%; height: 100%; }
 
 /* LOADING */
 .map-loading {
-  position: absolute;
-  inset: 0;
+  position: absolute; inset: 0;
   background: rgba(15,17,23,0.75);
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  gap: 12px;
-  z-index: 1000;
-  font-size: 13px;
-  color: #94a3b8;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 12px; z-index: 1000; font-size: 13px; color: #94a3b8;
 }
 .loader-ring {
   width: 36px; height: 36px;
-  border: 3px solid #1e2535;
-  border-top-color: #03c3ec;
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
+  border: 3px solid #1e2535; border-top-color: #03c3ec;
+  border-radius: 50%; animation: spin 0.8s linear infinite;
 }
-
-/* DETAIL CARD */
-.detail-card {
-  position: absolute;
-  bottom: 24px;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 360px;
-  background: #161b27;
-  border: 1px solid #1e2535;
-  border-radius: 16px;
-  box-shadow: 0 20px 60px rgba(0,0,0,0.5);
-  z-index: 999;
-  overflow: hidden;
-}
-.detail-close {
-  position: absolute;
-  top: 10px; right: 10px;
-  background: #1e2535;
-  border: none;
-  color: #94a3b8;
-  width: 28px; height: 28px;
-  border-radius: 50%;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  transition: background 0.2s;
-}
-.detail-close:hover { background: #2a3348; color: #fff; }
-
-.detail-header {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 16px 16px 12px;
-  border-bottom: 1px solid #1e2535;
-}
-.detail-avatar {
-  width: 48px; height: 48px;
-  border-radius: 50%;
-  object-fit: cover;
-  border: 2px solid #2a3348;
-}
-.detail-sales { font-size: 15px; font-weight: 600; color: #fff; }
-.detail-status {
-  font-size: 11px;
-  font-weight: 700;
-  padding: 3px 10px;
-  border-radius: 20px;
-  display: inline-block;
-  margin-top: 4px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-}
-
-.detail-body { padding: 12px 16px 16px; }
-.detail-row {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  padding: 6px 0;
-  font-size: 13px;
-  color: #94a3b8;
-  border-bottom: 1px solid #1a2030;
-}
-.detail-row:last-child { border-bottom: none; }
-.detail-row i { color: #475569; font-size: 15px; margin-top: 1px; flex-shrink: 0; }
-.detail-row span { line-height: 1.5; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
-
-/* TRANSITIONS */
-.slide-up-enter-active, .slide-up-leave-active {
-  transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-}
-.slide-up-enter-from, .slide-up-leave-to {
-  opacity: 0;
-  transform: translateX(-50%) translateY(20px);
-}
-
-.last-update {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  color: #475569;
-  font-family: 'Space Mono', monospace;
-}
-
-
-.filter-group select {
-  background: transparent;
-  border: none;
-  color: #e2e8f0;
-  font-size: 12px;
-  font-family: 'DM Sans', sans-serif;
-  outline: none;
-  cursor: pointer;
-  max-width: 140px;
-}
-
-.filter-group select option {
-  background: #1e2535;
-  color: #e2e8f0;
-}
-
 
 /* LEGEND */
 .map-legend {
-  position: absolute;
-  bottom: 24px;
-  right: 16px;
-  background: #161b27;
-  border: 1px solid #1e2535;
-  border-radius: 12px;
-  padding: 12px 14px;
-  z-index: 998;
-  min-width: 160px;
+  position: absolute; top: 60px; right: 10px;
+  background: #161b27; border: 1px solid #1e2535;
+  border-radius: 12px; padding: 12px 14px;
+  z-index: 998; min-width: 160px;
   box-shadow: 0 8px 24px rgba(0,0,0,0.4);
 }
 .legend-title {
-  font-size: 10px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.8px;
-  color: #475569;
-  margin-bottom: 8px;
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.8px; color: #94a3b8; margin-bottom: 8px;
 }
 .legend-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  color: #94a3b8;
-  margin-bottom: 6px;
+  display: flex; align-items: center; gap: 8px;
+  font-size: 12px; color: #94a3b8; margin-bottom: 6px;
 }
 .legend-item:last-child { margin-bottom: 0; }
-.legend-dot {
-  width: 10px; height: 10px;
-  border-radius: 50%;
-  flex-shrink: 0;
+.legend-dot { width: 10px; height: 10px; border-radius: 50%; flex-shrink: 0; }
+.legend-divider { border-top: 1px solid #1e2535; margin: 10px 0; }
+.legend-badge { font-size: 9px; font-weight: 700; padding: 2px 7px; border-radius: 4px; }
+
+/* MODAL */
+.modal-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.6); backdrop-filter: blur(4px);
+  z-index: 2000; display: flex;
+  align-items: center; justify-content: center; padding: 20px;
 }
-.legend-divider {
-  border-top: 1px solid #1e2535;
-  margin: 10px 0;
-}
-.legend-badge {
-  font-size: 9px;
-  font-weight: 700;
-  padding: 2px 7px;
-  border-radius: 4px;
+.modal-card {
+  background: #161b27; border: 1px solid #1e2535;
+  border-radius: 20px; width: 100%; max-width: 420px;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.6); overflow: hidden;
 }
 
-.export-btn {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(113,221,55,0.15);
-  border: 1px solid rgba(113,221,55,0.3);
-  color: #71dd37;
-  border-radius: 8px;
-  padding: 5px 12px;
-  font-size: 12px;
-  font-family: 'DM Sans', sans-serif;
-  cursor: pointer;
-  transition: all 0.2s;
-  white-space: nowrap;
+.modal-header {
+  position: relative; padding: 24px 20px 20px; overflow: hidden;
 }
-.export-btn:hover {
-  background: rgba(113,221,55,0.25);
+.modal-header.status-planned { border-top: 3px solid #ffab00; }
+.modal-header.status-ongoing { border-top: 3px solid #03c3ec; }
+.modal-header.status-done    { border-top: 3px solid #71dd37; }
+.modal-header.status-unknown { border-top: 3px solid #8592a3; }
+
+.modal-close {
+  position: absolute; top: 12px; right: 12px;
+  background: #1e2535; border: none; color: #94a3b8;
+  width: 30px; height: 30px; border-radius: 50%; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; transition: all 0.2s; z-index: 2;
 }
-.export-btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
+.modal-close:hover { background: #2a3348; color: #fff; }
+
+.modal-hero { display: flex; align-items: center; gap: 14px; }
+.modal-avatar-wrap { position: relative; flex-shrink: 0; }
+.modal-avatar {
+  width: 60px; height: 60px; border-radius: 50%;
+  object-fit: cover; border: 3px solid #1e2535; display: block;
 }
-.export-btn i { font-size: 14px; }
+.modal-avatar-ring {
+  position: absolute; inset: -4px; border-radius: 50%;
+  border: 2px solid transparent;
+}
+.modal-avatar-ring.status-planned { border-color: #ffab00; box-shadow: 0 0 10px #ffab0066; }
+.modal-avatar-ring.status-ongoing { border-color: #03c3ec; box-shadow: 0 0 10px #03c3ec66; }
+.modal-avatar-ring.status-done    { border-color: #71dd37; box-shadow: 0 0 10px #71dd3766; }
+
+.modal-sales-name { font-size: 17px; font-weight: 700; color: #fff; }
+.modal-status-badge {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 11px; font-weight: 700; padding: 3px 10px;
+  border-radius: 20px; margin-top: 5px;
+  text-transform: uppercase; letter-spacing: 0.5px;
+}
+.badge-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+.modal-body { padding: 16px 20px; }
+.modal-code {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11px; font-family: 'Space Mono', monospace;
+  color: #475569; margin-bottom: 14px;
+}
+.modal-code i { font-size: 13px; }
+
+.modal-section { margin-bottom: 16px; }
+.modal-section-title {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: 0.8px; color: #475569; margin-bottom: 8px;
+}
+.modal-info-row {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 6px 0; border-bottom: 1px solid #1a2030; font-size: 13px;
+}
+.modal-info-row:last-child { border-bottom: none; }
+.modal-info-row i { color: #475569; font-size: 15px; margin-top: 1px; flex-shrink: 0; }
+.modal-info-value { color: #94a3b8; line-height: 1.5; }
+
+.modal-timeline { display: flex; align-items: center; }
+.timeline-item {
+  display: flex; flex-direction: column;
+  align-items: center; gap: 6px; flex: 1;
+}
+.timeline-line { flex: 1; height: 2px; background: #1e2535; margin-bottom: 28px; }
+.timeline-dot  { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+.dot-plan     { background: #ffab00; box-shadow: 0 0 6px #ffab0066; }
+.dot-checkin  { background: #03c3ec; box-shadow: 0 0 6px #03c3ec66; }
+.dot-checkout { background: #71dd37; box-shadow: 0 0 6px #71dd3766; }
+.dot-empty    { background: #2a3348; border: 2px solid #1e2535; }
+.timeline-content { text-align: center; }
+.timeline-label { font-size: 10px; color: #475569; text-transform: uppercase; letter-spacing: 0.5px; }
+.timeline-time  { font-size: 11px; font-family: 'Space Mono', monospace; color: #94a3b8; margin-top: 2px; }
+
+.modal-duration {
+  display: flex; align-items: center; gap: 8px;
+  background: rgba(3,195,236,0.08); border: 1px solid rgba(3,195,236,0.2);
+  border-radius: 10px; padding: 8px 12px;
+  font-size: 12px; color: #03c3ec;
+}
+.modal-duration i { font-size: 15px; }
+.modal-duration strong { color: #fff; }
+
+.modal-footer {
+  display: flex; gap: 10px;
+  padding: 14px 20px; border-top: 1px solid #1e2535;
+}
+.modal-btn {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  gap: 6px; padding: 9px; border-radius: 10px;
+  font-size: 13px; font-weight: 600; font-family: 'DM Sans', sans-serif;
+  cursor: pointer; transition: all 0.2s; text-decoration: none; border: none;
+}
+.btn-maps {
+  background: rgba(3,195,236,0.15);
+  border: 1px solid rgba(3,195,236,0.3); color: #03c3ec;
+}
+.btn-maps:hover  { background: rgba(3,195,236,0.25); }
+.btn-close       { background: #1e2535; color: #94a3b8; }
+.btn-close:hover { background: #2a3348; color: #fff; }
+
+/* TRANSITIONS */
+.modal-fade-enter-active, .modal-fade-leave-active { transition: all 0.25s ease; }
+.modal-fade-enter-from,   .modal-fade-leave-to     { opacity: 0; transform: scale(0.95); }
 
 /* ANIMATIONS */
 @keyframes pulse {
   0%, 100% { box-shadow: 0 0 6px #03c3ec; }
-  50% { box-shadow: 0 0 14px #03c3ec; }
+  50%       { box-shadow: 0 0 14px #03c3ec; }
 }
-@keyframes spin {
-  to { transform: rotate(360deg); }
-}
+@keyframes spin { to { transform: rotate(360deg); } }
 </style>

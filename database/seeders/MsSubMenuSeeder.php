@@ -506,7 +506,7 @@ class MsSubMenuSeeder extends Seeder
 
             [
                 'id_menu' => 2,
-                'url' => '/data-master-leads-bulk',
+                'url' => '/data-master-leads-assign',
                 'icon' => null,
                 'title' => 'Master Leads Admin',
                 'noted' => 'Master Leads Admin Page',

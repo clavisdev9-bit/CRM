@@ -222,12 +222,31 @@ class SignAuth extends Controller
         ]
     );
 
-    Mail::send('emails.forgot_password', [
+//     Mail::send('emails.forgot_password', [
+//     'token' => $token,
+//     'user' => $user,
+//     'resetUrl' => url('/reset-password?email=' . $user->email . '&token=' . $token),
+// ], function ($message) use ($user) {
+//     $message->to($user->email);
+//     $message->subject('Reset Your Password');
+// });
+
+Mail::send('emails.forgot_password', [
+
     'token' => $token,
+
     'user' => $user,
-    'resetUrl' => url('/reset-password?email=' . $user->email . '&token=' . $token),
+
+    'resetUrl' => env('FRONTEND_URL')
+        . '/user-reset-password?email='
+        . urlencode($user->email)
+        . '&token='
+        . $token,
+
 ], function ($message) use ($user) {
+
     $message->to($user->email);
+
     $message->subject('Reset Your Password');
 });
 

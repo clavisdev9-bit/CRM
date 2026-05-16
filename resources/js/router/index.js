@@ -46,7 +46,6 @@ import reportsForSales from '../pages/backend/sales/reports/reports.vue'
 
 //backend Manager
 import managerHome from '../pages/backend/manager/home/home.vue'
-
 import profilePage from '../pages/backend/global/profile/profile.vue'
 
 
@@ -111,6 +110,12 @@ const routes = [
   {
   path: '/setting-app-global',
   component: settingApp,
+  meta: { requiresAuth: true }   
+  },
+
+  {
+  path: '/data-master-leads-assign',
+  component: masterLeads,
   meta: { requiresAuth: true }   
   },
 

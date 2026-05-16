@@ -30,7 +30,9 @@ class LeadsResources extends JsonResource
             // RELATION IDS
             // =====================
             'lead_category_id' => $this->lead_category_id,
+            'category_name'     => $this->category_name,
             'industry_id'      => $this->industry_id,
+            'industry_name'      => $this->industry_name,
 
             // =====================
             // OWNERSHIP

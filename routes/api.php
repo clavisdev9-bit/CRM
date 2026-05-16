@@ -15,6 +15,8 @@ use App\Http\Controllers\Api\Users\Sales\Costumers\Costumers;
 use App\Http\Controllers\Api\Users\Sales\FollowUp\FollowUp;
 use App\Http\Controllers\Api\Users\Sales\Visits\Visits;
 use App\Http\Controllers\Api\Home\Dashboard\DashboardController;
+use Illuminate\Support\Facades\Http;
+
 
 
 Route::post('/signIn', [SignAuth::class, 'signIn'])->name('api.sign.in');
@@ -234,6 +236,27 @@ Route::get('/asset-version', function () {
     ]);
 });
 
+
+// Route::get('/holidays', function (Request $request) {
+//     $month = $request->month;
+//     $year  = $request->year;
+
+//     $url = "https://api-harilibur.vercel.app/api?month=$month&year=$year";
+
+//     $response = Http::get($url);
+
+//     return response()->json($response->json());
+// });
+
+
+Route::get('/holidays', function (Request $request) {
+    return Http::withoutVerifying() // 🔥 FIX
+        ->get('https://libur.deno.dev/api', [
+            'year' => $request->year,
+            'month' => $request->month
+        ])
+        ->json();
+});
 
 
 
