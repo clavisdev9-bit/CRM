@@ -15,19 +15,41 @@ class MenuValidationRequest extends FormRequest
         return true;
     }
 
-    public function rules(): array
-    {
-        return [
-            'menu' => ['required', 'string', 'max:255']
-        ];
-    }
+//     public function rules(): array
+//     {
+//         return [
+//             'menu' => ['required', 'string', 'max:255']
+//         ];
+//     }
 
-    public function messages(): array
+//     public function messages(): array
+// {
+//     return [
+//         'menu.required'        => 'menu is required.',
+//         'menu.string'          => 'menu must be a string.',
+//         'menu.max'             => 'menu may not be greater than 255 characters.',
+//     ];
+// }
+
+public function rules(): array
 {
     return [
-        'menu.required'        => 'menu is required.',
-        'menu.string'          => 'menu must be a string.',
-        'menu.max'             => 'menu may not be greater than 255 characters.',
+        'menu' => [
+            'required',
+            'string',
+            'max:255',
+            'regex:/^[a-zA-Z\s]+$/',  // ← hanya huruf dan spasi
+        ]
+    ];
+}
+
+public function messages(): array
+{
+    return [
+        'menu.required' => 'Menu is required.',
+        'menu.string'   => 'Menu must be a string.',
+        'menu.max'      => 'Menu may not be greater than 255 characters.',
+        'menu.regex'    => 'Menu may only contain letters and spaces.', // ← tambah
     ];
 }
 
