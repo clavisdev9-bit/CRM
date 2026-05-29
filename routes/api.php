@@ -211,7 +211,6 @@ Route::get('/data-visits-leads-map', [Visits::class, 'getVisitTargetMap'])->name
 Route::get('/data-visits-all-data', [Visits::class, 'getVisitAllData'])->name('api.data.visits.all');
 
 
-
 // Dashboard
 Route::prefix('dashboard')->group(function () {
     Route::get('/summary',         [DashboardController::class, 'summary']);
@@ -250,7 +249,7 @@ Route::get('/asset-version', function () {
 
 
 Route::get('/holidays', function (Request $request) {
-    return Http::withoutVerifying() // 🔥 FIX
+    return Http::withoutVerifying() 
         ->get('https://libur.deno.dev/api', [
             'year' => $request->year,
             'month' => $request->month

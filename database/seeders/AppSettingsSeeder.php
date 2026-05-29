@@ -15,9 +15,9 @@ class AppSettingsSeeder extends Seeder
         }
 
         DB::table('app_settings')->insert([
-            'app_name' => 'CLAVIS',
-            'app_short_name' => 'Clavis',
-            'app_tagline' => 'We Deliver More...',
+            'app_name' => 'Duta IndoMandiri',
+            'app_short_name' => 'DIM',
+            'app_tagline' => 'Grow Faster with Smarter Sales....',
 
             'app_logo' => 'logo.png',
             'app_logo_small' => 'logo.png',
@@ -28,7 +28,7 @@ class AppSettingsSeeder extends Seeder
             'sidebar_color' => '#ffffff',
             'navbar_color' => '#ffffff',
 
-            'footer_text' => '© develoved ❤️ by Apregi Pratyuda',
+            'footer_text' => '© Developed ❤️ by Apregi Pratayuda',
             'footer_license_url' => '#',
             'footer_documentation_url' => '#',
             'footer_support_url' => '#',
