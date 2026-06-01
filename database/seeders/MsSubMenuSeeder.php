@@ -239,6 +239,7 @@ class MsSubMenuSeeder extends Seeder
                 'is_active' => true,
                 'parent_id' => 13,
             ],
+
             [
                 'id_menu' => 2,
                 'url' => '/sales-timesheets-leave-reports',
@@ -248,6 +249,8 @@ class MsSubMenuSeeder extends Seeder
                 'is_active' => true,
                 'parent_id' => 13,
             ],
+
+
             [
                 'id_menu' => 2,
                 'url' => '/sales-timesheets-leave-settings',
@@ -512,6 +515,17 @@ class MsSubMenuSeeder extends Seeder
                 'noted' => 'Master Leads Admin Page',
                 'is_active' => true,
                 'parent_id' => 12,
+            ],
+
+
+            [
+                'id_menu' => 2,
+                'url' => '/sales-timesheets-leave-reports-history',
+                'icon' => null,
+                'title' => 'History Attendance',
+                'noted' => 'Reports History Attendance',
+                'is_active' => true,
+                'parent_id' => 13,
             ],
 
 
