@@ -15,6 +15,7 @@ use App\Http\Controllers\Api\Users\Sales\Costumers\Costumers;
 use App\Http\Controllers\Api\Users\Sales\FollowUp\FollowUp;
 use App\Http\Controllers\Api\Users\Sales\Visits\Visits;
 use App\Http\Controllers\Api\Home\Dashboard\DashboardController;
+use App\Http\Controllers\Api\Manager\Dashboard\DashboardManagerController;
 use Illuminate\Support\Facades\Http;
 
 
@@ -209,6 +210,28 @@ Route::get('/reverse-geocode', [Location::class, 'reverse']);
 Route::get('/data-visits-leads-map', [Visits::class, 'getVisitTargetMap'])->name('api.data.visits.map');
 // untuk data visit all data 
 Route::get('/data-visits-all-data', [Visits::class, 'getVisitAllData'])->name('api.data.visits.all');
+
+
+
+Route::middleware(['jwt.auth'])->group(function () {
+// Dashboard Manager
+Route::prefix('dashboard/manager/')->group(function () {
+Route::get('/executive-summary',  [DashboardManagerController::class, 'summary']);
+Route::get('/sales-performance',  [DashboardManagerController::class, 'salesPerformance']);
+Route::get('/follow-up',  [DashboardManagerController::class, 'followUp']);
+Route::get('/visit',  [DashboardManagerController::class, 'visit']);
+Route::get('/pipeline',  [DashboardManagerController::class, 'pipeline']);
+Route::get('/activity',  [DashboardManagerController::class, 'activity']);
+Route::get('/conversion',  [DashboardManagerController::class, 'conversion']);
+Route::get('/complaint',  [DashboardManagerController::class, 'complaint']);
+Route::get('/potential-order',  [DashboardManagerController::class, 'potentialOrder']);
+Route::get('/customers',  [DashboardManagerController::class, 'customers']);
+Route::get('/kpi',  [DashboardManagerController::class, 'kpi']);
+});
+
+
+});
+
 
 
 // Dashboard

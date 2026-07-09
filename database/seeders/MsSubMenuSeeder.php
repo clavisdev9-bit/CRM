@@ -468,40 +468,40 @@ class MsSubMenuSeeder extends Seeder
 
              [
                 'id_menu' => 3,
-                'url' => '/manager-example-report',
+                'url' => '/manager-report',
                 'icon' => 'nav-icon fas fa-file-lines',
-                'title' => 'Example Report',
-                'noted' => 'Example Report Page',
+                'title' => 'Manager Report',
+                'noted' => 'Manager Report Page',
                 'is_active' => true,
                 'parent_id' => null,
             ],
 
              [
                 'id_menu' => 3,
-                'url' => '/manager-example-report-one',
+                'url' => '/manager-executive-summary-report',
                 'icon' => 'nav-icon fas fa-file-lines',
-                'title' => 'Example Report one',
-                'noted' => 'Example Report one Page',
+                'title' => 'Executive Summary Report',
+                'noted' => 'Executive Summary Report Page',
                 'is_active' => true,
                 'parent_id' => 43,
             ],
 
-             [
+            [
                 'id_menu' => 3,
-                'url' => '/manager-example-report-two',
+                'url' => '/manager-sales-performance-report',
                 'icon' => 'nav-icon fas fa-file-lines',
-                'title' => 'Example Report two',
-                'noted' => 'Example Report two Page',
+                'title' => 'Sales Performance Report',
+                'noted' => 'Sales Performance Report Page',
                 'is_active' => true,
                 'parent_id' => 43,
             ],
             
-             [
+            [
                 'id_menu' => 3,
-                'url' => '/manager-example-report-theree',
+                'url' => '/manager-follow-up-report',
                 'icon' => 'nav-icon fas fa-file-lines',
-                'title' => 'Example Report three',
-                'noted' => 'Example Report three Page',
+                'title' => 'Follow Up Report',
+                'noted' => 'Follow Up Report Page',
                 'is_active' => true,
                 'parent_id' => 43,
             ],
@@ -529,7 +529,86 @@ class MsSubMenuSeeder extends Seeder
             ],
 
 
-            
+            [
+                'id_menu' => 3,
+                'url' => '/manager-visit-report',
+                'icon' => 'nav-icon fas fa-file-lines',
+                'title' => 'Visit Report',
+                'noted' => 'Visit Report Page',
+                'is_active' => true,
+                'parent_id' => 43,
+            ],
+
+
+             [
+                'id_menu' => 3,
+                'url' => '/manager-customer-report',
+                'icon' => 'nav-icon fas fa-file-lines',
+                'title' => 'Customer Report Report',
+                'noted' => 'Customer Report Report Page',
+                'is_active' => true,
+                'parent_id' => 43,
+            ],
+
+            [
+                'id_menu' => 3,
+                'url' => '/manager-activity-report',
+                'icon' => 'nav-icon fas fa-file-lines',
+                'title' => 'Activity Report',
+                'noted' => 'Activity Report Page',
+                'is_active' => true,
+                'parent_id' => 43,
+            ],
+
+            [
+                'id_menu' => 3,
+                'url' => '/manager-sales-pipeline-report',
+                'icon' => 'nav-icon fas fa-file-lines',
+                'title' => 'Sales Pipeline Report',
+                'noted' => 'Sales Pipeline Report Page',
+                'is_active' => true,
+                'parent_id' => 43,
+            ],
+
+            [
+                'id_menu' => 3,
+                'url' => '/manager-activity-report',
+                'icon' => 'nav-icon fas fa-file-lines',
+                'title' => 'Activity Report',
+                'noted' => 'Activity Report Page',
+                'is_active' => true,
+                'parent_id' => 43,
+            ],
+
+            [
+                'id_menu' => 3,
+                'url' => '/manager-conversion-report',
+                'icon' => 'nav-icon fas fa-file-lines',
+                'title' => 'Conversion Report Report',
+                'noted' => 'Conversion Report Page',
+                'is_active' => true,
+                'parent_id' => 43,
+            ],
+
+            [
+                'id_menu' => 3,
+                'url' => '/manager-complaint-report',
+                'icon' => 'nav-icon fas fa-file-lines',
+                'title' => 'Complaint Report',
+                'noted' => 'Complaint Report Page',
+                'is_active' => true,
+                'parent_id' => 43,
+            ],
+
+            [
+                'id_menu' => 3,
+                'url' => '/manager-potential-order-report',
+                'icon' => 'nav-icon fas fa-file-lines',
+                'title' => 'Potential Order Report',
+                'noted' => 'Potential Order Report Page',
+                'is_active' => true,
+                'parent_id' => 43,
+            ],
 
 
 
