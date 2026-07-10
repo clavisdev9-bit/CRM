@@ -1917,5 +1917,204 @@ public function kpi(Request $request)
 
 
 
+/**
+ * Lead Analytics
+ */
+public function lead(Request $request)
+{
+    [$start, $end] = $this->getPeriod($request);
+
+    /*
+    |--------------------------------------------------------------------------
+    | Summary
+    |--------------------------------------------------------------------------
+    */
+
+    $totalLead = DB::table('leads')
+        ->whereNull('deleted_at')
+        ->count();
+
+    $newLead = DB::table('leads')
+        ->whereNull('deleted_at')
+        ->whereBetween('created_at', [$start, $end])
+        ->count();
+
+    $convertedLead = DB::table('customers')
+        ->whereNull('deleted_at')
+        ->whereNotNull('lead_id')
+        ->count();
+
+    $openLead = max(0, $totalLead - $convertedLead);
+
+    $conversionRate = $totalLead > 0
+        ? round(($convertedLead / $totalLead) * 100, 2)
+        : 0;
+
+    /*
+    |--------------------------------------------------------------------------
+    | Lead Source
+    |--------------------------------------------------------------------------
+    */
+
+    $leadSource = DB::table('leads')
+        ->select(
+            'lead_source',
+            DB::raw('COUNT(*) as total')
+        )
+        ->whereNull('deleted_at')
+        ->groupBy('lead_source')
+        ->orderByDesc('total')
+        ->get();
+
+    /*
+    |--------------------------------------------------------------------------
+    | Lead Category
+    |--------------------------------------------------------------------------
+    */
+
+    $leadCategory = DB::table('leads as l')
+        ->leftJoin('lead_categories as lc', 'lc.id', '=', 'l.lead_category_id')
+        ->select(
+            'lc.name',
+            DB::raw('COUNT(l.id) as total')
+        )
+        ->whereNull('l.deleted_at')
+        ->groupBy('lc.name')
+        ->orderByDesc('total')
+        ->get();
+
+    /*
+    |--------------------------------------------------------------------------
+    | Lead Industry
+    |--------------------------------------------------------------------------
+    */
+
+    $leadIndustry = DB::table('leads as l')
+        ->leftJoin('lead_industries as li', 'li.id', '=', 'l.industry_id')
+        ->select(
+            'li.name',
+            DB::raw('COUNT(l.id) as total')
+        )
+        ->whereNull('l.deleted_at')
+        ->groupBy('li.name')
+        ->orderByDesc('total')
+        ->get();
+
+    /*
+    |--------------------------------------------------------------------------
+    | Lead Per Sales
+    |--------------------------------------------------------------------------
+    */
+
+    $leadPerSales = DB::table('leads as l')
+        ->join('ms_users as u', 'u.id_user', '=', 'l.assigned_to')
+        ->select(
+            'u.id_user',
+            'u.fullname',
+            DB::raw('COUNT(l.id) as total_lead')
+        )
+        ->whereNull('l.deleted_at')
+        ->groupBy(
+            'u.id_user',
+            'u.fullname'
+        )
+        ->orderByDesc('total_lead')
+        ->get();
+
+    /*
+    |--------------------------------------------------------------------------
+    | Daily Trend
+    |--------------------------------------------------------------------------
+    */
+
+    $dailyTrend = DB::table('leads')
+        ->select(
+            DB::raw('DATE(created_at) as date'),
+            DB::raw('COUNT(*) as total')
+        )
+        ->whereNull('deleted_at')
+        ->whereBetween('created_at', [$start, $end])
+        ->groupBy(DB::raw('DATE(created_at)'))
+        ->orderBy(DB::raw('DATE(created_at)'))
+        ->get();
+
+    /*
+    |--------------------------------------------------------------------------
+    | Latest Lead
+    |--------------------------------------------------------------------------
+    */
+
+    // $latestLead = DB::table('leads as l')
+    //     ->leftJoin('ms_users as u', 'u.id_user', '=', 'l.assigned_to')
+    //     ->select(
+    //         'l.lead_code',
+    //         'l.company_name',
+    //         'l.contact_name',
+    //         'l.phone',
+    //         'l.lead_source',
+    //         'u.fullname as sales_name',
+    //         'l.created_at'
+    //     )
+    //     ->whereNull('l.deleted_at')
+    //     ->latest('l.created_at')
+    //     ->limit(20)
+    //     ->get();
+    /*
+|--------------------------------------------------------------------------
+| Latest Lead
+|--------------------------------------------------------------------------
+*/
+
+$latestLead = DB::table('leads as l')
+    ->leftJoin('ms_users as u', 'u.id_user', '=', 'l.assigned_to')
+    ->select(
+        'l.id',
+        'l.company_name',
+        'l.contact_name',
+        'l.phone',
+        'l.email',
+        'l.lead_source',
+        'l.lead_status',
+        'u.fullname as sales_name',
+        'l.created_at'
+    )
+    ->whereNull('l.deleted_at')
+    ->latest('l.created_at')
+    ->limit(20)
+    ->get();
+
+    return ApiResponse::success([
+
+        'summary' => [
+
+            'total_lead' => $totalLead,
+
+            'new_lead' => $newLead,
+
+            'converted' => $convertedLead,
+
+            'open_lead' => $openLead,
+
+            'conversion_rate' => $conversionRate,
+
+        ],
+
+        'lead_source' => $leadSource,
+
+        'lead_category' => $leadCategory,
+
+        'lead_industry' => $leadIndustry,
+
+        'lead_per_sales' => $leadPerSales,
+
+        'daily_trend' => $dailyTrend,
+
+        'latest_lead' => $latestLead,
+
+    ], 'Lead analytics retrieved successfully.');
+}
+
+
+
 
 }

@@ -227,9 +227,8 @@ Route::get('/complaint',  [DashboardManagerController::class, 'complaint']);
 Route::get('/potential-order',  [DashboardManagerController::class, 'potentialOrder']);
 Route::get('/customers',  [DashboardManagerController::class, 'customers']);
 Route::get('/kpi',  [DashboardManagerController::class, 'kpi']);
+Route::get('/lead-analytics',  [DashboardManagerController::class, 'lead']);
 });
-
-
 });
 
 
