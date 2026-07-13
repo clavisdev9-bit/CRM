@@ -11,6 +11,10 @@ class CostumersResources extends JsonResource
     public function toArray(Request $request): array
     {
         return [
+
+            // =========================
+            // CUSTOMER
+            // =========================
             'id' => $this->id,
             'customer_code' => $this->customer_code,
             'company_name' => $this->company_name,
@@ -18,7 +22,26 @@ class CostumersResources extends JsonResource
             'email' => $this->email,
             'phone' => $this->phone,
             'address' => $this->address,
+
+            // =========================
+            // STATUS
+            // =========================
             'customer_status' => $this->customer_status,
+
+            // =========================
+            // APPROVAL
+            // =========================
+            'approval_status' => $this->approval_status,
+            'approved_by' => $this->approved_by,
+            'approved_at' => $this->approved_at
+                ? Carbon::parse($this->approved_at)->format('Y-m-d H:i:s')
+                : null,
+            'approval_note' => $this->approval_note,
+            'approval_revision' => $this->approval_revision,
+
+            // =========================
+            // NOTES
+            // =========================
             'notes' => $this->notes,
 
             // =========================
@@ -28,8 +51,10 @@ class CostumersResources extends JsonResource
             'lead_company_name' => $this->lead_company_name ?? null,
             'lead_source' => $this->lead_source ?? null,
             'lead_status' => $this->lead_status ?? null,
+
             'lead_category_id' => $this->lead_category_id,
             'lead_category_name' => $this->category_name ?? null,
+
             'industry_id' => $this->industry_id,
             'industry_name' => $this->industry_name ?? null,
 
@@ -38,19 +63,27 @@ class CostumersResources extends JsonResource
             // =========================
             'assigned_to' => $this->assigned_to,
             'assigned_name' => $this->assigned_name ?? null,
+
             'created_by' => $this->created_by,
             'owner_name' => $this->owner_name ?? null,
 
             // =========================
             // ACTIVITY
             // =========================
-            'converted_at' => $this->converted_at ? Carbon::parse($this->converted_at)->format('Y-m-d H:i:s') : null,
+            'converted_at' => $this->converted_at
+                ? Carbon::parse($this->converted_at)->format('Y-m-d H:i:s')
+                : null,
 
             // =========================
             // AUDIT
             // =========================
-            'created_at' => $this->created_at ? Carbon::parse($this->created_at)->format('Y-m-d H:i:s') : null,
-            'updated_at' => $this->updated_at ? Carbon::parse($this->updated_at)->format('Y-m-d H:i:s') : null,
+            'created_at' => $this->created_at
+                ? Carbon::parse($this->created_at)->format('Y-m-d H:i:s')
+                : null,
+
+            'updated_at' => $this->updated_at
+                ? Carbon::parse($this->updated_at)->format('Y-m-d H:i:s')
+                : null,
         ];
     }
 }

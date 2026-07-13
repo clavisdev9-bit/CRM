@@ -902,7 +902,13 @@ class Visits extends Controller
                 /**
                  * FILTER STATUS CUSTOMER
                  */
-                ->whereIn('c.customer_status', ['Active', 'Dormant']);
+                // ->whereIn('c.customer_status', ['Active', 'Dormant']);
+                /**
+ * FILTER STATUS CUSTOMER
+ */
+->whereIn('c.customer_status', ['Active', 'Dormant'])
+->where('c.approval_status', 'approved');
+                
 
             /**
              * SEARCH

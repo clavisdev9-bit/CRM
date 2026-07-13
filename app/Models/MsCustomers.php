@@ -4,59 +4,96 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\SoftDeletes;
-
 
 class MsCustomers extends Model
 {
-   use HasFactory;
-    use SoftDeletes;
+    use HasFactory, SoftDeletes;
+
     protected $table = 'customers';
+
     protected $primaryKey = 'id';
-    public    $incrementing = true;
-    public    $timestamps = true;
-     protected $fillable = [
-    'lead_id',
-    'lead_category_id',
-    'industry_id',
 
-    'customer_code',
-    'company_name',
-    'contact_name',
-    'email',
-    'phone',
-    'id_user',        
+    public $incrementing = true;
 
-    'assigned_to',
-    'created_by',
+    public $timestamps = true;
 
-    'customer_status',
-    'address',
-    'notes',
+    protected $fillable = [
 
-    'converted_at',
-        'lead_source',  // ← pastikan ada ini
+        // =====================================
+        // RELATION
+        // =====================================
+        'lead_id',
+        'lead_category_id',
+        'industry_id',
 
-];
+        // =====================================
+        // CUSTOMER
+        // =====================================
+        'customer_code',
+        'company_name',
+        'contact_name',
+        'email',
+        'phone',
 
+        // =====================================
+        // OWNER
+        // =====================================
+        'id_user',
+        'assigned_to',
+        'created_by',
 
-protected $casts = [
-    'converted_at' => 'datetime',
-];
+        // =====================================
+        // STATUS
+        // =====================================
+        'customer_status',
+        'visibility_type',
 
-protected $attributes = [
-    'customer_status' => 'Active',
-];
+        // =====================================
+        // APPROVAL
+        // =====================================
+        'approval_status',
+        'approved_by',
+        'approved_at',
+        'approval_note',
+        'approval_revision',
 
+        // =====================================
+        // INFORMATION
+        // =====================================
+        'lead_source',
+        'address',
+        'notes',
 
-    //cek apakah ada name menu yang sama  untuk add
+        // =====================================
+        // ACTIVITY
+        // =====================================
+        'converted_at',
+    ];
+
+    protected $casts = [
+        'converted_at' => 'datetime',
+        'approved_at'  => 'datetime',
+    ];
+
+    protected $attributes = [
+        'customer_status' => 'Active',
+        'visibility_type' => 'PRIVATE',
+        'approval_status' => 'pending',
+        'approval_revision' => 0,
+    ];
+
+    /*
+    |--------------------------------------------------------------------------
+    | CHECK DUPLICATE
+    |--------------------------------------------------------------------------
+    */
+
     public static function isCustExistsAdd($code)
     {
         return self::where('customer_code', $code)->exists();
     }
 
-    //cek apakah ada name menu yang sama  untuk update
     public static function isCustExists($code, $excludeId = null)
     {
         return self::where('customer_code', $code)
@@ -64,58 +101,11 @@ protected $attributes = [
             ->exists();
     }
 
-
-      //opsional
-//    public function scopeOnlyDeleted($query, $onlyDeleted)
-// {
-//     if ($onlyDeleted) {
-//         return $query->whereNotNull('c.deleted_at');
-//     }
-
-//     return $query->whereNull('c.deleted_at');
-// }
-
-
-
-
-// public function scopeSearch($query, $search)
-// {
-//     if ($search) {
-//         return $query->where(function ($q) use ($search) {
-//             $q->where('customer_code', 'like', "%{$search}%");
-//         });
-//     }
-//     return $query;
-// }
-
-
-
-// Scope untuk sorting dinamis
-// public function scopeSort($query, $sortBy, $sortDir)
-// {
-//     return $query->orderBy($sortBy ?? 'created_at', $sortDir ?? 'asc');
-// }
-
-// public static function isDuplicate(array $data, $id = null): array
-// {
-//     $errors = [];
-
-//     $query = static::where('customer_code', $data['customer_code']);
-
-//     if ($id) {
-//         $query->where('id', '!=', $id); // Kecualikan ID yang sedang diupdate
-//     }
-
-//     if ($query->exists()) {
-//         $errors['customer_code'] = ['Customer Code Already Exist.'];
-//     }
-
-//     return $errors;
-// }
-
-    /* =========================
-     | SCOPES
-     ========================= */
+    /*
+    |--------------------------------------------------------------------------
+    | SCOPES
+    |--------------------------------------------------------------------------
+    */
 
     public function scopeOnlyDeleted($query, $onlyDeleted)
     {
@@ -123,22 +113,47 @@ protected $attributes = [
             return $query->onlyTrashed();
         }
 
-        return $query; // ⬅️ PENTING
+        return $query;
     }
 
     public function scopeSearch($query, $search)
     {
-        if (!$search) return $query;
+        if (!$search) {
+            return $query;
+        }
 
         return $query->where(function ($q) use ($search) {
             $q->where('customers.company_name', 'ILIKE', "%{$search}%")
               ->orWhere('customers.customer_code', 'ILIKE', "%{$search}%")
-              ->orWhere('customers.email', 'ILIKE', "%{$search}%");
+              ->orWhere('customers.contact_name', 'ILIKE', "%{$search}%")
+              ->orWhere('customers.email', 'ILIKE', "%{$search}%")
+              ->orWhere('customers.phone', 'ILIKE', "%{$search}%");
         });
     }
 
-    public function scopeSort($query, $sortBy, $sortDir)
+    public function scopeSort($query, $sortBy = 'created_at', $sortDir = 'desc')
     {
         return $query->orderBy($sortBy, $sortDir);
+    }
+
+    /*
+    |--------------------------------------------------------------------------
+    | APPROVAL SCOPES
+    |--------------------------------------------------------------------------
+    */
+
+    public function scopeApproved($query)
+    {
+        return $query->where('approval_status', 'approved');
+    }
+
+    public function scopePending($query)
+    {
+        return $query->where('approval_status', 'pending');
+    }
+
+    public function scopeRejected($query)
+    {
+        return $query->where('approval_status', 'rejected');
     }
 }

@@ -16,6 +16,7 @@ use App\Http\Controllers\Api\Users\Sales\FollowUp\FollowUp;
 use App\Http\Controllers\Api\Users\Sales\Visits\Visits;
 use App\Http\Controllers\Api\Home\Dashboard\DashboardController;
 use App\Http\Controllers\Api\Manager\Dashboard\DashboardManagerController;
+use App\Http\Controllers\Api\Manager\Approval\ApprovalCustomerController;
 use Illuminate\Support\Facades\Http;
 
 
@@ -155,7 +156,7 @@ Route::get('/customers/select/lead-category', [Leads::class, 'selectLeadCategory
 Route::get('/customers/select/user-sales', [Leads::class, 'selectUserByDivision'])->name('api.leads.select.user.sales');
  /* ================= CUSTOMER FOLLOW UP TIMELINE ================= */
 Route::get('/customers/{customerId}/follow-ups',[Costumers::class, 'customerFollowUpTimeline'])->name('api.customers.follow.up.timeline');
-
+Route::get('/customer-submissions', [Costumers::class, 'customerSubmission']);
 
 
 
@@ -199,6 +200,14 @@ Route::post('/customers/{customer}/start', [Visits::class, 'startVisitCustomer']
 Route::post('/visits/customers/{visit}/check-in', [Visits::class, 'checkInVisitCustomer']);
 // Check Out (PAKAI VISIT ID)
 Route::post('/visits/customers/{visit}/check-out', [Visits::class, 'checkOutCustomer']);
+
+
+Route::prefix('customer-approval')->group(function () {
+    Route::get('/', [ApprovalCustomerController::class, 'index']);
+    Route::put('/{id}/approve', [ApprovalCustomerController::class, 'approve']);
+    Route::put('/{id}/reject', [ApprovalCustomerController::class, 'reject']);
+});
+
 
 });
 

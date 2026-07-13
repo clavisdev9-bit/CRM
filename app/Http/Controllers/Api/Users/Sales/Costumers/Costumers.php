@@ -50,38 +50,43 @@ class Costumers extends Controller
 
                 $query = DB::table('customers as c')
                     ->select([
-                        'c.id',
-                        'c.customer_code',
-                        'c.company_name',
-                        'c.contact_name',
-                        'c.email',
-                        'c.phone',
-                        'c.address',
-                        'c.lead_id',
-                        'c.lead_category_id',
-                        'c.industry_id',
-                        'c.assigned_to',
-                        'c.created_by',
-                        'c.customer_status',
-                        'c.notes',
-                        'c.converted_at',
-                        'c.created_at',
-                        'c.updated_at',
-                        'c.deleted_at',
+                            'c.id',
+                            'c.customer_code',
+                            'c.company_name',
+                            'c.contact_name',
+                            'c.email',
+                            'c.phone',
+                            'c.address',
+                            'c.lead_id',
+                            'c.lead_category_id',
+                            'c.industry_id',
+                            'c.assigned_to',
+                            'c.created_by',
+                            'c.customer_status',
 
-                        // RELATION LEAD
-                        'l.company_name as lead_company_name',
-                        'c.lead_source',
-                        'l.lead_status',
+                            // APPROVAL
+                            'c.approval_status',
+                            'c.approved_by',
+                            'c.approved_at',
+                            'c.approval_note',
+                            'c.approval_revision',
 
-                        // MASTER
-                        'cat.name as category_name',
-                        'ind.name as industry_name',
+                            'c.notes',
+                            'c.converted_at',
+                            'c.created_at',
+                            'c.updated_at',
+                            'c.deleted_at',
 
-                        // USER
-                        'owner.fullname as owner_name',
-                        'sales.fullname as assigned_name',
-                    ])
+                            'l.company_name as lead_company_name',
+                            'c.lead_source',
+                            'l.lead_status',
+
+                            'cat.name as category_name',
+                            'ind.name as industry_name',
+
+                            'owner.fullname as owner_name',
+                            'sales.fullname as assigned_name',
+                        ])
                     ->leftJoin('leads as l', 'l.id', '=', 'c.lead_id')
                     ->leftJoin('lead_categories as cat', 'cat.id', '=', 'c.lead_category_id')
                     ->leftJoin('lead_industries as ind', 'ind.id', '=', 'c.industry_id')
@@ -89,10 +94,17 @@ class Costumers extends Controller
                     ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'c.assigned_to')
 
                     // FILTER hanya data yang dibuat oleh user/sales login
-                    ->where(function($q) use ($userId) {
-                                $q->where('c.created_by', $userId)
-                                ->orWhere('c.assigned_to', $userId);
-                            });
+                    // ->where(function($q) use ($userId) {
+                    //             $q->where('c.created_by', $userId)
+                    //             ->orWhere('c.assigned_to', $userId);
+                    //         });
+                    ->where(function ($q) use ($userId) {
+                        $q->where('c.created_by', $userId)
+                        ->orWhere('c.assigned_to', $userId);
+                    })
+
+                    // Hanya customer yang sudah di-approve
+                    ->where('c.approval_status', 'approved');
 
                 // SEARCH
                 if ($search) {
@@ -113,6 +125,105 @@ class Costumers extends Controller
                     CostumersResourcesCollection::make($results),
                     $results->isEmpty()
                         ? 'Data customer not found'
+                        : 'Success'
+                );
+            }
+
+
+            // ======================================================
+            // CUSTOMER SUBMISSION
+            // Pending + Rejected
+            // ======================================================
+            public function customerSubmission(CostumersValidationIndex $request)
+            {
+                $validated = $request->validated();
+
+                $search   = $validated['search'] ?? null;
+                $perPage  = $validated['per_page'] ?? 10;
+                $sortBy   = $validated['sort_by'] ?? 'c.created_at';
+                $sortDir  = $validated['sort_dir'] ?? 'desc';
+
+                $userId = auth()->user()->id_user;
+
+                $query = DB::table('customers as c')
+                    ->select([
+                        'c.id',
+                        'c.customer_code',
+                        'c.company_name',
+                        'c.contact_name',
+                        'c.email',
+                        'c.phone',
+                        'c.address',
+
+                        'c.lead_id',
+                        'c.lead_category_id',
+                        'c.industry_id',
+
+                        'c.assigned_to',
+                        'c.created_by',
+
+                        'c.customer_status',
+
+                        // APPROVAL
+                        'c.approval_status',
+                        'c.approved_by',
+                        'c.approved_at',
+                        'c.approval_note',
+                        'c.approval_revision',
+
+                        'c.notes',
+
+                        'c.converted_at',
+                        'c.created_at',
+                        'c.updated_at',
+
+                        // LEAD
+                        'l.company_name as lead_company_name',
+                        'c.lead_source',
+                        'l.lead_status',
+
+                        // MASTER
+                        'cat.name as category_name',
+                        'ind.name as industry_name',
+
+                        // USER
+                        'owner.fullname as owner_name',
+                        'sales.fullname as assigned_name',
+                    ])
+
+                    ->leftJoin('leads as l', 'l.id', '=', 'c.lead_id')
+                    ->leftJoin('lead_categories as cat', 'cat.id', '=', 'c.lead_category_id')
+                    ->leftJoin('lead_industries as ind', 'ind.id', '=', 'c.industry_id')
+                    ->leftJoin('ms_users as owner', 'owner.id_user', '=', 'c.created_by')
+                    ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'c.assigned_to')
+
+                    ->where(function ($q) use ($userId) {
+                        $q->where('c.created_by', $userId)
+                        ->orWhere('c.assigned_to', $userId);
+                    })
+
+                    ->whereIn('c.approval_status', [
+                        'pending',
+                        'rejected'
+                    ]);
+
+                if ($search) {
+                    $query->where(function ($q) use ($search) {
+                        $q->where('c.company_name', 'ILIKE', "%{$search}%")
+                        ->orWhere('c.contact_name', 'ILIKE', "%{$search}%")
+                        ->orWhere('c.email', 'ILIKE', "%{$search}%")
+                        ->orWhere('c.customer_code', 'ILIKE', "%{$search}%");
+                    });
+                }
+
+                $query->orderBy($sortBy, $sortDir);
+
+                $results = $query->paginate($perPage);
+
+                return ApiResponse::paginate(
+                    CostumersResourcesCollection::make($results),
+                    $results->isEmpty()
+                        ? 'Customer submission not found'
                         : 'Success'
                 );
             }
