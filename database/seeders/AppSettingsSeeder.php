@@ -15,7 +15,7 @@ class AppSettingsSeeder extends Seeder
         }
 
         DB::table('app_settings')->insert([
-            'app_name' => 'Duta IndoMandiri',
+            'app_name' => 'Duta Indomandiri',
             'app_short_name' => 'DIM',
             'app_tagline' => 'Grow Faster with Smarter Sales....',
 

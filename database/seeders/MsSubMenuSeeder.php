@@ -613,6 +613,18 @@ class MsSubMenuSeeder extends Seeder
                 'is_active' => true,
                 'parent_id' => $managerReport,
             ],
+
+             
         ]);
+
+         $insert([
+                'id_menu' => 3,
+                'url' => '/approval-customers',
+                'icon' => 'nav-icon fas fa-building',
+                'title' => 'Approval Customers',
+                'noted' => 'Approval Customers Page',
+                'is_active' => true,
+                'parent_id' => null,
+            ]);
     }
 }
