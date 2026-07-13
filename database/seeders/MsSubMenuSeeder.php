@@ -182,8 +182,8 @@ class MsSubMenuSeeder extends Seeder
             'id_menu' => 2,
             'url' => '/sales-timesheets-leave',
             'icon' => 'nav-icon fas fa-user-clock',
-            'title' => 'Timesheets & Leave',
-            'noted' => 'Timesheets & Leave Page',
+            'title' => 'Timesheets',
+            'noted' => 'Timesheets Page',
             'is_active' => true,
             'parent_id' => null,
         ]);
