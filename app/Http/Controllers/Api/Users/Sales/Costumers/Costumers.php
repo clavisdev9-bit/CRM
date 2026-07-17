@@ -9,6 +9,8 @@ use Illuminate\Support\Facades\DB;
 use App\Http\Requests\CostumersValidationIndex;
 use App\Http\Requests\CostumersValidationRequest;
 use App\Http\Resources\CostumersResources;
+use App\Http\Resources\CustomerBranchResource;
+use App\Http\Resources\CustomerBranchResourceCollection;
 use App\Http\Resources\CostumersResourcesCollection;
 use App\Models\MsCustomers;
 use App\Models\MsLeadsCategory;
@@ -86,6 +88,8 @@ class Costumers extends Controller
 
                             'owner.fullname as owner_name',
                             'sales.fullname as assigned_name',
+                            // query baru
+                            DB::raw('(SELECT COUNT(*) FROM customer_branches cb WHERE cb.customer_id = c.id AND cb.deleted_at IS NULL) as branch_count'),
                         ])
                     ->leftJoin('leads as l', 'l.id', '=', 'c.lead_id')
                     ->leftJoin('lead_categories as cat', 'cat.id', '=', 'c.lead_category_id')
@@ -496,6 +500,107 @@ class Costumers extends Controller
                 ], 500);
             }
         }
+
+
+        public function branches($id)
+{
+    // Pastikan customer-nya ada dulu
+    $customer = DB::table('customers')->where('id', $id)->first();
+
+    if (! $customer) {
+        return ApiResponse::error('Customer not found', 404);
+    }
+
+    $branches = DB::table('customer_branches as cb')
+        ->select([
+            'cb.id',
+            'cb.customer_id',
+            'cb.branch_code',
+            'cb.branch_name',
+            'cb.is_main_branch',
+            'cb.status',
+            'cb.address',
+            'cb.city',
+            'cb.contact_name',
+            'cb.email',
+            'cb.phone',
+
+            'cb.assigned_to',
+            'sales.fullname as assigned_name',
+
+            'cb.created_by',
+            'creator.fullname as created_by_name',
+
+            'cb.notes',
+            'cb.created_at',
+            'cb.updated_at',
+        ])
+        ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'cb.assigned_to')
+        ->leftJoin('ms_users as creator', 'creator.id_user', '=', 'cb.created_by')
+        ->where('cb.customer_id', $id)
+        ->whereNull('cb.deleted_at')
+        ->orderByDesc('cb.is_main_branch')
+        ->orderBy('cb.branch_name')
+        ->get();
+
+    return ApiResponse::success(
+        CustomerBranchResourceCollection::make($branches),
+        $branches->isEmpty() ? 'Belum ada cabang' : 'Success'
+    );
+}
+
+
+
+public function searchCompany(Request $request)
+{
+    try {
+
+        $search = trim($request->search);
+
+        if (strlen($search) < 2) {
+            return ApiResponse::success([], 'Keyword terlalu pendek');
+        }
+
+        $customers = DB::table('customers as c')
+            ->select([
+                'c.id',
+                'c.customer_code',
+                'c.company_name',
+
+                DB::raw("
+                    (
+                        SELECT COUNT(*)
+                        FROM customer_branches cb
+                        WHERE cb.customer_id = c.id
+                        AND cb.deleted_at IS NULL
+                    ) as branch_count
+                "),
+            ])
+            ->whereNull('c.deleted_at')
+            ->where('c.approval_status', 'approved')
+            ->where('c.company_name', 'ILIKE', "%{$search}%")
+            ->orderBy('c.company_name')
+            ->limit(10)
+            ->get();
+
+        return ApiResponse::success(
+            $customers,
+            $customers->isEmpty()
+                ? 'Company not found'
+                : 'Success'
+        );
+
+    } catch (\Throwable $e) {
+
+        return ApiResponse::error(
+            'Failed search company',
+            config('app.debug')
+                ? ['exception' => $e->getMessage()]
+                : null,
+            500
+        );
+    }
+}
 
 
 

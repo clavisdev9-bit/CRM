@@ -17,6 +17,7 @@ use App\Http\Controllers\Api\Users\Sales\Visits\Visits;
 use App\Http\Controllers\Api\Home\Dashboard\DashboardController;
 use App\Http\Controllers\Api\Manager\Dashboard\DashboardManagerController;
 use App\Http\Controllers\Api\Manager\Approval\ApprovalCustomerController;
+use App\Http\Controllers\Api\Manager\Approval\ApprovalCustomerBranchController;
 use Illuminate\Support\Facades\Http;
 
 
@@ -157,8 +158,9 @@ Route::get('/customers/select/user-sales', [Leads::class, 'selectUserByDivision'
  /* ================= CUSTOMER FOLLOW UP TIMELINE ================= */
 Route::get('/customers/{customerId}/follow-ups',[Costumers::class, 'customerFollowUpTimeline'])->name('api.customers.follow.up.timeline');
 Route::get('/customer-submissions', [Costumers::class, 'customerSubmission']);
-
-
+Route::get('/customers/{id}/branches', [Costumers::class, 'branches']);
+Route::post('/customers/{id}/branches', [Costumers::class, 'storeBranch']);
+Route::get('/customers/search-company', [Costumers::class, 'searchCompany']);
 
 // api sales Follow Up
 Route::get('/follow-up-leads', [FollowUp::class, 'followUpSalesByLeads'])->name('api.follow.up.master');
@@ -206,6 +208,14 @@ Route::prefix('customer-approval')->group(function () {
     Route::get('/', [ApprovalCustomerController::class, 'index']);
     Route::put('/{id}/approve', [ApprovalCustomerController::class, 'approve']);
     Route::put('/{id}/reject', [ApprovalCustomerController::class, 'reject']);
+});
+
+
+
+Route::prefix('customer-branch-approval')->group(function () {
+    Route::get('/', [ApprovalCustomerBranchController::class, 'index']);
+    Route::put('/{id}/approve', [ApprovalCustomerBranchController::class, 'approve']);
+    Route::put('/{id}/reject', [ApprovalCustomerBranchController::class, 'reject']);
 });
 
 

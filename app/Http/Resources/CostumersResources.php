@@ -68,6 +68,11 @@ class CostumersResources extends JsonResource
             'owner_name' => $this->owner_name ?? null,
 
             // =========================
+            // BRANCH
+            // =========================
+            'branch_count' => (int) ($this->branch_count ?? 0),
+
+            // =========================
             // ACTIVITY
             // =========================
             'converted_at' => $this->converted_at
