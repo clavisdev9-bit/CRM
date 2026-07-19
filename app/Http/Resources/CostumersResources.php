@@ -2,92 +2,150 @@
 
 namespace App\Http\Resources;
 
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\JsonResource;
-use Carbon\Carbon;
 
 class CostumersResources extends JsonResource
 {
     public function toArray(Request $request): array
     {
+        $displayType = $this->resource->display_type ?? 'customer';
+
+        // ── FIX: akses lewat $this->resource (property asli), bukan
+        // $this->branches (magic getter JsonResource) — supaya null
+        // coalescing (??) benar-benar aman untuk baris hasil query
+        // builder (stdClass) yang tidak menyertakan kolom 'branches'
+        // sama sekali, seperti pada endpoint customerSubmission().
+        $rawBranches = $this->resource->branches ?? null;
+
+        $branches = collect(
+            is_string($rawBranches)
+                ? json_decode($rawBranches, true)
+                : ($rawBranches ?? [])
+        )->values();
+
+        /**
+         * ==========================================================
+         * BRANCH CARD
+         * ==========================================================
+         */
+        if ($displayType === 'branch') {
+
+            $branch = $branches->first();
+
+            return [
+
+                'display_type' => 'branch',
+
+                // Parent Customer
+                'customer' => [
+                    'id' => $this->resource->id ?? null,
+                    'customer_code' => $this->resource->customer_code ?? null,
+                    'company_name' => $this->resource->company_name ?? null,
+                ],
+
+              
+
+                'branch' => [
+                            'id' => $branch['id'] ?? null,
+                            'branch_code' => $branch['branch_code'] ?? null,
+                            'branch_name' => $branch['branch_name'] ?? null,
+                            'contact_name' => $branch['contact_name'] ?? null,
+                            'email' => $branch['email'] ?? null,
+                            'phone' => $branch['phone'] ?? null,
+                            'address' => $branch['address'] ?? null,
+                            'city' => $branch['city'] ?? null,
+
+                            'status' => $branch['status'] ?? null,
+                            'approval_status' => $branch['approval_status'] ?? null,
+
+                            'assigned_to' => $branch['assigned_to'] ?? null,
+                            'assigned_name' => $branch['assigned_name'] ?? null,
+
+                            'created_by' => $branch['created_by'] ?? null,
+                            'owner_name' => $branch['owner_name'] ?? null,
+
+                            'approved_by' => $branch['approved_by'] ?? null,
+
+                            'approved_at' => !empty($branch['approved_at'])
+                                ? Carbon::parse($branch['approved_at'])->format('Y-m-d H:i:s')
+                                : null,
+                        ],
+
+                'created_at' => !empty($this->resource->created_at ?? null)
+                    ? Carbon::parse($this->resource->created_at)->format('Y-m-d H:i:s')
+                    : null,
+
+                'updated_at' => !empty($this->resource->updated_at ?? null)
+                    ? Carbon::parse($this->resource->updated_at)->format('Y-m-d H:i:s')
+                    : null,
+            ];
+        }
+
+        /**
+         * ==========================================================
+         * CUSTOMER CARD
+         * ==========================================================
+         */
         return [
 
-            // =========================
-            // CUSTOMER
-            // =========================
-            'id' => $this->id,
-            'customer_code' => $this->customer_code,
-            'company_name' => $this->company_name,
-            'contact_name' => $this->contact_name,
-            'email' => $this->email,
-            'phone' => $this->phone,
-            'address' => $this->address,
+            'display_type' => 'customer',
 
-            // =========================
-            // STATUS
-            // =========================
-            'customer_status' => $this->customer_status,
+            'id' => $this->resource->id ?? null,
+            'customer_code' => $this->resource->customer_code ?? null,
+            'company_name' => $this->resource->company_name ?? null,
+            'contact_name' => $this->resource->contact_name ?? null,
+            'email' => $this->resource->email ?? null,
+            'phone' => $this->resource->phone ?? null,
+            'address' => $this->resource->address ?? null,
 
-            // =========================
-            // APPROVAL
-            // =========================
-            'approval_status' => $this->approval_status,
-            'approved_by' => $this->approved_by,
-            'approved_at' => $this->approved_at
-                ? Carbon::parse($this->approved_at)->format('Y-m-d H:i:s')
-                : null,
-            'approval_note' => $this->approval_note,
-            'approval_revision' => $this->approval_revision,
+            'customer_status' => $this->resource->customer_status ?? null,
 
-            // =========================
-            // NOTES
-            // =========================
-            'notes' => $this->notes,
+            'approval_status' => $this->resource->approval_status ?? null,
+            'approved_by' => $this->resource->approved_by ?? null,
 
-            // =========================
-            // LEAD RELATION
-            // =========================
-            'lead_id' => $this->lead_id,
-            'lead_company_name' => $this->lead_company_name ?? null,
-            'lead_source' => $this->lead_source ?? null,
-            'lead_status' => $this->lead_status ?? null,
-
-            'lead_category_id' => $this->lead_category_id,
-            'lead_category_name' => $this->category_name ?? null,
-
-            'industry_id' => $this->industry_id,
-            'industry_name' => $this->industry_name ?? null,
-
-            // =========================
-            // OWNERSHIP
-            // =========================
-            'assigned_to' => $this->assigned_to,
-            'assigned_name' => $this->assigned_name ?? null,
-
-            'created_by' => $this->created_by,
-            'owner_name' => $this->owner_name ?? null,
-
-            // =========================
-            // BRANCH
-            // =========================
-            'branch_count' => (int) ($this->branch_count ?? 0),
-
-            // =========================
-            // ACTIVITY
-            // =========================
-            'converted_at' => $this->converted_at
-                ? Carbon::parse($this->converted_at)->format('Y-m-d H:i:s')
+            'approved_at' => !empty($this->resource->approved_at ?? null)
+                ? Carbon::parse($this->resource->approved_at)->format('Y-m-d H:i:s')
                 : null,
 
-            // =========================
-            // AUDIT
-            // =========================
-            'created_at' => $this->created_at
-                ? Carbon::parse($this->created_at)->format('Y-m-d H:i:s')
+            'approval_note' => $this->resource->approval_note ?? null,
+            'approval_revision' => $this->resource->approval_revision ?? null,
+
+            'notes' => $this->resource->notes ?? null,
+
+            'lead_id' => $this->resource->lead_id ?? null,
+            'lead_company_name' => $this->resource->lead_company_name ?? null,
+            'lead_source' => $this->resource->lead_source ?? null,
+            'lead_status' => $this->resource->lead_status ?? null,
+
+            'lead_category_id' => $this->resource->lead_category_id ?? null,
+            'lead_category_name' => $this->resource->category_name ?? null,
+
+            'industry_id' => $this->resource->industry_id ?? null,
+            'industry_name' => $this->resource->industry_name ?? null,
+
+            'assigned_to' => $this->resource->assigned_to ?? null,
+            'assigned_name' => $this->resource->assigned_name ?? null,
+
+            'created_by' => $this->resource->created_by ?? null,
+            'owner_name' => $this->resource->owner_name ?? null,
+
+
+            'branch_count' => (int) ($this->resource->branch_count ?? 0),
+
+            'branches' => $branches,
+
+            'converted_at' => !empty($this->resource->converted_at ?? null)
+                ? Carbon::parse($this->resource->converted_at)->format('Y-m-d H:i:s')
                 : null,
 
-            'updated_at' => $this->updated_at
-                ? Carbon::parse($this->updated_at)->format('Y-m-d H:i:s')
+            'created_at' => !empty($this->resource->created_at ?? null)
+                ? Carbon::parse($this->resource->created_at)->format('Y-m-d H:i:s')
+                : null,
+
+            'updated_at' => !empty($this->resource->updated_at ?? null)
+                ? Carbon::parse($this->resource->updated_at)->format('Y-m-d H:i:s')
                 : null,
         ];
     }

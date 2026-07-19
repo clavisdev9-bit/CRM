@@ -158,9 +158,14 @@ Route::get('/customers/select/user-sales', [Leads::class, 'selectUserByDivision'
  /* ================= CUSTOMER FOLLOW UP TIMELINE ================= */
 Route::get('/customers/{customerId}/follow-ups',[Costumers::class, 'customerFollowUpTimeline'])->name('api.customers.follow.up.timeline');
 Route::get('/customer-submissions', [Costumers::class, 'customerSubmission']);
+Route::get('/customers/search-company', [Costumers::class, 'searchCompany']);
 Route::get('/customers/{id}/branches', [Costumers::class, 'branches']);
 Route::post('/customers/{id}/branches', [Costumers::class, 'storeBranch']);
-Route::get('/customers/search-company', [Costumers::class, 'searchCompany']);
+Route::put('/customer-branches/{id}',[Costumers::class, 'updateBranch']);
+Route::delete('/customer-branches/{id}',[Costumers::class, 'destroyBranch']);
+
+
+
 
 // api sales Follow Up
 Route::get('/follow-up-leads', [FollowUp::class, 'followUpSalesByLeads'])->name('api.follow.up.master');

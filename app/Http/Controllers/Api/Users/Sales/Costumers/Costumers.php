@@ -33,204 +33,562 @@ class Costumers extends Controller
         $this->MsLeadsIndustries = $MsLeadsIndustries;
         $this->MsLeadsModel = $MsLeadsModel;
       }
+            // ambil data customers berdasarkan yang sales buat(code lama)
+            // public function customers(CostumersValidationIndex $request)
+            // {
+            //     $validated = $request->validated();
 
+            //     $search   = $validated['search'] ?? null;
+            //     $perPage  = $validated['per_page'] ?? 10;
+            //     $sortBy   = $validated['sort_by'] ?? 'c.created_at';
+            //     $sortDir  = $validated['sort_dir'] ?? 'desc';
 
- 
+            //     $userId = auth()->user()->id_user;
 
+            //     $query = DB::table('customers as c')
+            //         ->select([
+            //                 'c.id',
+            //                 'c.customer_code',
+            //                 'c.company_name',
+            //                 'c.contact_name',
+            //                 'c.email',
+            //                 'c.phone',
+            //                 'c.address',
+            //                 'c.lead_id',
+            //                 'c.lead_category_id',
+            //                 'c.industry_id',
+            //                 'c.assigned_to',
+            //                 'c.created_by',
+            //                 'c.customer_status',
 
-            // ambil data customers berdasarkan yang sales buat
+            //                 // APPROVAL
+            //                 'c.approval_status',
+            //                 'c.approved_by',
+            //                 'c.approved_at',
+            //                 'c.approval_note',
+            //                 'c.approval_revision',
+
+            //                 'c.notes',
+            //                 'c.converted_at',
+            //                 'c.created_at',
+            //                 'c.updated_at',
+            //                 'c.deleted_at',
+
+            //                 'l.company_name as lead_company_name',
+            //                 'c.lead_source',
+            //                 'l.lead_status',
+
+            //                 'cat.name as category_name',
+            //                 'ind.name as industry_name',
+
+            //                 'owner.fullname as owner_name',
+            //                 'sales.fullname as assigned_name',
+            //                 // query baru
+            //                 DB::raw('(SELECT COUNT(*) FROM customer_branches cb WHERE cb.customer_id = c.id AND cb.deleted_at IS NULL) as branch_count'),
+            //             ])
+            //         ->leftJoin('leads as l', 'l.id', '=', 'c.lead_id')
+            //         ->leftJoin('lead_categories as cat', 'cat.id', '=', 'c.lead_category_id')
+            //         ->leftJoin('lead_industries as ind', 'ind.id', '=', 'c.industry_id')
+            //         ->leftJoin('ms_users as owner', 'owner.id_user', '=', 'c.created_by')
+            //         ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'c.assigned_to')
+
+            //         // FILTER hanya data yang dibuat oleh user/sales login
+            //         // ->where(function($q) use ($userId) {
+            //         //             $q->where('c.created_by', $userId)
+            //         //             ->orWhere('c.assigned_to', $userId);
+            //         //         });
+            //         ->where(function ($q) use ($userId) {
+            //             $q->where('c.created_by', $userId)
+            //             ->orWhere('c.assigned_to', $userId);
+            //         })
+
+            //         // Hanya customer yang sudah di-approve
+            //         ->where('c.approval_status', 'approved');
+
+            //     // SEARCH
+            //     if ($search) {
+            //         $query->where(function ($q) use ($search) {
+            //             $q->where('c.company_name', 'ILIKE', "%{$search}%")
+            //             ->orWhere('c.contact_name', 'ILIKE', "%{$search}%")
+            //             ->orWhere('c.email', 'ILIKE', "%{$search}%")
+            //             ->orWhere('c.customer_code', 'ILIKE', "%{$search}%");
+            //         });
+            //     }
+
+            //     // SORT
+            //     $query->orderBy($sortBy, $sortDir);
+
+            //     $results = $query->paginate($perPage);
+
+            //     return ApiResponse::paginate(
+            //         CostumersResourcesCollection::make($results),
+            //         $results->isEmpty()
+            //             ? 'Data customer not found'
+            //             : 'Success'
+            //     );
+            // }
+            
+
             public function customers(CostumersValidationIndex $request)
-            {
-                $validated = $request->validated();
+{
+    $validated = $request->validated();
 
-                $search   = $validated['search'] ?? null;
-                $perPage  = $validated['per_page'] ?? 10;
-                $sortBy   = $validated['sort_by'] ?? 'c.created_at';
-                $sortDir  = $validated['sort_dir'] ?? 'desc';
+    $search   = $validated['search'] ?? null;
+    $perPage  = $validated['per_page'] ?? 10;
+    $sortBy   = $validated['sort_by'] ?? 'c.created_at';
+    $sortDir  = $validated['sort_dir'] ?? 'desc';
 
-                $userId = auth()->user()->id_user;
+    $userId = auth()->user()->id_user;
 
-                $query = DB::table('customers as c')
-                    ->select([
-                            'c.id',
-                            'c.customer_code',
-                            'c.company_name',
-                            'c.contact_name',
-                            'c.email',
-                            'c.phone',
-                            'c.address',
-                            'c.lead_id',
-                            'c.lead_category_id',
-                            'c.industry_id',
-                            'c.assigned_to',
-                            'c.created_by',
-                            'c.customer_status',
+    /**
+     * ============================================
+     * SUB QUERY BRANCH
+     * ============================================
+     */
+    $branchSub = DB::table('customer_branches as cb')
+    ->leftJoin('ms_users as owner', 'owner.id_user', '=', 'cb.created_by')
+    ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'cb.assigned_to')
+    ->select(
+        'cb.customer_id',
+        DB::raw('COUNT(*) as branch_count'),
+        DB::raw("
+            json_agg(
+                json_build_object(
+                    'id', cb.id,
+                    'branch_code', cb.branch_code,
+                    'branch_name', cb.branch_name,
+                    'contact_name', cb.contact_name,
+                    'email', cb.email,
+                    'phone', cb.phone,
+                    'address', cb.address,
+                    'city', cb.city,
 
-                            // APPROVAL
-                            'c.approval_status',
-                            'c.approved_by',
-                            'c.approved_at',
-                            'c.approval_note',
-                            'c.approval_revision',
+                    'assigned_to', cb.assigned_to,
+                    'assigned_name', sales.fullname,
 
-                            'c.notes',
-                            'c.converted_at',
-                            'c.created_at',
-                            'c.updated_at',
-                            'c.deleted_at',
+                    'created_by', cb.created_by,
+                    'owner_name', owner.fullname,
 
-                            'l.company_name as lead_company_name',
-                            'c.lead_source',
-                            'l.lead_status',
+                    'status', cb.status,
+                    'approval_status', cb.approval_status,
+                    'approved_by', cb.approved_by,
+                    'approved_at', cb.approved_at
+                )
+                ORDER BY cb.is_main_branch DESC, cb.id ASC
+            ) as branches
+        ")
+    )
+    ->whereNull('cb.deleted_at')
+    ->where('cb.approval_status', 'approved')
+    ->groupBy('cb.customer_id');
 
-                            'cat.name as category_name',
-                            'ind.name as industry_name',
+    /**
+     * ============================================
+     * CUSTOMER QUERY
+     * ============================================
+     */
+    $query = DB::table('customers as c')
+        ->select([
+            'c.id',
+            'c.customer_code',
+            'c.company_name',
+            'c.contact_name',
+            'c.email',
+            'c.phone',
+            'c.address',
+            'c.lead_id',
+            'c.lead_category_id',
+            'c.industry_id',
+            'c.assigned_to',
+            'c.created_by',
+            'c.customer_status',
 
-                            'owner.fullname as owner_name',
-                            'sales.fullname as assigned_name',
-                            // query baru
-                            DB::raw('(SELECT COUNT(*) FROM customer_branches cb WHERE cb.customer_id = c.id AND cb.deleted_at IS NULL) as branch_count'),
-                        ])
-                    ->leftJoin('leads as l', 'l.id', '=', 'c.lead_id')
-                    ->leftJoin('lead_categories as cat', 'cat.id', '=', 'c.lead_category_id')
-                    ->leftJoin('lead_industries as ind', 'ind.id', '=', 'c.industry_id')
-                    ->leftJoin('ms_users as owner', 'owner.id_user', '=', 'c.created_by')
-                    ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'c.assigned_to')
+            'c.approval_status',
+            'c.approved_by',
+            'c.approved_at',
+            'c.approval_note',
+            'c.approval_revision',
 
-                    // FILTER hanya data yang dibuat oleh user/sales login
-                    // ->where(function($q) use ($userId) {
-                    //             $q->where('c.created_by', $userId)
-                    //             ->orWhere('c.assigned_to', $userId);
-                    //         });
-                    ->where(function ($q) use ($userId) {
-                        $q->where('c.created_by', $userId)
-                        ->orWhere('c.assigned_to', $userId);
-                    })
+            'c.notes',
+            'c.converted_at',
+            'c.created_at',
+            'c.updated_at',
+            'c.deleted_at',
 
-                    // Hanya customer yang sudah di-approve
-                    ->where('c.approval_status', 'approved');
+            'l.company_name as lead_company_name',
+            'l.lead_status',
+            'c.lead_source',
 
-                // SEARCH
-                if ($search) {
-                    $query->where(function ($q) use ($search) {
-                        $q->where('c.company_name', 'ILIKE', "%{$search}%")
-                        ->orWhere('c.contact_name', 'ILIKE', "%{$search}%")
-                        ->orWhere('c.email', 'ILIKE', "%{$search}%")
-                        ->orWhere('c.customer_code', 'ILIKE', "%{$search}%");
-                    });
-                }
+            'cat.name as category_name',
+            'ind.name as industry_name',
 
-                // SORT
-                $query->orderBy($sortBy, $sortDir);
+            'owner.fullname as owner_name',
+            'sales.fullname as assigned_name',
 
-                $results = $query->paginate($perPage);
+            DB::raw("COALESCE(cb.branch_count,0) as branch_count"),
+            DB::raw("COALESCE(cb.branches,'[]'::json) as branches"),
+        ])
 
-                return ApiResponse::paginate(
-                    CostumersResourcesCollection::make($results),
-                    $results->isEmpty()
-                        ? 'Data customer not found'
-                        : 'Success'
-                );
+        ->leftJoin('leads as l', 'l.id', '=', 'c.lead_id')
+        ->leftJoin('lead_categories as cat', 'cat.id', '=', 'c.lead_category_id')
+        ->leftJoin('lead_industries as ind', 'ind.id', '=', 'c.industry_id')
+        ->leftJoin('ms_users as owner', 'owner.id_user', '=', 'c.created_by')
+        ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'c.assigned_to')
+
+        ->leftJoinSub($branchSub, 'cb', function ($join) {
+            $join->on('cb.customer_id', '=', 'c.id');
+        })
+
+        ->where('c.approval_status', 'approved')
+
+        ->where(function ($q) use ($userId) {
+
+            /**
+             * Customer dibuat oleh saya
+             */
+            $q->where('c.created_by', $userId)
+
+            /**
+             * Customer diassign ke saya
+             */
+            ->orWhere('c.assigned_to', $userId)
+
+            /**
+             * Saya membuat salah satu branch customer
+             */
+            ->orWhereExists(function ($branch) use ($userId) {
+
+                $branch->select(DB::raw(1))
+                    ->from('customer_branches as cb')
+                    ->whereColumn('cb.customer_id', 'c.id')
+                    ->whereNull('cb.deleted_at')
+                    ->where('cb.approval_status', 'approved')
+                    ->where('cb.created_by', $userId);
+
+            })
+
+            /**
+             * Branch customer diassign ke saya
+             */
+            ->orWhereExists(function ($branch) use ($userId) {
+
+                $branch->select(DB::raw(1))
+                    ->from('customer_branches as cb')
+                    ->whereColumn('cb.customer_id', 'c.id')
+                    ->whereNull('cb.deleted_at')
+                    ->where('cb.approval_status', 'approved')
+                    ->where('cb.assigned_to', $userId);
+
+            });
+
+        });
+
+    /**
+     * SEARCH
+     */
+    if ($search) {
+        $query->where(function ($q) use ($search) {
+            $q->where('c.company_name', 'ILIKE', "%{$search}%")
+                ->orWhere('c.contact_name', 'ILIKE', "%{$search}%")
+                ->orWhere('c.email', 'ILIKE', "%{$search}%")
+                ->orWhere('c.customer_code', 'ILIKE', "%{$search}%");
+        });
+    }
+
+    /**
+     * SORTING
+     */
+    $query->orderBy($sortBy, $sortDir);
+
+    
+    $results = $query->paginate($perPage);
+    // dd($results->items());
+
+
+    $query->orderBy($sortBy, $sortDir);
+
+$results = $query->paginate($perPage);
+
+/**
+ * ============================================
+ * BUSINESS RULE
+ * ============================================
+ */
+$results->setCollection(
+
+    $results->getCollection()
+
+        ->map(function ($item) use ($userId) {
+
+            $branches = collect(
+                is_string($item->branches)
+                    ? json_decode($item->branches, true)
+                    : ($item->branches ?? [])
+            );
+
+            // Branch yang dimiliki user login
+            $myBranches = $branches->filter(function ($branch) use ($userId) {
+                return ($branch['created_by'] ?? null) == $userId
+                    || ($branch['assigned_to'] ?? null) == $userId;
+            })->values();
+
+            /**
+             * CUSTOMER OWNER
+             */
+            if (
+                $item->created_by == $userId ||
+                $item->assigned_to == $userId
+            ) {
+
+                $item->display_type = 'customer';
+
+                // owner customer melihat semua branch
+                $item->branches = $branches;
+
+                $item->branch_count = $branches->count();
+
+                return $item;
             }
+
+            /**
+             * BRANCH OWNER
+             */
+            if ($myBranches->isNotEmpty()) {
+
+                $item->display_type = 'branch';
+
+                // hanya branch milik user login
+                $item->branches = $myBranches;
+
+                $item->branch_count = $myBranches->count();
+
+                return $item;
+            }
+
+            // tidak punya akses
+            return null;
+
+        })
+
+        ->filter()
+
+        ->values()
+
+);
+
+    return ApiResponse::paginate(
+        CostumersResourcesCollection::make($results),
+        $results->isEmpty()
+            ? 'Data customer not found'
+            : 'Success'
+    );
+}
 
 
             // ======================================================
             // CUSTOMER SUBMISSION
             // Pending + Rejected
             // ======================================================
+           
             public function customerSubmission(CostumersValidationIndex $request)
-            {
-                $validated = $request->validated();
-
-                $search   = $validated['search'] ?? null;
-                $perPage  = $validated['per_page'] ?? 10;
-                $sortBy   = $validated['sort_by'] ?? 'c.created_at';
-                $sortDir  = $validated['sort_dir'] ?? 'desc';
-
-                $userId = auth()->user()->id_user;
-
-                $query = DB::table('customers as c')
-                    ->select([
-                        'c.id',
-                        'c.customer_code',
-                        'c.company_name',
-                        'c.contact_name',
-                        'c.email',
-                        'c.phone',
-                        'c.address',
-
-                        'c.lead_id',
-                        'c.lead_category_id',
-                        'c.industry_id',
-
-                        'c.assigned_to',
-                        'c.created_by',
-
-                        'c.customer_status',
-
-                        // APPROVAL
-                        'c.approval_status',
-                        'c.approved_by',
-                        'c.approved_at',
-                        'c.approval_note',
-                        'c.approval_revision',
-
-                        'c.notes',
-
-                        'c.converted_at',
-                        'c.created_at',
-                        'c.updated_at',
-
-                        // LEAD
-                        'l.company_name as lead_company_name',
-                        'c.lead_source',
-                        'l.lead_status',
-
-                        // MASTER
-                        'cat.name as category_name',
-                        'ind.name as industry_name',
-
-                        // USER
-                        'owner.fullname as owner_name',
-                        'sales.fullname as assigned_name',
-                    ])
-
-                    ->leftJoin('leads as l', 'l.id', '=', 'c.lead_id')
-                    ->leftJoin('lead_categories as cat', 'cat.id', '=', 'c.lead_category_id')
-                    ->leftJoin('lead_industries as ind', 'ind.id', '=', 'c.industry_id')
-                    ->leftJoin('ms_users as owner', 'owner.id_user', '=', 'c.created_by')
-                    ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'c.assigned_to')
-
-                    ->where(function ($q) use ($userId) {
-                        $q->where('c.created_by', $userId)
-                        ->orWhere('c.assigned_to', $userId);
-                    })
-
-                    ->whereIn('c.approval_status', [
-                        'pending',
-                        'rejected'
-                    ]);
-
-                if ($search) {
-                    $query->where(function ($q) use ($search) {
-                        $q->where('c.company_name', 'ILIKE', "%{$search}%")
-                        ->orWhere('c.contact_name', 'ILIKE', "%{$search}%")
-                        ->orWhere('c.email', 'ILIKE', "%{$search}%")
-                        ->orWhere('c.customer_code', 'ILIKE', "%{$search}%");
-                    });
-                }
-
-                $query->orderBy($sortBy, $sortDir);
-
-                $results = $query->paginate($perPage);
-
-                return ApiResponse::paginate(
-                    CostumersResourcesCollection::make($results),
-                    $results->isEmpty()
-                        ? 'Customer submission not found'
-                        : 'Success'
-                );
-            }
+{
+    $validated = $request->validated();
+ 
+    $search  = $validated['search'] ?? null;
+    $perPage = $validated['per_page'] ?? 10;
+ 
+    // Kolom hasil UNION tidak lagi pakai prefix tabel (c./b.),
+    // jadi whitelist & default-nya disesuaikan tanpa prefix.
+    $allowedSort = ['created_at', 'company_name'];
+    $sortBy      = in_array($validated['sort_by'] ?? null, $allowedSort)
+        ? $validated['sort_by']
+        : 'created_at';
+    $sortDir     = $validated['sort_dir'] ?? 'desc';
+ 
+    $userId = auth()->user()->id_user;
+ 
+    /**
+     * ──────────────────────────────────────────────────────────
+     * QUERY 1: SUBMISSION HEAD COMPANY (customers)
+     * ──────────────────────────────────────────────────────────
+     */
+    $customerQuery = DB::table('customers as c')
+        ->select([
+            'c.id',
+            'c.customer_code',
+            'c.company_name',
+            'c.contact_name',
+            'c.email',
+            'c.phone',
+            'c.address',
+ 
+            'c.lead_id',
+            'c.lead_category_id',
+            'c.industry_id',
+ 
+            'c.assigned_to',
+            'c.created_by',
+ 
+            'c.customer_status',
+ 
+            'c.approval_status',
+            'c.approved_by',
+            'c.approved_at',
+            'c.approval_note',
+            'c.approval_revision',
+ 
+            'c.notes',
+ 
+            'c.converted_at',
+            'c.created_at',
+            'c.updated_at',
+ 
+            'l.company_name as lead_company_name',
+            'c.lead_source',
+            'l.lead_status',
+ 
+            'cat.name as category_name',
+            'ind.name as industry_name',
+ 
+            'owner.fullname as owner_name',
+            'sales.fullname as assigned_name',
+ 
+            DB::raw("'customer' as display_type"),
+            DB::raw('NULL::text as branches'),
+            DB::raw('0 as branch_count'),
+        ])
+        ->leftJoin('leads as l', 'l.id', '=', 'c.lead_id')
+        ->leftJoin('lead_categories as cat', 'cat.id', '=', 'c.lead_category_id')
+        ->leftJoin('lead_industries as ind', 'ind.id', '=', 'c.industry_id')
+        ->leftJoin('ms_users as owner', 'owner.id_user', '=', 'c.created_by')
+        ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'c.assigned_to')
+        ->where(function ($q) use ($userId) {
+            $q->where('c.created_by', $userId)
+              ->orWhere('c.assigned_to', $userId);
+        })
+        ->whereIn('c.approval_status', ['pending', 'rejected']);
+ 
+    if ($search) {
+        $customerQuery->where(function ($q) use ($search) {
+            $q->where('c.company_name', 'ILIKE', "%{$search}%")
+              ->orWhere('c.contact_name', 'ILIKE', "%{$search}%")
+              ->orWhere('c.email', 'ILIKE', "%{$search}%")
+              ->orWhere('c.customer_code', 'ILIKE', "%{$search}%");
+        });
+    }
+ 
+    /**
+     * ──────────────────────────────────────────────────────────
+     * QUERY 2: SUBMISSION CABANG (branches)
+     * Join ke `customers` cuma untuk ambil identitas head company
+     * (customer_code, company_name) sebagai konteks/parent.
+     * ──────────────────────────────────────────────────────────
+     */
+    $branchQuery = DB::table('customer_branches as b')
+        ->select([
+            'c.id',
+            'c.customer_code',
+            'c.company_name',
+            'b.contact_name',
+            'b.email',
+            'b.phone',
+            'b.address',
+ 
+            DB::raw('NULL::integer as lead_id'),
+            DB::raw('NULL::integer as lead_category_id'),
+            DB::raw('NULL::integer as industry_id'),
+ 
+            'b.assigned_to',
+            'b.created_by',
+ 
+            'b.status as customer_status',
+ 
+            'b.approval_status',
+            'b.approved_by',
+            'b.approved_at',
+            'b.approval_note',
+            'b.approval_revision',
+ 
+            'b.notes',
+ 
+            DB::raw('NULL::timestamp as converted_at'),
+            'b.created_at',
+            'b.updated_at',
+ 
+            DB::raw('NULL::text as lead_company_name'),
+            DB::raw('NULL::text as lead_source'),
+            DB::raw('NULL::text as lead_status'),
+ 
+            DB::raw('NULL::text as category_name'),
+            DB::raw('NULL::text as industry_name'),
+ 
+            'owner.fullname as owner_name',
+            'sales.fullname as assigned_name',
+ 
+            DB::raw("'branch' as display_type"),
+ 
+            // Bungkus data branch jadi JSON array 1 item, formatnya
+            // disamakan dengan yang dibaca CostumersResources untuk
+            // display_type = 'branch'. creator_name & assigned_name
+            // disertakan supaya frontend bisa langsung tampilkan
+            // PIC cabang tanpa request tambahan.
+            DB::raw("json_build_array(json_build_object(
+                'id', b.id,
+                'branch_code', b.branch_code,
+                'branch_name', b.branch_name,
+                'contact_name', b.contact_name,
+                'email', b.email,
+                'phone', b.phone,
+                'address', b.address,
+                'city', b.city,
+                'status', b.status,
+                'approval_status', b.approval_status,
+                'assigned_to', b.assigned_to,
+                'created_by', b.created_by,
+                'approved_by', b.approved_by,
+                'approved_at', b.approved_at,
+                'creator_name', owner.fullname,
+                'assigned_name', sales.fullname
+            ))::text as branches"),
+ 
+            DB::raw('0 as branch_count'),
+        ])
+        ->join('customers as c', 'c.id', '=', 'b.customer_id')
+        ->leftJoin('ms_users as owner', 'owner.id_user', '=', 'b.created_by')
+        ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'b.assigned_to')
+        ->where(function ($q) use ($userId) {
+            $q->where('b.created_by', $userId)
+              ->orWhere('b.assigned_to', $userId);
+        })
+        ->whereIn('b.approval_status', ['pending', 'rejected']);
+ 
+    if ($search) {
+        $branchQuery->where(function ($q) use ($search) {
+            $q->where('c.company_name', 'ILIKE', "%{$search}%")
+              ->orWhere('b.branch_name', 'ILIKE', "%{$search}%")
+              ->orWhere('b.contact_name', 'ILIKE', "%{$search}%")
+              ->orWhere('b.email', 'ILIKE', "%{$search}%")
+              ->orWhere('c.customer_code', 'ILIKE', "%{$search}%");
+        });
+    }
+ 
+    /**
+     * ──────────────────────────────────────────────────────────
+     * GABUNGKAN + SORT + PAGINATE
+     * ──────────────────────────────────────────────────────────
+     */
+    $results = $customerQuery
+        ->unionAll($branchQuery)
+        ->orderBy($sortBy, $sortDir)
+        ->paginate($perPage);
+ 
+    return ApiResponse::paginate(
+        CostumersResourcesCollection::make($results),
+        $results->isEmpty()
+            ? 'Customer submission not found'
+            : 'Success'
+    );
+}
 
 
         private function generateCustomerCode()
@@ -404,42 +762,175 @@ class Costumers extends Controller
                 }
             }
 
+       
 
         public function showCostumers($id)
-        {
-            try {
-                // Ambil data customer beserta relasi
-                $customer = DB::table('customers as c')
-                    ->select([
-                        'c.*',
-                        'cat.name as category_name',
-                        'ind.name as industry_name',
-                        'owner.fullname as owner_name',
-                        'sales.fullname as assigned_name',
-                    ])
-                    ->leftJoin('lead_categories as cat', 'cat.id', '=', 'c.lead_category_id')
-                    ->leftJoin('lead_industries as ind', 'ind.id', '=', 'c.industry_id')
-                    ->leftJoin('ms_users as owner', 'owner.id_user', '=', 'c.id_user')
-                    ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'c.assigned_to')
-                    ->where('c.id', $id)
-                    ->first();
+{
+    try {
 
-                if (!$customer) {
-                    return ApiResponse::error('Customer not found.', [], 404);
-                }
+        $userId = auth()->user()->id_user;
 
-                return ApiResponse::success($customer, 'Customer detail retrieved successfully.', 200);
+        /**
+         * ======================================================
+         * CUSTOMER
+         * ======================================================
+         */
+        $customer = DB::table('customers as c')
+            ->select([
+                'c.*',
 
-            } catch (\Illuminate\Database\QueryException $e) {
-                return ApiResponse::error('Failed to fetch customer detail (query error)', [
-                    'exception' => config('app.debug') ? $e->getMessage() : null
-                ], 422);
-            } catch (\Exception $e) {
-                return ApiResponse::error('An error occurred while fetching customer detail.', [
-                    'exception' => config('app.debug') ? $e->getMessage() : null
-                ], 500);
-            }
+                'cat.name as category_name',
+                'ind.name as industry_name',
+
+                'owner.fullname as owner_name',
+                'sales.fullname as assigned_name',
+            ])
+            ->leftJoin('lead_categories as cat', 'cat.id', '=', 'c.lead_category_id')
+            ->leftJoin('lead_industries as ind', 'ind.id', '=', 'c.industry_id')
+
+            // owner customer
+            ->leftJoin('ms_users as owner', 'owner.id_user', '=', 'c.created_by')
+
+            // sales customer
+            ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'c.assigned_to')
+
+            ->where('c.id', $id)
+            ->where('c.approval_status', 'approved')
+            ->first();
+
+        if (!$customer) {
+            return ApiResponse::error(
+                'Customer not found.',
+                [],
+                404
+            );
         }
+
+        /**
+         * ======================================================
+         * BRANCH CUSTOMER
+         * ======================================================
+         */
+        $branches = DB::table('customer_branches as cb')
+            ->select([
+                'cb.*',
+
+                'creator.fullname as creator_name',
+                'sales.fullname as assigned_name',
+            ])
+
+            ->leftJoin(
+                'ms_users as creator',
+                'creator.id_user',
+                '=',
+                'cb.created_by'
+            )
+
+            ->leftJoin(
+                'ms_users as sales',
+                'sales.id_user',
+                '=',
+                'cb.assigned_to'
+            )
+
+            ->where('cb.customer_id', $customer->id)
+            ->whereNull('cb.deleted_at')
+            ->where('cb.approval_status', 'approved')
+            ->orderByDesc('cb.is_main_branch')
+            ->orderBy('cb.id')
+            ->get();
+
+        /**
+         * ======================================================
+         * CUSTOMER OWNER ?
+         * ======================================================
+         */
+        $isCustomerOwner =
+            $customer->created_by == $userId ||
+            $customer->assigned_to == $userId;
+
+        /**
+         * ======================================================
+         * OWNER CUSTOMER
+         * Lihat semua branch
+         * ======================================================
+         */
+        if ($isCustomerOwner) {
+
+            $customer->branches = $branches->values();
+
+            $customer->branch_count = $branches->count();
+        }
+
+        /**
+         * ======================================================
+         * OWNER BRANCH
+         * Hanya lihat branch miliknya
+         * ======================================================
+         */
+        else {
+
+            $myBranches = $branches
+                ->filter(function ($branch) use ($userId) {
+
+                    return
+                        $branch->created_by == $userId ||
+                        $branch->assigned_to == $userId;
+
+                })
+                ->values();
+
+            if ($myBranches->isEmpty()) {
+
+                return ApiResponse::error(
+                    'Unauthorized',
+                    [],
+                    403
+                );
+            }
+
+            $customer->branches = $myBranches;
+
+            $customer->branch_count = $myBranches->count();
+        }
+
+        /**
+         * ======================================================
+         * RESPONSE
+         * ======================================================
+         */
+        return ApiResponse::success(
+            $customer,
+            'Customer detail retrieved successfully.',
+            200
+        );
+
+    } catch (\Illuminate\Database\QueryException $e) {
+
+        return ApiResponse::error(
+            'Failed to fetch customer detail (query error)',
+            [
+                'exception' => config('app.debug')
+                    ? $e->getMessage()
+                    : null
+            ],
+            422
+        );
+
+    } catch (\Exception $e) {
+
+        return ApiResponse::error(
+            'An error occurred while fetching customer detail.',
+            [
+                'exception' => config('app.debug')
+                    ? $e->getMessage()
+                    : null
+            ],
+            500
+        );
+
+    }
+}
 
 
 
@@ -604,6 +1095,83 @@ public function searchCompany(Request $request)
 
 
 
+public function storeBranch(Request $request, $id)
+{
+    try {
+        $user   = auth()->user();
+        $userId = $user->id_user;
+
+        // Pastikan customer induk ada
+        $customer = DB::table('customers')
+            ->where('id', $id)
+            ->whereNull('deleted_at')
+            ->first();
+
+        if (! $customer) {
+            return ApiResponse::error('Customer not found', [], 404);
+        }
+
+        // Validasi input (sesuaikan field dengan form "Tambah Cabang Baru")
+        $data = $request->validate([
+            'branch_name'  => 'required|string|max:255',
+            'city'         => 'nullable|string|max:255',
+            'address'      => 'nullable|string',
+            'contact_name' => 'nullable|string|max:255',
+            'email'        => 'nullable|email|max:255',
+            'phone'        => 'nullable|string|max:50',
+            'notes'        => 'nullable|string',
+        ]);
+
+        // Generate branch_code, contoh: BR-CUST-20260716-004-001
+        $countBranch = DB::table('customer_branches')
+            ->where('customer_id', $id)
+            ->count();
+        $branchCode = 'BR-' . $customer->customer_code . '-' . str_pad($countBranch + 1, 3, '0', STR_PAD_LEFT);
+
+        $branchId = DB::table('customer_branches')->insertGetId([
+            'customer_id'    => $id,
+            'branch_code'    => $branchCode,
+            'branch_name'    => $data['branch_name'],
+            'is_main_branch' => false,
+            'status'         => 'Active',
+            'address'        => $data['address'] ?? null,
+            'city'           => $data['city'] ?? null,
+            'contact_name'   => $data['contact_name'] ?? null,
+            'email'          => $data['email'] ?? null,
+            'phone'          => $data['phone'] ?? null,
+            'assigned_to'    => $customer->assigned_to ?? null,
+            'created_by'     => $userId,
+            'notes'          => $data['notes'] ?? null,
+            'created_at'     => now(),
+            'updated_at'     => now(),
+        ]);
+
+        $branch = DB::table('customer_branches as cb')
+            ->select([
+                'cb.*',
+                'sales.fullname as assigned_name',
+                'creator.fullname as created_by_name',
+            ])
+            ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'cb.assigned_to')
+            ->leftJoin('ms_users as creator', 'creator.id_user', '=', 'cb.created_by')
+            ->where('cb.id', $branchId)
+            ->first();
+
+        return ApiResponse::success(
+            CustomerBranchResource::make($branch),
+            'Success Add New Branch',
+            201
+        );
+
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        return ApiResponse::error('Validasi gagal', $e->errors(), 422);
+    } catch (\Throwable $e) {
+        return ApiResponse::error('Failed to add branch', [
+            'exception' => config('app.debug') ? $e->getMessage() : null
+        ], 500);
+    }
+}
+
 
         //ini untuk timeline follow up customer tampil di customer detail (implementasi saat nanti semua sudah siap)
         public function customerFollowUpTimeline(Request $request, $customerId)
@@ -659,6 +1227,136 @@ public function searchCompany(Request $request)
                 );
             }
         }
+
+
+
+
+
+ 
+        public function updateBranch(Request $request, $id)
+{
+    try {
+
+        $data = $request->validate([
+            'branch_name'  => 'required|string|max:255',
+            'city'         => 'nullable|string|max:255',
+            'address'      => 'nullable|string',
+            'contact_name' => 'nullable|string|max:255',
+            'email'        => 'nullable|email|max:255',
+            'phone'        => 'nullable|string|max:50',
+            'notes'        => 'nullable|string',
+        ]);
+
+        $branch = DB::table('customer_branches')
+            ->where('id', $id)
+            ->whereNull('deleted_at')
+            ->first();
+
+        if (! $branch) {
+            return ApiResponse::error(
+                'Branch not found',
+                [],
+                404
+            );
+        }
+
+        DB::table('customer_branches')
+            ->where('id', $id)
+            ->update([
+
+                'branch_name'  => $data['branch_name'],
+                'city'         => $data['city'] ?? null,
+                'address'      => $data['address'] ?? null,
+                'contact_name' => $data['contact_name'] ?? null,
+                'email'        => $data['email'] ?? null,
+                'phone'        => $data['phone'] ?? null,
+                'notes'        => $data['notes'] ?? null,
+
+                'updated_at'   => now(),
+            ]);
+
+        $branch = DB::table('customer_branches as cb')
+            ->select([
+                'cb.*',
+
+                'sales.fullname as assigned_name',
+                'creator.fullname as created_by_name',
+            ])
+            ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'cb.assigned_to')
+            ->leftJoin('ms_users as creator', 'creator.id_user', '=', 'cb.created_by')
+            ->where('cb.id', $id)
+            ->first();
+
+        return ApiResponse::success(
+            CustomerBranchResource::make($branch),
+            'Success Update Branch'
+        );
+
+    } catch (\Illuminate\Validation\ValidationException $e) {
+
+        return ApiResponse::error(
+            'Validation failed',
+            $e->errors(),
+            422
+        );
+
+    } catch (\Throwable $e) {
+
+        return ApiResponse::error(
+            'Failed update branch',
+            config('app.debug')
+                ? ['exception' => $e->getMessage()]
+                : null,
+            500
+        );
+
+    }
+}
+
+
+
+public function destroyBranch($id)
+{
+    try {
+
+        $branch = DB::table('customer_branches')
+            ->where('id', $id)
+            ->whereNull('deleted_at')
+            ->first();
+
+        if (! $branch) {
+
+            return ApiResponse::error(
+                'Branch not found',
+                [],
+                404
+            );
+        }
+
+        DB::table('customer_branches')
+            ->where('id', $id)
+            ->update([
+                'deleted_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+        return ApiResponse::success(
+            null,
+            'Branch deleted successfully.'
+        );
+
+    } catch (\Throwable $e) {
+
+        return ApiResponse::error(
+            'Failed delete branch',
+            config('app.debug')
+                ? ['exception' => $e->getMessage()]
+                : null,
+            500
+        );
+
+    }
+}
 
 
 }

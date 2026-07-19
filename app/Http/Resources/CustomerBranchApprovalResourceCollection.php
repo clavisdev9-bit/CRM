@@ -4,6 +4,7 @@ namespace App\Http\Resources;
 
 use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\ResourceCollection;
+use App\Http\Resources\CustomerBranchApprovalResource;
 
 class CustomerBranchApprovalResourceCollection extends ResourceCollection
 {
@@ -20,7 +21,7 @@ class CustomerBranchApprovalResourceCollection extends ResourceCollection
     {
         if (method_exists($this->resource, 'total')) {
             return [
-                'data' => CustomerBranchResource::collection($this->collection),
+                'data' => CustomerBranchApprovalResource::collection($this->collection),
                 'pagination' => [
                     'total'         => $this->total(),
                     'per_page'      => $this->perPage(),
@@ -33,7 +34,7 @@ class CustomerBranchApprovalResourceCollection extends ResourceCollection
         }
 
         return [
-            'data' => CustomerBranchResource::collection($this->collection),
+            'data' => CustomerBranchApprovalResource::collection($this->collection),
         ];
     }
 }
