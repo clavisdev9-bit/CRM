@@ -604,6 +604,7 @@ class MsSubMenuSeeder extends Seeder
                 'is_active' => true,
                 'parent_id' => $managerReport,
             ],
+
             [
                 'id_menu' => 3,
                 'url' => '/manager-kpi-report',
@@ -623,6 +624,36 @@ class MsSubMenuSeeder extends Seeder
                 'icon' => 'nav-icon fas fa-building',
                 'title' => 'Approval Customers',
                 'noted' => 'Approval Customers Page',
+                'is_active' => true,
+                'parent_id' => null,
+            ]);
+
+            $insert([
+                'id_menu' => 3,
+                'url' => '/approval-branch-customers',
+                'icon' => 'nav-icon fas fa-building',
+                'title' => 'Approval Customers Branch',
+                'noted' => 'Approval Customers Branch Page',
+                'is_active' => true,
+                'parent_id' => null,
+            ]);
+
+            $insert([
+                'id_menu' => 3,
+                'url' => '/reassignment-customers',
+                'icon' => 'nav-icon fas fa-people-arrows',
+                'title' => 'Customer Reassignment.',
+                'noted' => 'Customer Reassignment Page',
+                'is_active' => true,
+                'parent_id' => null,
+            ]);
+
+            $insert([
+                'id_menu' => 3,
+                'url' => '/reassignment-branch-customers',
+                'icon' => 'nav-icon fas fa-people-arrows',
+                'title' => 'Customer Branch Reassignment.',
+                'noted' => 'Customer Branch Reassignment Page',
                 'is_active' => true,
                 'parent_id' => null,
             ]);

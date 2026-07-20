@@ -11,21 +11,21 @@ class LeadCategorySeeder extends Seeder
     {
         DB::table('lead_categories')->insert([
             [
-                'name' => 'Hot Lead',
+                'name' => 'Hot',
                 'description' => 'Prospek dengan peluang tinggi',
                 'is_active' => true,
                 'created_at' => Carbon::now(),
                 'updated_at' => Carbon::now(),
             ],
             [
-                'name' => 'Warm Lead',
+                'name' => 'Warm',
                 'description' => 'Prospek potensial tapi perlu follow up',
                 'is_active' => true,
                 'created_at' => Carbon::now(),
                 'updated_at' => Carbon::now(),
             ],
             [
-                'name' => 'Cold Lead',
+                'name' => 'Cold',
                 'description' => 'Prospek dengan peluang rendah',
                 'is_active' => true,
                 'created_at' => Carbon::now(),
