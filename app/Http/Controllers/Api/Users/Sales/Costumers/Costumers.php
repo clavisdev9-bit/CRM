@@ -606,135 +606,355 @@ $results->setCollection(
         }
 
 
+    //  ini kode lama dengan desain tabel lama 
+    // public function storeCostumers(CostumersValidationRequest $request)
+    //     {
+    //     $customerCode = $this->generateCustomerCode();
+    //         try {
+    //             $user = auth()->user();
+    //             $userId = $user->id_user;
+    //             $data = $request->validated();
 
-    public function storeCostumers(CostumersValidationRequest $request)
-        {
-        $customerCode = $this->generateCustomerCode();
-            try {
-                $user = auth()->user();
-                $userId = $user->id_user;
-                $data = $request->validated();
-
-                // Insert customer
-                $customerId = DB::table('customers')->insertGetId([
-                    'customer_code'    => $customerCode,
-                    'company_name'     => $data['company_name'],
-                    'contact_name'     => $data['contact_name'],
-                    'email'            => $data['email'] ?? null,
-                    'phone'            => $data['phone'] ?? null,
-                    'industry_id'      => $data['industry_id'] ?? null,
-                    'lead_category_id' => $data['lead_category_id'] ?? null,
-                    'assigned_to'      => $data['assigned_to'] ?? null,
-                    'customer_status'  => 'Active',
-                    'lead_source'      => $data['lead_source'] ?? null,  // ← tambahkan ini
-                    'id_user'          => $userId,
-                    'created_by'       => $userId,
+    //             // Insert customer
+    //             $customerId = DB::table('customers')->insertGetId([
+    //                 'customer_code'    => $customerCode,
+    //                 'company_name'     => $data['company_name'],
+    //                 'contact_name'     => $data['contact_name'],
+    //                 'email'            => $data['email'] ?? null,
+    //                 'phone'            => $data['phone'] ?? null,
+    //                 'industry_id'      => $data['industry_id'] ?? null,
+    //                 'lead_category_id' => $data['lead_category_id'] ?? null,
+    //                 'assigned_to'      => $data['assigned_to'] ?? null,
+    //                 'customer_status'  => 'Active',
+    //                 'lead_source'      => $data['lead_source'] ?? null,  // ← tambahkan ini
+    //                 'id_user'          => $userId,
+    //                 'created_by'       => $userId,
                     
 
-                    'visibility_type'  => $data['visibility_type'] ?? 'PRIVATE',
-                    'notes'            => $data['notes'] ?? null,
-                    'address'          => $data['address'] ?? null,
-                    'converted_at'     => now(),
-                    'created_at'       => now(),
-                    'updated_at'       => now(),
-                ]);
+    //                 'visibility_type'  => $data['visibility_type'] ?? 'PRIVATE',
+    //                 'notes'            => $data['notes'] ?? null,
+    //                 'address'          => $data['address'] ?? null,
+    //                 'converted_at'     => now(),
+    //                 'created_at'       => now(),
+    //                 'updated_at'       => now(),
+    //             ]);
 
-                // Ambil data customer yang baru dibuat
-                $customer = DB::table('customers as c')
-                    ->select([
-                        'c.*',
-                        'cat.name as category_name',
-                        'ind.name as industry_name',
-                        'owner.fullname as owner_name',
-                        'sales.fullname as assigned_name',
-                    ])
-                    ->leftJoin('lead_categories as cat', 'cat.id', '=', 'c.lead_category_id')
-                    ->leftJoin('lead_industries as ind', 'ind.id', '=', 'c.industry_id')
-                    ->leftJoin('ms_users as owner', 'owner.id_user', '=', 'c.id_user')
-                    ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'c.assigned_to')
-                    ->where('c.id', $customerId)
-                    ->first();
+    //             // Ambil data customer yang baru dibuat
+    //             $customer = DB::table('customers as c')
+    //                 ->select([
+    //                     'c.*',
+    //                     'cat.name as category_name',
+    //                     'ind.name as industry_name',
+    //                     'owner.fullname as owner_name',
+    //                     'sales.fullname as assigned_name',
+    //                 ])
+    //                 ->leftJoin('lead_categories as cat', 'cat.id', '=', 'c.lead_category_id')
+    //                 ->leftJoin('lead_industries as ind', 'ind.id', '=', 'c.industry_id')
+    //                 ->leftJoin('ms_users as owner', 'owner.id_user', '=', 'c.id_user')
+    //                 ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'c.assigned_to')
+    //                 ->where('c.id', $customerId)
+    //                 ->first();
 
-                return ApiResponse::success($customer, 'Success Create New Customer', 201);
+    //             return ApiResponse::success($customer, 'Success Create New Customer', 201);
 
-            } catch (\Illuminate\Database\QueryException $e) {
-                return ApiResponse::error('Failed to create customer (query error)', [
-                    'exception' => config('app.debug') ? $e->getMessage() : null
-                ], 422);
-            } catch (\Exception $e) {
-                return ApiResponse::error('An error occurred while creating the customer.', [
-                    'exception' => config('app.debug') ? $e->getMessage() : null
-                ], 500);
-            }
+    //         } catch (\Illuminate\Database\QueryException $e) {
+    //             return ApiResponse::error('Failed to create customer (query error)', [
+    //                 'exception' => config('app.debug') ? $e->getMessage() : null
+    //             ], 422);
+    //         } catch (\Exception $e) {
+    //             return ApiResponse::error('An error occurred while creating the customer.', [
+    //                 'exception' => config('app.debug') ? $e->getMessage() : null
+    //             ], 500);
+    //         }
+    //     }
+
+
+    public function storeCostumers(CostumersValidationRequest $request)
+{
+    $customerCode = $this->generateCustomerCode();
+
+    try {
+        $user   = auth()->user();
+        $userId = $user->id_user;
+        $data   = $request->validated();
+
+        // pastikan ada minimal 1 kontak, dan tentukan primary
+        $contacts = collect($data['contacts'] ?? []);
+
+        if ($contacts->isEmpty()) {
+            return ApiResponse::error('Minimal 1 kontak harus diisi.', [], 422);
         }
+
+        // kalau tidak ada yg ditandai primary, paksa kontak pertama jadi primary
+        if ($contacts->where('is_primary', true)->isEmpty()) {
+            $contacts[0]['is_primary'] = true;
+        }
+
+        $primary = $contacts->firstWhere('is_primary', true);
+
+        $customerId = DB::transaction(function () use ($data, $contacts, $primary, $customerCode, $userId) {
+
+            $customerId = DB::table('customers')->insertGetId([
+                'customer_code'    => $customerCode,
+                'company_name'     => $data['company_name'],
+
+                // sinkron dari kontak primary (backward compat)
+                'contact_name'     => $primary['name'],
+                'email'            => $primary['email'] ?? null,
+                'phone'            => $primary['phone'] ?? null,
+
+                'industry_id'      => $data['industry_id'] ?? null,
+                'lead_category_id' => $data['lead_category_id'] ?? null,
+                'assigned_to'      => $data['assigned_to'] ?? null,
+                'customer_status'  => 'Active',
+                'lead_source'      => $data['lead_source'] ?? null,
+                'id_user'          => $userId,
+                'created_by'       => $userId,
+                'visibility_type'  => $data['visibility_type'] ?? 'PRIVATE',
+                'notes'            => $data['notes'] ?? null,
+                'address'          => $data['address'] ?? null,
+                'converted_at'     => now(),
+                'created_at'       => now(),
+                'updated_at'       => now(),
+            ]);
+
+            // insert semua kontak
+            foreach ($contacts as $contact) {
+                DB::table('customer_contacts')->insert([
+                    'customer_id' => $customerId,
+                    'name'        => $contact['name'],
+                    'position'    => $contact['position'] ?? null,
+                    'email'       => $contact['email'] ?? null,
+                    'phone'       => $contact['phone'] ?? null,
+                    'is_primary'  => $contact['is_primary'] ?? false,
+                    'status'      => 'Active',
+                    'created_by'  => $userId,
+                    'created_at'  => now(),
+                    'updated_at'  => now(),
+                ]);
+            }
+
+            return $customerId;
+        });
+
+        $customer = DB::table('customers as c')
+            ->select([
+                'c.*',
+                'cat.name as category_name',
+                'ind.name as industry_name',
+                'owner.fullname as owner_name',
+                'sales.fullname as assigned_name',
+            ])
+            ->leftJoin('lead_categories as cat', 'cat.id', '=', 'c.lead_category_id')
+            ->leftJoin('lead_industries as ind', 'ind.id', '=', 'c.industry_id')
+            ->leftJoin('ms_users as owner', 'owner.id_user', '=', 'c.id_user')
+            ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'c.assigned_to')
+            ->where('c.id', $customerId)
+            ->first();
+
+        $customer->contacts = DB::table('customer_contacts')
+            ->where('customer_id', $customerId)
+            ->whereNull('deleted_at')
+            ->orderByDesc('is_primary')
+            ->get();
+
+        return ApiResponse::success($customer, 'Success Create New Customer', 201);
+
+    } catch (\Illuminate\Database\QueryException $e) {
+        return ApiResponse::error('Failed to create customer (query error)', [
+            'exception' => config('app.debug') ? $e->getMessage() : null
+        ], 422);
+    } catch (\Exception $e) {
+        return ApiResponse::error('An error occurred while creating the customer.', [
+            'exception' => config('app.debug') ? $e->getMessage() : null
+        ], 500);
+    }
+}
+
+
+
+ //  ini kode lama dengan desain tabel lama 
+    // public function updateCostumers(CostumersValidationRequest $request, $id)
+    //     {
+    //         try {
+    //             $user = auth()->user();
+    //             $userId = $user->id_user;
+    //             $data = $request->validated();
+
+    //             // Cek apakah customer ada
+    //             $customer = DB::table('customers')->where('id', $id)->first();
+    //             if (!$customer) {
+    //                 return ApiResponse::error('Customer not found.', [], 404);
+    //             }
+
+    //             // Optional: cek assigned_to valid
+    //             if (!empty($data['assigned_to'])) {
+    //                 $exists = DB::table('ms_users')->where('id_user', $data['assigned_to'])->exists();
+    //                 if (!$exists) {
+    //                     $data['assigned_to'] = null; // atau throw error jika wajib
+    //                 }
+    //             }
+
+    //             // Update customer
+    //             DB::table('customers')->where('id', $id)->update([
+    //                 'company_name'     => $data['company_name'],
+    //                 'contact_name'     => $data['contact_name'],
+    //                 'email'            => $data['email'] ?? null,
+    //                 'phone'            => $data['phone'] ?? null,
+    //                 'industry_id'      => $data['industry_id'] ?? null,
+    //                 'lead_category_id' => $data['lead_category_id'] ?? null,
+    //                 // 'assigned_to'      => $data['assigned_to'] ?? null,
+    //                 'lead_source'      => $data['lead_source'] ?? null,
+    //                 'visibility_type'  => $data['visibility_type'] ?? 'PRIVATE',
+    //                 'customer_status'  => $data['customer_status'] ?? 'Active',
+    //                 'notes'            => $data['notes'] ?? null,
+    //                 'address'          => $data['address'] ?? null,
+    //                 'updated_at'       => now(),
+    //             ]);
+
+    //             // Ambil data customer yang diupdate
+    //             $customer = DB::table('customers as c')
+    //                 ->select([
+    //                     'c.*',
+    //                     'cat.name as category_name',
+    //                     'ind.name as industry_name',
+    //                     'owner.fullname as owner_name',
+    //                     'sales.fullname as assigned_name',
+    //                 ])
+    //                 ->leftJoin('lead_categories as cat', 'cat.id', '=', 'c.lead_category_id')
+    //                 ->leftJoin('lead_industries as ind', 'ind.id', '=', 'c.industry_id')
+    //                 ->leftJoin('ms_users as owner', 'owner.id_user', '=', 'c.id_user')
+    //                 ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'c.assigned_to')
+    //                 ->where('c.id', $id)
+    //                 ->first();
+
+    //             return ApiResponse::success($customer, 'Success Update Customer', 200);
+
+    //         } catch (\Illuminate\Database\QueryException $e) {
+    //             return ApiResponse::error('Failed to update customer (query error)', [
+    //                 'exception' => config('app.debug') ? $e->getMessage() : null
+    //             ], 422);
+    //         } catch (\Exception $e) {
+    //             return ApiResponse::error('An error occurred while updating the customer.', [
+    //                 'exception' => config('app.debug') ? $e->getMessage() : null
+    //             ], 500);
+    //         }
+    //     }
 
 
     public function updateCostumers(CostumersValidationRequest $request, $id)
-        {
-            try {
-                $user = auth()->user();
-                $userId = $user->id_user;
-                $data = $request->validated();
+{
+    try {
+        $user   = auth()->user();
+        $userId = $user->id_user;
+        $data   = $request->validated();
 
-                // Cek apakah customer ada
-                $customer = DB::table('customers')->where('id', $id)->first();
-                if (!$customer) {
-                    return ApiResponse::error('Customer not found.', [], 404);
-                }
-
-                // Optional: cek assigned_to valid
-                if (!empty($data['assigned_to'])) {
-                    $exists = DB::table('ms_users')->where('id_user', $data['assigned_to'])->exists();
-                    if (!$exists) {
-                        $data['assigned_to'] = null; // atau throw error jika wajib
-                    }
-                }
-
-                // Update customer
-                DB::table('customers')->where('id', $id)->update([
-                    'company_name'     => $data['company_name'],
-                    'contact_name'     => $data['contact_name'],
-                    'email'            => $data['email'] ?? null,
-                    'phone'            => $data['phone'] ?? null,
-                    'industry_id'      => $data['industry_id'] ?? null,
-                    'lead_category_id' => $data['lead_category_id'] ?? null,
-                    // 'assigned_to'      => $data['assigned_to'] ?? null,
-                    'lead_source'      => $data['lead_source'] ?? null,
-                    'visibility_type'  => $data['visibility_type'] ?? 'PRIVATE',
-                    'customer_status'  => $data['customer_status'] ?? 'Active',
-                    'notes'            => $data['notes'] ?? null,
-                    'address'          => $data['address'] ?? null,
-                    'updated_at'       => now(),
-                ]);
-
-                // Ambil data customer yang diupdate
-                $customer = DB::table('customers as c')
-                    ->select([
-                        'c.*',
-                        'cat.name as category_name',
-                        'ind.name as industry_name',
-                        'owner.fullname as owner_name',
-                        'sales.fullname as assigned_name',
-                    ])
-                    ->leftJoin('lead_categories as cat', 'cat.id', '=', 'c.lead_category_id')
-                    ->leftJoin('lead_industries as ind', 'ind.id', '=', 'c.industry_id')
-                    ->leftJoin('ms_users as owner', 'owner.id_user', '=', 'c.id_user')
-                    ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'c.assigned_to')
-                    ->where('c.id', $id)
-                    ->first();
-
-                return ApiResponse::success($customer, 'Success Update Customer', 200);
-
-            } catch (\Illuminate\Database\QueryException $e) {
-                return ApiResponse::error('Failed to update customer (query error)', [
-                    'exception' => config('app.debug') ? $e->getMessage() : null
-                ], 422);
-            } catch (\Exception $e) {
-                return ApiResponse::error('An error occurred while updating the customer.', [
-                    'exception' => config('app.debug') ? $e->getMessage() : null
-                ], 500);
-            }
+        $customer = DB::table('customers')->where('id', $id)->first();
+        if (!$customer) {
+            return ApiResponse::error('Customer not found.', [], 404);
         }
+
+        $contacts = collect($data['contacts'] ?? []);
+
+        if ($contacts->isEmpty()) {
+            return ApiResponse::error('Minimal 1 kontak harus diisi.', [], 422);
+        }
+
+        if ($contacts->where('is_primary', true)->isEmpty()) {
+            $contacts[0]['is_primary'] = true;
+        }
+
+        $primary = $contacts->firstWhere('is_primary', true);
+
+        DB::transaction(function () use ($id, $data, $contacts, $primary, $userId) {
+
+            DB::table('customers')->where('id', $id)->update([
+                'company_name'     => $data['company_name'],
+                'contact_name'     => $primary['name'],
+                'email'            => $primary['email'] ?? null,
+                'phone'            => $primary['phone'] ?? null,
+                'industry_id'      => $data['industry_id'] ?? null,
+                'lead_category_id' => $data['lead_category_id'] ?? null,
+                'lead_source'      => $data['lead_source'] ?? null,
+                'visibility_type'  => $data['visibility_type'] ?? 'PRIVATE',
+                'customer_status'  => $data['customer_status'] ?? 'Active',
+                'notes'            => $data['notes'] ?? null,
+                'address'          => $data['address'] ?? null,
+                'updated_at'       => now(),
+            ]);
+
+            // hapus kontak yang tidak dikirim lagi (soft delete)
+            $incomingIds = $contacts->pluck('id')->filter()->all();
+
+            DB::table('customer_contacts')
+                ->where('customer_id', $id)
+                ->when(!empty($incomingIds), fn($q) => $q->whereNotIn('id', $incomingIds))
+                ->update(['deleted_at' => now()]);
+
+            foreach ($contacts as $contact) {
+                if (!empty($contact['id'])) {
+                    // update kontak lama
+                    DB::table('customer_contacts')
+                        ->where('id', $contact['id'])
+                        ->update([
+                            'name'       => $contact['name'],
+                            'position'   => $contact['position'] ?? null,
+                            'email'      => $contact['email'] ?? null,
+                            'phone'      => $contact['phone'] ?? null,
+                            'is_primary' => $contact['is_primary'] ?? false,
+                            'updated_at' => now(),
+                        ]);
+                } else {
+                    // kontak baru
+                    DB::table('customer_contacts')->insert([
+                        'customer_id' => $id,
+                        'name'        => $contact['name'],
+                        'position'    => $contact['position'] ?? null,
+                        'email'       => $contact['email'] ?? null,
+                        'phone'       => $contact['phone'] ?? null,
+                        'is_primary'  => $contact['is_primary'] ?? false,
+                        'status'      => 'Active',
+                        'created_by'  => $userId,
+                        'created_at'  => now(),
+                        'updated_at'  => now(),
+                    ]);
+                }
+            }
+        });
+
+        $customer = DB::table('customers as c')
+            ->select([
+                'c.*',
+                'cat.name as category_name',
+                'ind.name as industry_name',
+                'owner.fullname as owner_name',
+                'sales.fullname as assigned_name',
+            ])
+            ->leftJoin('lead_categories as cat', 'cat.id', '=', 'c.lead_category_id')
+            ->leftJoin('lead_industries as ind', 'ind.id', '=', 'c.industry_id')
+            ->leftJoin('ms_users as owner', 'owner.id_user', '=', 'c.id_user')
+            ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'c.assigned_to')
+            ->where('c.id', $id)
+            ->first();
+
+        $customer->contacts = DB::table('customer_contacts')
+            ->where('customer_id', $id)
+            ->whereNull('deleted_at')
+            ->orderByDesc('is_primary')
+            ->get();
+
+        return ApiResponse::success($customer, 'Success Update Customer', 200);
+
+    } catch (\Illuminate\Database\QueryException $e) {
+        return ApiResponse::error('Failed to update customer (query error)', [
+            'exception' => config('app.debug') ? $e->getMessage() : null
+        ], 422);
+    } catch (\Exception $e) {
+        return ApiResponse::error('An error occurred while updating the customer.', [
+            'exception' => config('app.debug') ? $e->getMessage() : null
+        ], 500);
+    }
+}
 
 
             public function destroyCostumers($id)
@@ -763,8 +983,177 @@ $results->setCollection(
             }
 
        
+        // ini kode lama dengan desain tabel lama
+//         public function showCostumers($id)
+// {
+//     try {
 
-        public function showCostumers($id)
+//         $userId = auth()->user()->id_user;
+
+//         /**
+//          * ======================================================
+//          * CUSTOMER
+//          * ======================================================
+//          */
+//         $customer = DB::table('customers as c')
+//             ->select([
+//                 'c.*',
+
+//                 'cat.name as category_name',
+//                 'ind.name as industry_name',
+
+//                 'owner.fullname as owner_name',
+//                 'sales.fullname as assigned_name',
+//             ])
+//             ->leftJoin('lead_categories as cat', 'cat.id', '=', 'c.lead_category_id')
+//             ->leftJoin('lead_industries as ind', 'ind.id', '=', 'c.industry_id')
+
+//             // owner customer
+//             ->leftJoin('ms_users as owner', 'owner.id_user', '=', 'c.created_by')
+
+//             // sales customer
+//             ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'c.assigned_to')
+
+//             ->where('c.id', $id)
+//             ->where('c.approval_status', 'approved')
+//             ->first();
+
+//         if (!$customer) {
+//             return ApiResponse::error(
+//                 'Customer not found.',
+//                 [],
+//                 404
+//             );
+//         }
+
+//         /**
+//          * ======================================================
+//          * BRANCH CUSTOMER
+//          * ======================================================
+//          */
+//         $branches = DB::table('customer_branches as cb')
+//             ->select([
+//                 'cb.*',
+
+//                 'creator.fullname as creator_name',
+//                 'sales.fullname as assigned_name',
+//             ])
+
+//             ->leftJoin(
+//                 'ms_users as creator',
+//                 'creator.id_user',
+//                 '=',
+//                 'cb.created_by'
+//             )
+
+//             ->leftJoin(
+//                 'ms_users as sales',
+//                 'sales.id_user',
+//                 '=',
+//                 'cb.assigned_to'
+//             )
+
+//             ->where('cb.customer_id', $customer->id)
+//             ->whereNull('cb.deleted_at')
+//             ->where('cb.approval_status', 'approved')
+//             ->orderByDesc('cb.is_main_branch')
+//             ->orderBy('cb.id')
+//             ->get();
+
+//         /**
+//          * ======================================================
+//          * CUSTOMER OWNER ?
+//          * ======================================================
+//          */
+//         $isCustomerOwner =
+//             $customer->created_by == $userId ||
+//             $customer->assigned_to == $userId;
+
+//         /**
+//          * ======================================================
+//          * OWNER CUSTOMER
+//          * Lihat semua branch
+//          * ======================================================
+//          */
+//         if ($isCustomerOwner) {
+
+//             $customer->branches = $branches->values();
+
+//             $customer->branch_count = $branches->count();
+//         }
+
+//         /**
+//          * ======================================================
+//          * OWNER BRANCH
+//          * Hanya lihat branch miliknya
+//          * ======================================================
+//          */
+//         else {
+
+//             $myBranches = $branches
+//                 ->filter(function ($branch) use ($userId) {
+
+//                     return
+//                         $branch->created_by == $userId ||
+//                         $branch->assigned_to == $userId;
+
+//                 })
+//                 ->values();
+
+//             if ($myBranches->isEmpty()) {
+
+//                 return ApiResponse::error(
+//                     'Unauthorized',
+//                     [],
+//                     403
+//                 );
+//             }
+
+//             $customer->branches = $myBranches;
+
+//             $customer->branch_count = $myBranches->count();
+//         }
+
+//         /**
+//          * ======================================================
+//          * RESPONSE
+//          * ======================================================
+//          */
+//         return ApiResponse::success(
+//             $customer,
+//             'Customer detail retrieved successfully.',
+//             200
+//         );
+
+//     } catch (\Illuminate\Database\QueryException $e) {
+
+//         return ApiResponse::error(
+//             'Failed to fetch customer detail (query error)',
+//             [
+//                 'exception' => config('app.debug')
+//                     ? $e->getMessage()
+//                     : null
+//             ],
+//             422
+//         );
+
+//     } catch (\Exception $e) {
+
+//         return ApiResponse::error(
+//             'An error occurred while fetching customer detail.',
+//             [
+//                 'exception' => config('app.debug')
+//                     ? $e->getMessage()
+//                     : null
+//             ],
+//             500
+//         );
+
+//     }
+// }
+
+
+public function showCostumers($id)
 {
     try {
 
@@ -808,6 +1197,18 @@ $results->setCollection(
 
         /**
          * ======================================================
+         * CONTACTS (customer_contacts)
+         * ======================================================
+         */
+        $customer->contacts = DB::table('customer_contacts')
+            ->where('customer_id', $customer->id)
+            ->whereNull('deleted_at')
+            ->orderByDesc('is_primary')
+            ->orderBy('id')
+            ->get();
+
+        /**
+         * ======================================================
          * BRANCH CUSTOMER
          * ======================================================
          */
@@ -839,6 +1240,28 @@ $results->setCollection(
             ->orderByDesc('cb.is_main_branch')
             ->orderBy('cb.id')
             ->get();
+
+        /**
+         * ======================================================
+         * BRANCH CONTACTS (branch_contacts)
+         * Diambil sekaligus untuk semua branch, lalu dikelompokkan
+         * per branch_id supaya tidak N+1 query.
+         * ======================================================
+         */
+        $branchIds = $branches->pluck('id');
+
+        $branchContacts = DB::table('branch_contacts')
+            ->whereIn('branch_id', $branchIds)
+            ->whereNull('deleted_at')
+            ->orderByDesc('is_primary')
+            ->orderBy('id')
+            ->get()
+            ->groupBy('branch_id');
+
+        $branches = $branches->map(function ($branch) use ($branchContacts) {
+            $branch->contacts = $branchContacts->get($branch->id, collect())->values();
+            return $branch;
+        });
 
         /**
          * ======================================================
@@ -992,10 +1415,57 @@ $results->setCollection(
             }
         }
 
+//  kode untuk update branch customer desain db lama
+//         public function branches($id)
+// {
+//     // Pastikan customer-nya ada dulu
+//     $customer = DB::table('customers')->where('id', $id)->first();
 
-        public function branches($id)
+//     if (! $customer) {
+//         return ApiResponse::error('Customer not found', 404);
+//     }
+
+//     $branches = DB::table('customer_branches as cb')
+//         ->select([
+//             'cb.id',
+//             'cb.customer_id',
+//             'cb.branch_code',
+//             'cb.branch_name',
+//             'cb.is_main_branch',
+//             'cb.status',
+//             'cb.address',
+//             'cb.city',
+//             'cb.contact_name',
+//             'cb.email',
+//             'cb.phone',
+
+//             'cb.assigned_to',
+//             'sales.fullname as assigned_name',
+
+//             'cb.created_by',
+//             'creator.fullname as created_by_name',
+
+//             'cb.notes',
+//             'cb.created_at',
+//             'cb.updated_at',
+//         ])
+//         ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'cb.assigned_to')
+//         ->leftJoin('ms_users as creator', 'creator.id_user', '=', 'cb.created_by')
+//         ->where('cb.customer_id', $id)
+//         ->whereNull('cb.deleted_at')
+//         ->orderByDesc('cb.is_main_branch')
+//         ->orderBy('cb.branch_name')
+//         ->get();
+
+//     return ApiResponse::success(
+//         CustomerBranchResourceCollection::make($branches),
+//         $branches->isEmpty() ? 'Belum ada cabang' : 'Success'
+//     );
+// }
+
+
+public function branches($id)
 {
-    // Pastikan customer-nya ada dulu
     $customer = DB::table('customers')->where('id', $id)->first();
 
     if (! $customer) {
@@ -1033,6 +1503,21 @@ $results->setCollection(
         ->orderByDesc('cb.is_main_branch')
         ->orderBy('cb.branch_name')
         ->get();
+
+    // ── ambil semua kontak sekaligus, kelompokkan per branch_id ──
+    $branchIds = $branches->pluck('id');
+
+    $branchContacts = DB::table('branch_contacts')
+        ->whereIn('branch_id', $branchIds)
+        ->whereNull('deleted_at')
+        ->orderByDesc('is_primary')
+        ->get()
+        ->groupBy('branch_id');
+
+    $branches = $branches->map(function ($branch) use ($branchContacts) {
+        $branch->contacts = $branchContacts->get($branch->id, collect())->values();
+        return $branch;
+    });
 
     return ApiResponse::success(
         CustomerBranchResourceCollection::make($branches),
@@ -1094,6 +1579,83 @@ public function searchCompany(Request $request)
 }
 
 
+// ini kode lama dengan desain tabel lama
+// public function storeBranch(Request $request, $id)
+// {
+//     try {
+//         $user   = auth()->user();
+//         $userId = $user->id_user;
+
+//         // Pastikan customer induk ada
+//         $customer = DB::table('customers')
+//             ->where('id', $id)
+//             ->whereNull('deleted_at')
+//             ->first();
+
+//         if (! $customer) {
+//             return ApiResponse::error('Customer not found', [], 404);
+//         }
+
+//         // Validasi input (sesuaikan field dengan form "Tambah Cabang Baru")
+//         $data = $request->validate([
+//             'branch_name'  => 'required|string|max:255',
+//             'city'         => 'nullable|string|max:255',
+//             'address'      => 'nullable|string',
+//             'contact_name' => 'nullable|string|max:255',
+//             'email'        => 'nullable|email|max:255',
+//             'phone'        => 'nullable|string|max:50',
+//             'notes'        => 'nullable|string',
+//         ]);
+
+//         // Generate branch_code, contoh: BR-CUST-20260716-004-001
+//         $countBranch = DB::table('customer_branches')
+//             ->where('customer_id', $id)
+//             ->count();
+//         $branchCode = 'BR-' . $customer->customer_code . '-' . str_pad($countBranch + 1, 3, '0', STR_PAD_LEFT);
+
+//         $branchId = DB::table('customer_branches')->insertGetId([
+//             'customer_id'    => $id,
+//             'branch_code'    => $branchCode,
+//             'branch_name'    => $data['branch_name'],
+//             'is_main_branch' => false,
+//             'status'         => 'Active',
+//             'address'        => $data['address'] ?? null,
+//             'city'           => $data['city'] ?? null,
+//             'contact_name'   => $data['contact_name'] ?? null,
+//             'email'          => $data['email'] ?? null,
+//             'phone'          => $data['phone'] ?? null,
+//             'assigned_to'    => $customer->assigned_to ?? null,
+//             'created_by'     => $userId,
+//             'notes'          => $data['notes'] ?? null,
+//             'created_at'     => now(),
+//             'updated_at'     => now(),
+//         ]);
+
+//         $branch = DB::table('customer_branches as cb')
+//             ->select([
+//                 'cb.*',
+//                 'sales.fullname as assigned_name',
+//                 'creator.fullname as created_by_name',
+//             ])
+//             ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'cb.assigned_to')
+//             ->leftJoin('ms_users as creator', 'creator.id_user', '=', 'cb.created_by')
+//             ->where('cb.id', $branchId)
+//             ->first();
+
+//         return ApiResponse::success(
+//             CustomerBranchResource::make($branch),
+//             'Success Add New Branch',
+//             201
+//         );
+
+//     } catch (\Illuminate\Validation\ValidationException $e) {
+//         return ApiResponse::error('Validasi gagal', $e->errors(), 422);
+//     } catch (\Throwable $e) {
+//         return ApiResponse::error('Failed to add branch', [
+//             'exception' => config('app.debug') ? $e->getMessage() : null
+//         ], 500);
+//     }
+// }
 
 public function storeBranch(Request $request, $id)
 {
@@ -1111,16 +1673,30 @@ public function storeBranch(Request $request, $id)
             return ApiResponse::error('Customer not found', [], 404);
         }
 
-        // Validasi input (sesuaikan field dengan form "Tambah Cabang Baru")
+        // Validasi input
         $data = $request->validate([
             'branch_name'  => 'required|string|max:255',
             'city'         => 'nullable|string|max:255',
             'address'      => 'nullable|string',
-            'contact_name' => 'nullable|string|max:255',
-            'email'        => 'nullable|email|max:255',
-            'phone'        => 'nullable|string|max:50',
             'notes'        => 'nullable|string',
+
+            // ── CONTACTS (bisa banyak) ──
+            'contacts'                  => 'required|array|min:1',
+            'contacts.*.id'             => 'nullable|integer|exists:branch_contacts,id',
+            'contacts.*.name'           => 'required|string|max:100',
+            'contacts.*.position'       => 'nullable|string|max:100',
+            'contacts.*.email'          => 'nullable|email|max:100',
+            'contacts.*.phone'          => 'nullable|string|max:20',
+            'contacts.*.is_primary'     => 'nullable|boolean',
         ]);
+
+        $contacts = collect($data['contacts']);
+
+        if ($contacts->where('is_primary', true)->isEmpty()) {
+            $contacts[0]['is_primary'] = true;
+        }
+
+        $primary = $contacts->firstWhere('is_primary', true);
 
         // Generate branch_code, contoh: BR-CUST-20260716-004-001
         $countBranch = DB::table('customer_branches')
@@ -1128,23 +1704,46 @@ public function storeBranch(Request $request, $id)
             ->count();
         $branchCode = 'BR-' . $customer->customer_code . '-' . str_pad($countBranch + 1, 3, '0', STR_PAD_LEFT);
 
-        $branchId = DB::table('customer_branches')->insertGetId([
-            'customer_id'    => $id,
-            'branch_code'    => $branchCode,
-            'branch_name'    => $data['branch_name'],
-            'is_main_branch' => false,
-            'status'         => 'Active',
-            'address'        => $data['address'] ?? null,
-            'city'           => $data['city'] ?? null,
-            'contact_name'   => $data['contact_name'] ?? null,
-            'email'          => $data['email'] ?? null,
-            'phone'          => $data['phone'] ?? null,
-            'assigned_to'    => $customer->assigned_to ?? null,
-            'created_by'     => $userId,
-            'notes'          => $data['notes'] ?? null,
-            'created_at'     => now(),
-            'updated_at'     => now(),
-        ]);
+        $branchId = DB::transaction(function () use ($id, $data, $contacts, $primary, $customer, $userId, $branchCode) {
+
+            $branchId = DB::table('customer_branches')->insertGetId([
+                'customer_id'    => $id,
+                'branch_code'    => $branchCode,
+                'branch_name'    => $data['branch_name'],
+                'is_main_branch' => false,
+                'status'         => 'Active',
+                'address'        => $data['address'] ?? null,
+                'city'           => $data['city'] ?? null,
+
+                // sinkron dari kontak primary (backward compat)
+                'contact_name'   => $primary['name'],
+                'email'          => $primary['email'] ?? null,
+                'phone'          => $primary['phone'] ?? null,
+
+                'assigned_to'    => $customer->assigned_to ?? null,
+                'created_by'     => $userId,
+                'notes'          => $data['notes'] ?? null,
+                'created_at'     => now(),
+                'updated_at'     => now(),
+            ]);
+
+            foreach ($contacts as $contact) {
+                DB::table('branch_contacts')->insert([
+                    'branch_id'  => $branchId,
+                    'name'       => $contact['name'],
+                    'position'   => $contact['position'] ?? null,
+                    'email'      => $contact['email'] ?? null,
+                    'phone'      => $contact['phone'] ?? null,
+                    'is_primary' => $contact['is_primary'] ?? false,
+                    'status'     => 'Active',
+                    'created_by' => $userId,
+                    'created_at' => now(),
+                    'updated_at' => now(),
+                ]);
+            }
+
+            return $branchId;
+        });
 
         $branch = DB::table('customer_branches as cb')
             ->select([
@@ -1156,6 +1755,12 @@ public function storeBranch(Request $request, $id)
             ->leftJoin('ms_users as creator', 'creator.id_user', '=', 'cb.created_by')
             ->where('cb.id', $branchId)
             ->first();
+
+        $branch->contacts = DB::table('branch_contacts')
+            ->where('branch_id', $branchId)
+            ->whereNull('deleted_at')
+            ->orderByDesc('is_primary')
+            ->get();
 
         return ApiResponse::success(
             CustomerBranchResource::make($branch),
@@ -1232,19 +1837,106 @@ public function storeBranch(Request $request, $id)
 
 
 
- 
-        public function updateBranch(Request $request, $id)
+//  kode untuk update branch customer desain db lama
+//         public function updateBranch(Request $request, $id)
+// {
+//     try {
+
+//         $data = $request->validate([
+//             'branch_name'  => 'required|string|max:255',
+//             'city'         => 'nullable|string|max:255',
+//             'address'      => 'nullable|string',
+//             'contact_name' => 'nullable|string|max:255',
+//             'email'        => 'nullable|email|max:255',
+//             'phone'        => 'nullable|string|max:50',
+//             'notes'        => 'nullable|string',
+//         ]);
+
+//         $branch = DB::table('customer_branches')
+//             ->where('id', $id)
+//             ->whereNull('deleted_at')
+//             ->first();
+
+//         if (! $branch) {
+//             return ApiResponse::error(
+//                 'Branch not found',
+//                 [],
+//                 404
+//             );
+//         }
+
+//         DB::table('customer_branches')
+//             ->where('id', $id)
+//             ->update([
+
+//                 'branch_name'  => $data['branch_name'],
+//                 'city'         => $data['city'] ?? null,
+//                 'address'      => $data['address'] ?? null,
+//                 'contact_name' => $data['contact_name'] ?? null,
+//                 'email'        => $data['email'] ?? null,
+//                 'phone'        => $data['phone'] ?? null,
+//                 'notes'        => $data['notes'] ?? null,
+
+//                 'updated_at'   => now(),
+//             ]);
+
+//         $branch = DB::table('customer_branches as cb')
+//             ->select([
+//                 'cb.*',
+
+//                 'sales.fullname as assigned_name',
+//                 'creator.fullname as created_by_name',
+//             ])
+//             ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'cb.assigned_to')
+//             ->leftJoin('ms_users as creator', 'creator.id_user', '=', 'cb.created_by')
+//             ->where('cb.id', $id)
+//             ->first();
+
+//         return ApiResponse::success(
+//             CustomerBranchResource::make($branch),
+//             'Success Update Branch'
+//         );
+
+//     } catch (\Illuminate\Validation\ValidationException $e) {
+
+//         return ApiResponse::error(
+//             'Validation failed',
+//             $e->errors(),
+//             422
+//         );
+
+//     } catch (\Throwable $e) {
+
+//         return ApiResponse::error(
+//             'Failed update branch',
+//             config('app.debug')
+//                 ? ['exception' => $e->getMessage()]
+//                 : null,
+//             500
+//         );
+
+//     }
+// }
+
+public function updateBranch(Request $request, $id)
 {
     try {
+        $user   = auth()->user();
+        $userId = $user->id_user;
 
         $data = $request->validate([
             'branch_name'  => 'required|string|max:255',
             'city'         => 'nullable|string|max:255',
             'address'      => 'nullable|string',
-            'contact_name' => 'nullable|string|max:255',
-            'email'        => 'nullable|email|max:255',
-            'phone'        => 'nullable|string|max:50',
             'notes'        => 'nullable|string',
+
+            'contacts'                  => 'required|array|min:1',
+            'contacts.*.id'             => 'nullable|integer|exists:branch_contacts,id',
+            'contacts.*.name'           => 'required|string|max:100',
+            'contacts.*.position'       => 'nullable|string|max:100',
+            'contacts.*.email'          => 'nullable|email|max:100',
+            'contacts.*.phone'          => 'nullable|string|max:20',
+            'contacts.*.is_primary'     => 'nullable|boolean',
         ]);
 
         $branch = DB::table('customer_branches')
@@ -1253,32 +1945,75 @@ public function storeBranch(Request $request, $id)
             ->first();
 
         if (! $branch) {
-            return ApiResponse::error(
-                'Branch not found',
-                [],
-                404
-            );
+            return ApiResponse::error('Branch not found', [], 404);
         }
 
-        DB::table('customer_branches')
-            ->where('id', $id)
-            ->update([
+        $contacts = collect($data['contacts']);
 
-                'branch_name'  => $data['branch_name'],
-                'city'         => $data['city'] ?? null,
-                'address'      => $data['address'] ?? null,
-                'contact_name' => $data['contact_name'] ?? null,
-                'email'        => $data['email'] ?? null,
-                'phone'        => $data['phone'] ?? null,
-                'notes'        => $data['notes'] ?? null,
+        if ($contacts->where('is_primary', true)->isEmpty()) {
+            $contacts[0]['is_primary'] = true;
+        }
 
-                'updated_at'   => now(),
-            ]);
+        $primary = $contacts->firstWhere('is_primary', true);
+
+        DB::transaction(function () use ($id, $data, $contacts, $primary, $userId) {
+
+            DB::table('customer_branches')
+                ->where('id', $id)
+                ->update([
+                    'branch_name'  => $data['branch_name'],
+                    'city'         => $data['city'] ?? null,
+                    'address'      => $data['address'] ?? null,
+
+                    // sinkron dari kontak primary (backward compat)
+                    'contact_name' => $primary['name'],
+                    'email'        => $primary['email'] ?? null,
+                    'phone'        => $primary['phone'] ?? null,
+
+                    'notes'        => $data['notes'] ?? null,
+                    'updated_at'   => now(),
+                ]);
+
+            // hapus kontak yang tidak dikirim lagi (soft delete)
+            $incomingIds = $contacts->pluck('id')->filter()->all();
+
+            DB::table('branch_contacts')
+                ->where('branch_id', $id)
+                ->when(!empty($incomingIds), fn($q) => $q->whereNotIn('id', $incomingIds))
+                ->update(['deleted_at' => now()]);
+
+            foreach ($contacts as $contact) {
+                if (!empty($contact['id'])) {
+                    DB::table('branch_contacts')
+                        ->where('id', $contact['id'])
+                        ->update([
+                            'name'       => $contact['name'],
+                            'position'   => $contact['position'] ?? null,
+                            'email'      => $contact['email'] ?? null,
+                            'phone'      => $contact['phone'] ?? null,
+                            'is_primary' => $contact['is_primary'] ?? false,
+                            'updated_at' => now(),
+                        ]);
+                } else {
+                    DB::table('branch_contacts')->insert([
+                        'branch_id'  => $id,
+                        'name'       => $contact['name'],
+                        'position'   => $contact['position'] ?? null,
+                        'email'      => $contact['email'] ?? null,
+                        'phone'      => $contact['phone'] ?? null,
+                        'is_primary' => $contact['is_primary'] ?? false,
+                        'status'     => 'Active',
+                        'created_by' => $userId,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
+                }
+            }
+        });
 
         $branch = DB::table('customer_branches as cb')
             ->select([
                 'cb.*',
-
                 'sales.fullname as assigned_name',
                 'creator.fullname as created_by_name',
             ])
@@ -1287,32 +2022,70 @@ public function storeBranch(Request $request, $id)
             ->where('cb.id', $id)
             ->first();
 
+        $branch->contacts = DB::table('branch_contacts')
+            ->where('branch_id', $id)
+            ->whereNull('deleted_at')
+            ->orderByDesc('is_primary')
+            ->get();
+
         return ApiResponse::success(
             CustomerBranchResource::make($branch),
             'Success Update Branch'
         );
 
     } catch (\Illuminate\Validation\ValidationException $e) {
-
-        return ApiResponse::error(
-            'Validation failed',
-            $e->errors(),
-            422
-        );
-
+        return ApiResponse::error('Validation failed', $e->errors(), 422);
     } catch (\Throwable $e) {
-
-        return ApiResponse::error(
-            'Failed update branch',
-            config('app.debug')
-                ? ['exception' => $e->getMessage()]
-                : null,
-            500
-        );
-
+        return ApiResponse::error('Failed update branch', [
+            'exception' => config('app.debug') ? $e->getMessage() : null
+        ], 500);
     }
 }
 
+
+// kode lama ini  dengan desain db lama
+// public function destroyBranch($id)
+// {
+//     try {
+
+//         $branch = DB::table('customer_branches')
+//             ->where('id', $id)
+//             ->whereNull('deleted_at')
+//             ->first();
+
+//         if (! $branch) {
+
+//             return ApiResponse::error(
+//                 'Branch not found',
+//                 [],
+//                 404
+//             );
+//         }
+
+//         DB::table('customer_branches')
+//             ->where('id', $id)
+//             ->update([
+//                 'deleted_at' => now(),
+//                 'updated_at' => now(),
+//             ]);
+
+//         return ApiResponse::success(
+//             null,
+//             'Branch deleted successfully.'
+//         );
+
+//     } catch (\Throwable $e) {
+
+//         return ApiResponse::error(
+//             'Failed delete branch',
+//             config('app.debug')
+//                 ? ['exception' => $e->getMessage()]
+//                 : null,
+//             500
+//         );
+
+//     }
+// }
 
 
 public function destroyBranch($id)
@@ -1325,20 +2098,24 @@ public function destroyBranch($id)
             ->first();
 
         if (! $branch) {
-
-            return ApiResponse::error(
-                'Branch not found',
-                [],
-                404
-            );
+            return ApiResponse::error('Branch not found', [], 404);
         }
 
-        DB::table('customer_branches')
-            ->where('id', $id)
-            ->update([
-                'deleted_at' => now(),
-                'updated_at' => now(),
-            ]);
+        DB::transaction(function () use ($id) {
+
+            DB::table('customer_branches')
+                ->where('id', $id)
+                ->update([
+                    'deleted_at' => now(),
+                    'updated_at' => now(),
+                ]);
+
+            // ikut soft-delete semua kontak branch ini
+            DB::table('branch_contacts')
+                ->where('branch_id', $id)
+                ->whereNull('deleted_at')
+                ->update(['deleted_at' => now()]);
+        });
 
         return ApiResponse::success(
             null,
@@ -1346,17 +2123,10 @@ public function destroyBranch($id)
         );
 
     } catch (\Throwable $e) {
-
-        return ApiResponse::error(
-            'Failed delete branch',
-            config('app.debug')
-                ? ['exception' => $e->getMessage()]
-                : null,
-            500
-        );
-
+        return ApiResponse::error('Failed delete branch', [
+            'exception' => config('app.debug') ? $e->getMessage() : null
+        ], 500);
     }
 }
-
 
 }
