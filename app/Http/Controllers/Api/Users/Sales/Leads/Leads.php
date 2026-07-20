@@ -430,6 +430,96 @@ public function showLead($id)
                 );
             }
 
+public function checkCompanyNameExists(string $companyName) {
+    $name = strtolower(trim($companyName));
+
+    $sources = [
+        'customer' => fn() => DB::table('customers')
+            ->select('id', 'customer_code', 'company_name as name')
+            ->whereNull('deleted_at')
+            ->whereRaw('LOWER(company_name) = ?', [$name])
+            ->first(),
+
+        'customer_branch' => fn() => DB::table('customer_branches as cb')
+            ->join('customers as c', 'c.id', '=', 'cb.customer_id')
+            ->select('cb.id', 'c.customer_code', 'cb.branch_name as name', 'c.company_name as parent_company')
+            ->whereNull('cb.deleted_at')
+            ->whereRaw('LOWER(cb.branch_name) = ?', [$name])
+            ->first(),
+
+        'leads' => fn() => DB::table('leads')
+            ->select('id', 'company_name as name')
+            ->whereNull('deleted_at')
+            ->whereRaw('LOWER(company_name) = ?', [$name])
+            ->first(),
+    ];
+
+    foreach ($sources as $source => $query) {
+        if ($data = $query()) {
+            return [
+                'exists'  => true,
+                'source'  => $source,
+                'data'    => $data,
+            ];
+        }
+    }
+    return ['exists' => false, 'source' => null, 'data' => null];
+}
+
+public function searchCompanyName(Request $request) {
+    $request->validate([
+        'search' => 'required|string|min:1|max:255',
+    ]);
+
+    $keyword = '%' . strtolower(trim($request->query('search'))) . '%';
+
+    $customers = DB::table('customers')
+        ->select(
+            'id',
+            'customer_code',
+            'company_name as name',
+            DB::raw('null as contact_name'),
+            DB::raw("null as parent_company"),
+            DB::raw("'customer' as source")
+        )
+        ->whereNull('deleted_at')
+        ->whereRaw('LOWER(company_name) LIKE ?', [$keyword])
+        ->limit(10)
+        ->get();
+
+    $branches = DB::table('customer_branches as cb')
+        ->join('customers as c', 'c.id', '=', 'cb.customer_id')
+        ->select(
+            'cb.id',
+            'c.customer_code',
+            'cb.branch_name as name',
+            DB::raw('null as contact_name'),
+            'c.company_name as parent_company',
+            DB::raw("'customer_branch' as source")
+        )
+        ->whereNull('cb.deleted_at')
+        ->whereRaw('LOWER(cb.branch_name) LIKE ?', [$keyword])
+        ->limit(10)
+        ->get();
+
+    $leads = DB::table('leads')
+        ->select(
+            'id',
+            DB::raw('null as customer_code'),
+            'company_name as name',
+            'contact_name',
+            DB::raw('null as parent_company'),
+            DB::raw("'leads' as source")
+        )
+        ->whereNull('deleted_at')
+        ->whereRaw('LOWER(company_name) LIKE ?', [$keyword])
+        ->limit(10)
+        ->get();
+
+    $result = $customers->concat($branches)->concat($leads)->values();
+
+    return ApiResponse::success($result, 'Success');
+}
 
 
              //untuk store single lead
@@ -447,6 +537,10 @@ public function showLead($id)
                         //     return ApiResponse::error('Validation failed', ['company_name' => ['The lead already exists']], 400);
                         // }
 
+                        $check = $this->checkCompanyNameExists($data['company_name']);
+                        if ($check['exists']) {
+                            return ApiResponse::error('Validation failed', ['company_name' => [$check['message']]], 422);
+                        }
                         $user = auth()->user();
                         $userId = $user->id_user;
 
@@ -603,7 +697,31 @@ public function showLead($id)
                 'company_name'     => 'sometimes|required|string|max:255',
                 'contact_name'     => 'sometimes|required|string|max:255',
                 'email'            => 'sometimes|required|email|max:255',
-                'phone'            => 'sometimes|required|string|max:50',
+                'phone' => [
+                    'sometimes',
+                    'required',
+                    'regex:/^[0-9+\-.\s()]+([eE][xX][tT]\.?\s*[0-9]{1,6}|[eE][kK][sS][tT]\.?\s*[0-9]{1,6}|[xX]\s*[0-9]{1,6})?$/',
+                    function ($attribute, $value, $fail) {
+                        if (preg_match('/(ext\.?|ekst\.?|x)\s*([0-9]{1,6})\s*$/i', $value, $matches, PREG_OFFSET_CAPTURE)) {
+                            $main = substr($value, 0, $matches[0][1]);
+                            $ext  = $matches[2][0];
+                        } else {
+                            $main = $value;
+                            $ext  = null;
+                        }
+
+                        $digitsOnly = preg_replace('/[^0-9]/', '', $main);
+
+                        if (strlen($digitsOnly) < 7 || strlen($digitsOnly) > 15) {
+                            $fail('Nomor telepon harus 7-15 digit angka (boleh pakai -, spasi, kurung, +).');
+                            return;
+                        }
+
+                        if ($ext !== null && (strlen($ext) < 1 || strlen($ext) > 6)) {
+                            $fail('Nomor extension tidak valid, maksimal 6 digit.');
+                        }
+                    },
+                ],
                 'lead_source'      => 'sometimes|required|string|max:255',
                 'lead_status'      => 'sometimes|required|string|max:20',
                 'industry_id'      => 'sometimes|required|integer',
@@ -935,6 +1053,4 @@ public function showLead($id)
                 );
             }
         }
-
-
 }

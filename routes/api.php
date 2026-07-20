@@ -142,7 +142,7 @@ Route::get('/leads/select/user-sales', [Leads::class, 'selectUserByDivision'])->
 Route::post('/leads/import-excel', [Leads::class, 'importLeads'])->name('api.leads.import.excel');//belum selesai
 /* ================= LEAD FOLLOW UP TIMELINE ================= */
 Route::get('/leads/{leadId}/follow-ups',[Leads::class, 'leadFollowUpTimeline'])->name('api.leads.follow.up.timeline');
-
+Route::get('/leads/search-company-name', [Leads::class, 'searchCompanyName']);
 
 
 // api sales Customers
