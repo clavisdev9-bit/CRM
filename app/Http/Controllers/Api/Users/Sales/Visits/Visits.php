@@ -437,46 +437,325 @@ class Visits extends Controller
 
 
 
-        // get data untuk tabel sales (ambil semua data hasil visit entah itu hasilnya masih follow up, jadi customer ataupun failed)
-        public function getVisitLead(VisitValidationIndex $request)
-        {
-            $validated = $request->validated();
+        // code old get data untuk tabel sales (ambil semua data hasil visit entah itu hasilnya masih follow up, jadi customer ataupun failed)
+//         public function getVisitLead(VisitValidationIndex $request)
+//         {
+//             $validated = $request->validated();
 
-            $perPage = $validated['per_page'] ?? 10;
-            $userId  = auth()->user()->id_user;
-            $search  = $validated['search'] ?? null;
-            $sortBy  = $validated['sort_by'] ?? 'created_at';
-            $sortDir = strtolower($validated['sort_dir'] ?? 'desc');
-            $sortDir = in_array($sortDir, ['asc', 'desc']) ? $sortDir : 'desc';
-            $sortMap = [
-                'company_name' => 'l.company_name',
-                'created_at'   => 'v.created_at',
-                'visit_date'   => 'v.visit_at',
-                'check_out'    => 'v.check_out_at',
-            ];
-            $orderColumn = $sortMap[$sortBy] ?? 'v.created_at';
+//             $perPage = $validated['per_page'] ?? 10;
+//             $userId  = auth()->user()->id_user;
+//             $search  = $validated['search'] ?? null;
+//             $sortBy  = $validated['sort_by'] ?? 'created_at';
+//             $sortDir = strtolower($validated['sort_dir'] ?? 'desc');
+//             $sortDir = in_array($sortDir, ['asc', 'desc']) ? $sortDir : 'desc';
+//             $sortMap = [
+//                 'company_name' => 'l.company_name',
+//                 'created_at'   => 'v.created_at',
+//                 'visit_date'   => 'v.visit_at',
+//                 'check_out'    => 'v.check_out_at',
+//             ];
+//             $orderColumn = $sortMap[$sortBy] ?? 'v.created_at';
 
 
-                $query = DB::table('visits as v')
-            ->select([
-                'v.id',
-                'v.visit_code',
-                'v.lead_id',
-                'v.customer_id',
-                'v.sales_id',
+//                 $query = DB::table('visits as v')
+//             ->select([
+//                 'v.id',
+//                 'v.visit_code',
+//                 'v.lead_id',
+//                 'v.customer_id',
+//                 'v.sales_id',
 
-                DB::raw("
-                    COALESCE(l.company_name, c.company_name) as company_name
-                "),
+//                 DB::raw("
+//                     COALESCE(l.company_name, c.company_name) as company_name
+//                 "),
 
-                DB::raw("
-            CASE
-                WHEN v.customer_id IS NOT NULL THEN 'CUSTOMER'
-                ELSE 'LEAD'
-            END as visit_type
-        "),
+//                 DB::raw("
+//             CASE
+//                 WHEN v.customer_id IS NOT NULL THEN 'CUSTOMER'
+//                 ELSE 'LEAD'
+//             END as visit_type
+//         "),
 
-        DB::raw("
+//         DB::raw("
+//                 CASE
+//                     WHEN v.check_in_at IS NULL
+//                         THEN 'PLANNED'
+//                     WHEN v.check_in_at IS NOT NULL AND v.check_out_at IS NULL
+//                         THEN 'ONGOING'
+//                     WHEN v.check_out_at IS NOT NULL
+//                         THEN 'DONE'
+//                 END as visit_progress
+//             "),
+
+
+//                 'u.fullname as sales_name',
+//                 'v.visit_at',
+//                 'v.check_in_at',
+
+//                 DB::raw("
+//                     CASE 
+//                         WHEN v.check_in_at IS NOT NULL
+//                         THEN TO_CHAR(v.check_in_at - v.visit_at, 'HH24:MI:SS')
+//                         ELSE NULL
+//                     END as time_from_visit_to_check_in
+//                 "),
+
+//                 DB::raw("
+//                     CASE
+//                         WHEN v.check_in_at IS NOT NULL AND v.check_out_at IS NOT NULL
+//                         THEN TO_CHAR(v.check_out_at - v.check_in_at, 'HH24:MI:SS')
+//                         ELSE NULL
+//                     END as time_from_check_in_to_check_out
+//                 "),
+
+//                 DB::raw("
+//                     CASE
+//                         WHEN v.check_in_at IS NOT NULL AND v.check_out_at IS NOT NULL
+//                         THEN TO_CHAR(v.check_out_at - v.visit_at, 'HH24:MI:SS')
+//                         ELSE NULL
+//                     END as total_time_result
+//                 "),
+
+//                 DB::raw("
+//                         CASE
+//                             WHEN v.lead_id IS NOT NULL THEN l.contact_name
+//                             WHEN v.customer_id IS NOT NULL THEN c.contact_name
+//                             ELSE NULL
+//                         END as target_contact
+//                     "),
+
+//                     DB::raw("
+//                         CASE
+//                             WHEN v.lead_id IS NOT NULL THEN l.phone
+//                             WHEN v.customer_id IS NOT NULL THEN c.phone
+//                             ELSE NULL
+//                         END as target_phone
+//                     "),
+
+//                     DB::raw("
+//                         CASE
+//                             WHEN v.lead_id IS NOT NULL THEN l.address
+//                             WHEN v.customer_id IS NOT NULL THEN c.address
+//                             ELSE NULL
+//                         END as target_address
+//                     "),
+
+//                      DB::raw("
+//                             CASE
+//                                 WHEN v.check_in_at IS NULL
+//                                     THEN 'SEDANG VISIT'
+//                                 WHEN v.check_in_at IS NOT NULL AND v.check_out_at IS NULL
+//                                     THEN 'SEDANG CHECK IN'
+//                                 WHEN v.check_in_at IS NOT NULL AND v.check_out_at IS NOT NULL
+//                                     THEN 'SELESAI'
+//                             END as visit_status_label
+//                         "),
+
+//                          DB::raw("
+//                         CASE
+//                             WHEN v.photo IS NOT NULL AND v.photo != ''
+//                                 THEN CONCAT('" . asset('storage') . "/', v.photo)
+//                             ELSE NULL
+//                         END as photo_url
+//                     "),
+
+//                 'v.check_out_at',
+//                 'v.latitude',
+//                 'v.longitude',
+//                 'v.gps_snapshot',
+//                 'v.photo',
+//                 'v.notes',
+//                 'v.visit_result',
+//                 'v.visit_status',
+//                 'v.customer_response',
+//                 'v.created_by',
+//                 'v.created_at',
+//                 'v.updated_at',
+//             ])
+
+//             ->leftJoin('leads as l', 'l.id', '=', 'v.lead_id')
+//             ->leftJoin('customers as c', 'c.id', '=', 'v.customer_id')
+//             ->leftJoin('ms_users as u', 'u.id_user', '=', 'v.sales_id')
+
+//             // visit lead ATAU visit customer
+//             ->where(function ($q) {
+//                 $q->whereNotNull('v.lead_id')
+//                 ->orWhereNotNull('v.customer_id');
+//             })
+
+//             // filter user
+//             ->where(function ($q) use ($userId) {
+//                 $q->where('v.created_by', $userId)
+//                 ->orWhere('v.sales_id', $userId);
+//             })
+
+//             // search
+//             ->when($search, function ($q) use ($search) {
+//                 $q->where(function ($sq) use ($search) {
+//                     $sq->where('l.company_name', 'ILIKE', "%{$search}%")
+//                     ->orWhere('c.company_name', 'ILIKE', "%{$search}%")
+//                     ->orWhere('v.visit_code', 'ILIKE', "%{$search}%")
+//                     ->orWhere('u.fullname', 'ILIKE', "%{$search}%");
+//                 });
+//             })
+
+//             ->orderBy($orderColumn, $sortDir);
+
+
+//             $results = $query->paginate($perPage);
+
+//             return ApiResponse::paginate(
+//                 VisitsResourcesCollection::make($results),
+//                 $results->isEmpty()
+//                     ? 'Data visit lead tidak ditemukan'
+//                     : 'Success'
+//             );
+//         }
+
+
+
+//         public function getVisitDetail($id)
+// {
+//     $userId = auth()->user()->id_user;
+
+//     $visit = DB::table('visits as v')
+//         ->select([
+//             'v.id',
+//             'v.visit_code',
+//             'v.lead_id',
+//             'v.customer_id',
+//             'v.sales_id',
+
+//             DB::raw("
+//                 COALESCE(l.company_name, c.company_name) as company_name
+//             "),
+
+//             DB::raw("
+//                 CASE
+//                     WHEN v.customer_id IS NOT NULL THEN 'CUSTOMER'
+//                     ELSE 'LEAD'
+//                 END as visit_type
+//             "),
+
+//             'u.fullname as sales_name',
+//             'v.visit_at',
+//             'v.check_in_at',
+//             'v.check_out_at',
+
+//             DB::raw("
+//                 CASE 
+//                     WHEN v.check_in_at IS NOT NULL
+//                     THEN TO_CHAR(v.check_in_at - v.visit_at, 'HH24:MI:SS')
+//                     ELSE NULL
+//                 END as time_from_visit_to_check_in
+//             "),
+
+//             DB::raw("
+//                 CASE
+//                     WHEN v.check_in_at IS NOT NULL AND v.check_out_at IS NOT NULL
+//                     THEN TO_CHAR(v.check_out_at - v.check_in_at, 'HH24:MI:SS')
+//                     ELSE NULL
+//                 END as time_from_check_in_to_check_out
+//             "),
+
+//             DB::raw("
+//                 CASE
+//                     WHEN v.check_in_at IS NOT NULL AND v.check_out_at IS NOT NULL
+//                     THEN TO_CHAR(v.check_out_at - v.visit_at, 'HH24:MI:SS')
+//                     ELSE NULL
+//                 END as total_time_result
+//             "),
+
+//             'v.latitude',
+//             'v.longitude',
+//             'v.gps_snapshot',
+//             'v.photo',
+//             'v.notes',
+//             'v.visit_result',
+//             'v.visit_status',
+//             'v.customer_response',
+//             'v.created_at',
+//             'v.updated_at',
+//         ])
+//         ->leftJoin('leads as l', 'l.id', '=', 'v.lead_id')
+//         ->leftJoin('customers as c', 'c.id', '=', 'v.customer_id')
+//         ->leftJoin('ms_users as u', 'u.id_user', '=', 'v.sales_id')
+
+//         //  security (hanya visit milik user)
+//         ->where('v.id', $id)
+//         ->where(function ($q) use ($userId) {
+//             $q->where('v.created_by', $userId)
+//               ->orWhere('v.sales_id', $userId);
+//         })
+//         ->first();
+
+//     if (!$visit) {
+//         return response()->json([
+//             'message' => 'Detail visit tidak ditemukan'
+//         ], 404);
+//     }
+
+//     return response()->json([
+//         'message' => 'Success',
+//         'data'    => $visit
+//     ]);
+// }
+
+
+
+public function getVisitLead(VisitValidationIndex $request)
+{
+    $validated = $request->validated();
+
+    $perPage = $validated['per_page'] ?? 10;
+    $userId  = auth()->user()->id_user;
+    $search  = $validated['search'] ?? null;
+    $sortBy  = $validated['sort_by'] ?? 'created_at';
+    $sortDir = strtolower($validated['sort_dir'] ?? 'desc');
+    $sortDir = in_array($sortDir, ['asc', 'desc']) ? $sortDir : 'desc';
+    $sortMap = [
+        'company_name' => 'l.company_name',
+        'created_at'   => 'v.created_at',
+        'visit_date'   => 'v.visit_at',
+        'check_out'    => 'v.check_out_at',
+    ];
+    $orderColumn = $sortMap[$sortBy] ?? 'v.created_at';
+
+    $query = DB::table('visits as v')
+        ->select([
+            'v.id',
+            'v.visit_code',
+            'v.lead_id',
+            'v.customer_id',
+            'v.branch_id',
+            'v.sales_id',
+
+            DB::raw("
+                COALESCE(l.company_name, c.company_name) as company_name
+            "),
+
+            // ── info branch (kalau visit ke cabang) ──
+            'b.branch_code',
+            'b.branch_name',
+            'b.city as branch_city',
+
+            DB::raw("
+                CASE
+                    WHEN v.customer_id IS NOT NULL THEN 'CUSTOMER'
+                    ELSE 'LEAD'
+                END as visit_type
+            "),
+
+            // ── target_type: bedakan HQ vs BRANCH khusus visit customer ──
+            DB::raw("
+                CASE
+                    WHEN v.branch_id IS NOT NULL THEN 'BRANCH'
+                    WHEN v.customer_id IS NOT NULL THEN 'HEAD_OFFICE'
+                    ELSE NULL
+                END as target_type
+            "),
+
+            DB::raw("
                 CASE
                     WHEN v.check_in_at IS NULL
                         THEN 'PLANNED'
@@ -487,134 +766,135 @@ class Visits extends Controller
                 END as visit_progress
             "),
 
+            'u.fullname as sales_name',
+            'v.visit_at',
+            'v.check_in_at',
 
-                'u.fullname as sales_name',
-                'v.visit_at',
-                'v.check_in_at',
+            DB::raw("
+                CASE 
+                    WHEN v.check_in_at IS NOT NULL
+                    THEN TO_CHAR(v.check_in_at - v.visit_at, 'HH24:MI:SS')
+                    ELSE NULL
+                END as time_from_visit_to_check_in
+            "),
 
-                DB::raw("
-                    CASE 
-                        WHEN v.check_in_at IS NOT NULL
-                        THEN TO_CHAR(v.check_in_at - v.visit_at, 'HH24:MI:SS')
-                        ELSE NULL
-                    END as time_from_visit_to_check_in
-                "),
+            DB::raw("
+                CASE
+                    WHEN v.check_in_at IS NOT NULL AND v.check_out_at IS NOT NULL
+                    THEN TO_CHAR(v.check_out_at - v.check_in_at, 'HH24:MI:SS')
+                    ELSE NULL
+                END as time_from_check_in_to_check_out
+            "),
 
-                DB::raw("
-                    CASE
-                        WHEN v.check_in_at IS NOT NULL AND v.check_out_at IS NOT NULL
-                        THEN TO_CHAR(v.check_out_at - v.check_in_at, 'HH24:MI:SS')
-                        ELSE NULL
-                    END as time_from_check_in_to_check_out
-                "),
+            DB::raw("
+                CASE
+                    WHEN v.check_in_at IS NOT NULL AND v.check_out_at IS NOT NULL
+                    THEN TO_CHAR(v.check_out_at - v.visit_at, 'HH24:MI:SS')
+                    ELSE NULL
+                END as total_time_result
+            "),
 
-                DB::raw("
-                    CASE
-                        WHEN v.check_in_at IS NOT NULL AND v.check_out_at IS NOT NULL
-                        THEN TO_CHAR(v.check_out_at - v.visit_at, 'HH24:MI:SS')
-                        ELSE NULL
-                    END as total_time_result
-                "),
+            // ── target_contact/phone/address: prioritas BRANCH > CUSTOMER > LEAD ──
+            DB::raw("
+                CASE
+                    WHEN v.branch_id IS NOT NULL THEN b.contact_name
+                    WHEN v.lead_id IS NOT NULL THEN l.contact_name
+                    WHEN v.customer_id IS NOT NULL THEN c.contact_name
+                    ELSE NULL
+                END as target_contact
+            "),
 
-                DB::raw("
-                        CASE
-                            WHEN v.lead_id IS NOT NULL THEN l.contact_name
-                            WHEN v.customer_id IS NOT NULL THEN c.contact_name
-                            ELSE NULL
-                        END as target_contact
-                    "),
+            DB::raw("
+                CASE
+                    WHEN v.branch_id IS NOT NULL THEN b.phone
+                    WHEN v.lead_id IS NOT NULL THEN l.phone
+                    WHEN v.customer_id IS NOT NULL THEN c.phone
+                    ELSE NULL
+                END as target_phone
+            "),
 
-                    DB::raw("
-                        CASE
-                            WHEN v.lead_id IS NOT NULL THEN l.phone
-                            WHEN v.customer_id IS NOT NULL THEN c.phone
-                            ELSE NULL
-                        END as target_phone
-                    "),
+            DB::raw("
+                CASE
+                    WHEN v.branch_id IS NOT NULL THEN b.address
+                    WHEN v.lead_id IS NOT NULL THEN l.address
+                    WHEN v.customer_id IS NOT NULL THEN c.address
+                    ELSE NULL
+                END as target_address
+            "),
 
-                    DB::raw("
-                        CASE
-                            WHEN v.lead_id IS NOT NULL THEN l.address
-                            WHEN v.customer_id IS NOT NULL THEN c.address
-                            ELSE NULL
-                        END as target_address
-                    "),
+            DB::raw("
+                CASE
+                    WHEN v.check_in_at IS NULL
+                        THEN 'SEDANG VISIT'
+                    WHEN v.check_in_at IS NOT NULL AND v.check_out_at IS NULL
+                        THEN 'SEDANG CHECK IN'
+                    WHEN v.check_in_at IS NOT NULL AND v.check_out_at IS NOT NULL
+                        THEN 'SELESAI'
+                END as visit_status_label
+            "),
 
-                     DB::raw("
-                            CASE
-                                WHEN v.check_in_at IS NULL
-                                    THEN 'SEDANG VISIT'
-                                WHEN v.check_in_at IS NOT NULL AND v.check_out_at IS NULL
-                                    THEN 'SEDANG CHECK IN'
-                                WHEN v.check_in_at IS NOT NULL AND v.check_out_at IS NOT NULL
-                                    THEN 'SELESAI'
-                            END as visit_status_label
-                        "),
+            DB::raw("
+                CASE
+                    WHEN v.photo IS NOT NULL AND v.photo != ''
+                        THEN CONCAT('" . asset('storage') . "/', v.photo)
+                    ELSE NULL
+                END as photo_url
+            "),
 
-                         DB::raw("
-                        CASE
-                            WHEN v.photo IS NOT NULL AND v.photo != ''
-                                THEN CONCAT('" . asset('storage') . "/', v.photo)
-                            ELSE NULL
-                        END as photo_url
-                    "),
+            'v.check_out_at',
+            'v.latitude',
+            'v.longitude',
+            'v.gps_snapshot',
+            'v.photo',
+            'v.notes',
+            'v.visit_result',
+            'v.visit_status',
+            'v.customer_response',
+            'v.created_by',
+            'v.created_at',
+            'v.updated_at',
+        ])
 
-                'v.check_out_at',
-                'v.latitude',
-                'v.longitude',
-                'v.gps_snapshot',
-                'v.photo',
-                'v.notes',
-                'v.visit_result',
-                'v.visit_status',
-                'v.customer_response',
-                'v.created_by',
-                'v.created_at',
-                'v.updated_at',
-            ])
+        ->leftJoin('leads as l', 'l.id', '=', 'v.lead_id')
+        ->leftJoin('customers as c', 'c.id', '=', 'v.customer_id')
+        ->leftJoin('customer_branches as b', 'b.id', '=', 'v.branch_id')
+        ->leftJoin('ms_users as u', 'u.id_user', '=', 'v.sales_id')
 
-            ->leftJoin('leads as l', 'l.id', '=', 'v.lead_id')
-            ->leftJoin('customers as c', 'c.id', '=', 'v.customer_id')
-            ->leftJoin('ms_users as u', 'u.id_user', '=', 'v.sales_id')
+        ->where(function ($q) {
+            $q->whereNotNull('v.lead_id')
+              ->orWhereNotNull('v.customer_id');
+        })
 
-            // visit lead ATAU visit customer
-            ->where(function ($q) {
-                $q->whereNotNull('v.lead_id')
-                ->orWhereNotNull('v.customer_id');
-            })
+        ->where(function ($q) use ($userId) {
+            $q->where('v.created_by', $userId)
+              ->orWhere('v.sales_id', $userId);
+        })
 
-            // filter user
-            ->where(function ($q) use ($userId) {
-                $q->where('v.created_by', $userId)
-                ->orWhere('v.sales_id', $userId);
-            })
+        ->when($search, function ($q) use ($search) {
+            $q->where(function ($sq) use ($search) {
+                $sq->where('l.company_name', 'ILIKE', "%{$search}%")
+                   ->orWhere('c.company_name', 'ILIKE', "%{$search}%")
+                   ->orWhere('b.branch_name', 'ILIKE', "%{$search}%")
+                   ->orWhere('v.visit_code', 'ILIKE', "%{$search}%")
+                   ->orWhere('u.fullname', 'ILIKE', "%{$search}%");
+            });
+        })
 
-            // search
-            ->when($search, function ($q) use ($search) {
-                $q->where(function ($sq) use ($search) {
-                    $sq->where('l.company_name', 'ILIKE', "%{$search}%")
-                    ->orWhere('c.company_name', 'ILIKE', "%{$search}%")
-                    ->orWhere('v.visit_code', 'ILIKE', "%{$search}%")
-                    ->orWhere('u.fullname', 'ILIKE', "%{$search}%");
-                });
-            })
+        ->orderBy($orderColumn, $sortDir);
 
-            ->orderBy($orderColumn, $sortDir);
+    $results = $query->paginate($perPage);
 
-
-            $results = $query->paginate($perPage);
-
-            return ApiResponse::paginate(
-                VisitsResourcesCollection::make($results),
-                $results->isEmpty()
-                    ? 'Data visit lead tidak ditemukan'
-                    : 'Success'
-            );
-        }
+    return ApiResponse::paginate(
+        VisitsResourcesCollection::make($results),
+        $results->isEmpty()
+            ? 'Data visit lead tidak ditemukan'
+            : 'Success'
+    );
+}
 
 
 
-        public function getVisitDetail($id)
+public function getVisitDetail($id)
 {
     $userId = auth()->user()->id_user;
 
@@ -624,17 +904,30 @@ class Visits extends Controller
             'v.visit_code',
             'v.lead_id',
             'v.customer_id',
+            'v.branch_id',
             'v.sales_id',
 
             DB::raw("
                 COALESCE(l.company_name, c.company_name) as company_name
             "),
 
+            'b.branch_code',
+            'b.branch_name',
+            'b.city as branch_city',
+
             DB::raw("
                 CASE
                     WHEN v.customer_id IS NOT NULL THEN 'CUSTOMER'
                     ELSE 'LEAD'
                 END as visit_type
+            "),
+
+            DB::raw("
+                CASE
+                    WHEN v.branch_id IS NOT NULL THEN 'BRANCH'
+                    WHEN v.customer_id IS NOT NULL THEN 'HEAD_OFFICE'
+                    ELSE NULL
+                END as target_type
             "),
 
             'u.fullname as sales_name',
@@ -666,6 +959,33 @@ class Visits extends Controller
                 END as total_time_result
             "),
 
+            DB::raw("
+                CASE
+                    WHEN v.branch_id IS NOT NULL THEN b.contact_name
+                    WHEN v.lead_id IS NOT NULL THEN l.contact_name
+                    WHEN v.customer_id IS NOT NULL THEN c.contact_name
+                    ELSE NULL
+                END as target_contact
+            "),
+
+            DB::raw("
+                CASE
+                    WHEN v.branch_id IS NOT NULL THEN b.phone
+                    WHEN v.lead_id IS NOT NULL THEN l.phone
+                    WHEN v.customer_id IS NOT NULL THEN c.phone
+                    ELSE NULL
+                END as target_phone
+            "),
+
+            DB::raw("
+                CASE
+                    WHEN v.branch_id IS NOT NULL THEN b.address
+                    WHEN v.lead_id IS NOT NULL THEN l.address
+                    WHEN v.customer_id IS NOT NULL THEN c.address
+                    ELSE NULL
+                END as target_address
+            "),
+
             'v.latitude',
             'v.longitude',
             'v.gps_snapshot',
@@ -674,14 +994,18 @@ class Visits extends Controller
             'v.visit_result',
             'v.visit_status',
             'v.customer_response',
+            'v.has_complaint',
+            'v.complaint_detail',
+            'v.has_potential_order',
+            'v.potential_order_detail',
             'v.created_at',
             'v.updated_at',
         ])
         ->leftJoin('leads as l', 'l.id', '=', 'v.lead_id')
         ->leftJoin('customers as c', 'c.id', '=', 'v.customer_id')
+        ->leftJoin('customer_branches as b', 'b.id', '=', 'v.branch_id')
         ->leftJoin('ms_users as u', 'u.id_user', '=', 'v.sales_id')
 
-        //  security (hanya visit milik user)
         ->where('v.id', $id)
         ->where(function ($q) use ($userId) {
             $q->where('v.created_by', $userId)
@@ -700,7 +1024,6 @@ class Visits extends Controller
         'data'    => $visit
     ]);
 }
-
 
 
 
@@ -821,121 +1144,362 @@ class Visits extends Controller
         }
 
 
-      //  code for get master data visit customer
+      //  code for get master data visit customer (code lama)
+    // public function VisitCustomers(VisitCustomerDataIndex $request)
+    //     {
+    //         $validated = $request->validated();
+
+    //         $search  = $validated['search'] ?? null;
+    //         $perPage = (int) ($validated['per_page'] ?? 10);
+    //         $page    = (int) ($validated['page'] ?? 1);
+
+    //         /**
+    //          * Whitelist kolom sorting
+    //          */
+    //         $allowedSort = [
+    //             'company_name' => 'c.company_name',
+    //             'created_at'   => 'c.created_at',
+    //             'converted_at' => 'c.converted_at',
+    //         ];
+
+    //         $sortByKey = $validated['sort_by'] ?? 'created_at';
+    //         $sortBy    = $allowedSort[$sortByKey] ?? 'c.created_at';
+
+    //         $sortDirInput = $validated['sort_dir'] ?? 'desc';
+    //         $sortDir = in_array($sortDirInput, ['asc', 'desc']) ? $sortDirInput : 'desc';
+
+    //         $userId = auth()->user()->id_user;
+
+    //         $query = DB::table('customers as c')
+    //             ->select([
+    //                 'c.id',
+    //                 'c.customer_code',
+    //                 'c.company_name',
+    //                 'c.contact_name',
+    //                 'c.email',
+    //                 'c.phone',
+    //                 'c.lead_id',
+    //                 'c.lead_category_id',
+    //                 'c.industry_id',
+    //                 'c.id_user',
+    //                 'c.assigned_to',
+    //                 'c.created_by',
+    //                 'c.lead_source',
+    //                 'c.customer_status',
+    //                 'c.visibility_type',
+    //                 'c.notes',
+    //                 'c.address',
+    //                 'c.converted_at',
+    //                 'c.created_at',
+    //                 'c.updated_at',
+    //                 'cat.name as category_name',
+    //                 'ind.name as industry_name',
+    //                 'owner.fullname as owner_name',
+    //                 'sales.fullname as assigned_name',
+    //                 'v.id as active_visit_id',
+    //                 'v.visit_status as visit_status',
+    //                 'v.check_in_at as active_check_in_at',
+    //             ])
+    //             ->leftJoin('lead_categories as cat', 'cat.id', '=', 'c.lead_category_id')
+    //             ->leftJoin('lead_industries as ind', 'ind.id', '=', 'c.industry_id')
+    //             ->leftJoin('ms_users as owner', 'owner.id_user', '=', 'c.id_user')
+    //             ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'c.assigned_to')
+
+    //             ->leftJoinSub(
+    //                     DB::table('visits')
+    //                         ->select('id', 'customer_id', 'visit_status', 'check_in_at')
+    //                         ->whereIn('visit_status', ['ONGOING', 'CHECKED_IN']),
+    //                     'v',
+    //                     'v.customer_id', '=', 'c.id'
+    //                 )
+    //                         ->whereNull('c.deleted_at')
+
+    //             /**
+    //              * VISIBILITY USER
+    //              */
+    //             ->where(function ($q) use ($userId) {
+    //                 $q->where('c.created_by', $userId)
+    //                 ->orWhere('c.assigned_to', $userId);
+    //             })
+
+    //             /**
+    //              * FILTER STATUS CUSTOMER
+    //              */
+    //             // ->whereIn('c.customer_status', ['Active', 'Dormant']);
+    //             /**
+    //              * FILTER STATUS CUSTOMER
+    //              */
+    //             ->whereIn('c.customer_status', ['Active', 'Dormant'])
+    //             ->where('c.approval_status', 'approved');
+    //         /**
+    //          * SEARCH
+    //          */
+    //         if ($search) {
+    //             $query->where(function ($q) use ($search) {
+    //                 $q->where('c.company_name', 'ILIKE', "%{$search}%")
+    //                 ->orWhere('c.contact_name', 'ILIKE', "%{$search}%")
+    //                 ->orWhere('c.email', 'ILIKE', "%{$search}%")
+    //                 ->orWhere('c.customer_code', 'ILIKE', "%{$search}%");
+    //             });
+    //         }
+
+    //         /**
+    //          * SORT
+    //          */
+    //         $query->orderBy($sortBy, $sortDir);
+
+    //         $results = $query->paginate($perPage, ['*'], 'page', $page);
+
+    //         return ApiResponse::paginate(
+    //             VisitCustomersDataResourcesCollection::make($results),
+    //             $results->isEmpty()
+    //                 ? 'Data customer tidak ditemukan'
+    //                 : 'Success'
+    //         );
+    //     }
+
     public function VisitCustomers(VisitCustomerDataIndex $request)
-        {
-            $validated = $request->validated();
+{
+    $validated = $request->validated();
 
-            $search  = $validated['search'] ?? null;
-            $perPage = (int) ($validated['per_page'] ?? 10);
-            $page    = (int) ($validated['page'] ?? 1);
+    $search  = $validated['search'] ?? null;
+    $perPage = (int) ($validated['per_page'] ?? 10);
+    $page    = (int) ($validated['page'] ?? 1);
 
-            /**
-             * Whitelist kolom sorting
-             */
-            $allowedSort = [
-                'company_name' => 'c.company_name',
-                'created_at'   => 'c.created_at',
-                'converted_at' => 'c.converted_at',
-            ];
+    $allowedSort = ['company_name', 'created_at', 'converted_at'];
+    $sortByKey   = $validated['sort_by'] ?? 'created_at';
+    $sortBy      = in_array($sortByKey, $allowedSort) ? $sortByKey : 'created_at';
 
-            $sortByKey = $validated['sort_by'] ?? 'created_at';
-            $sortBy    = $allowedSort[$sortByKey] ?? 'c.created_at';
+    $sortDirInput = $validated['sort_dir'] ?? 'desc';
+    $sortDir = in_array($sortDirInput, ['asc', 'desc']) ? $sortDirInput : 'desc';
 
-            $sortDirInput = $validated['sort_dir'] ?? 'desc';
-            $sortDir = in_array($sortDirInput, ['asc', 'desc']) ? $sortDirInput : 'desc';
+    $userId = auth()->user()->id_user;
 
-            $userId = auth()->user()->id_user;
-
-            $query = DB::table('customers as c')
-                ->select([
-                    'c.id',
-                    'c.customer_code',
-                    'c.company_name',
-                    'c.contact_name',
-                    'c.email',
-                    'c.phone',
-                    'c.lead_id',
-                    'c.lead_category_id',
-                    'c.industry_id',
-                    'c.id_user',
-                    'c.assigned_to',
-                    'c.created_by',
-                    'c.lead_source',
-                    'c.customer_status',
-                    'c.visibility_type',
-                    'c.notes',
-                    'c.address',
-                    'c.converted_at',
-                    'c.created_at',
-                    'c.updated_at',
-                    'cat.name as category_name',
-                    'ind.name as industry_name',
-                    'owner.fullname as owner_name',
-                    'sales.fullname as assigned_name',
-                    'v.id as active_visit_id',
-                    'v.visit_status as visit_status',
-                    'v.check_in_at as active_check_in_at',
-                ])
-                ->leftJoin('lead_categories as cat', 'cat.id', '=', 'c.lead_category_id')
-                ->leftJoin('lead_industries as ind', 'ind.id', '=', 'c.industry_id')
-                ->leftJoin('ms_users as owner', 'owner.id_user', '=', 'c.id_user')
-                ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'c.assigned_to')
-
-                ->leftJoinSub(
-                        DB::table('visits')
-                            ->select('id', 'customer_id', 'visit_status', 'check_in_at')
-                            ->whereIn('visit_status', ['ONGOING', 'CHECKED_IN']),
-                        'v',
-                        'v.customer_id', '=', 'c.id'
+    /**
+     * ──────────────────────────────────────────────────────────
+     * QUERY 1: TARGET = HEAD OFFICE (customers)
+     * Hanya customer yang di-handle langsung oleh user (bukan
+     * lewat cabang), supaya sales cabang tidak melihat head
+     * office-nya sebagai target visit.
+     * ──────────────────────────────────────────────────────────
+     */
+    $customerContactSub = DB::table('customer_contacts as cc')
+        ->select(
+            'cc.customer_id',
+            DB::raw("
+                json_agg(
+                    json_build_object(
+                        'id', cc.id,
+                        'name', cc.name,
+                        'position', cc.position,
+                        'email', cc.email,
+                        'phone', cc.phone,
+                        'is_primary', cc.is_primary
                     )
-                            ->whereNull('c.deleted_at')
+                    ORDER BY cc.is_primary DESC, cc.id ASC
+                ) as contacts
+            ")
+        )
+        ->whereNull('cc.deleted_at')
+        ->groupBy('cc.customer_id');
 
-                /**
-                 * VISIBILITY USER
-                 */
-                ->where(function ($q) use ($userId) {
-                    $q->where('c.created_by', $userId)
-                    ->orWhere('c.assigned_to', $userId);
-                })
+    $customerQuery = DB::table('customers as c')
+        ->select([
+            'c.id',
+            'c.customer_code',
+            'c.company_name',
+            'c.contact_name',
+            'c.email',
+            'c.phone',
+            'c.lead_id',
+            'c.lead_category_id',
+            'c.industry_id',
+            'c.id_user',
+            'c.assigned_to',
+            'c.created_by',
+            'c.lead_source',
+            'c.customer_status',
+            'c.visibility_type',
+            'c.notes',
+            'c.address',
+            'c.converted_at',
+            'c.created_at',
+            'c.updated_at',
 
-                /**
-                 * FILTER STATUS CUSTOMER
-                 */
-                // ->whereIn('c.customer_status', ['Active', 'Dormant']);
-                /**
- * FILTER STATUS CUSTOMER
- */
-->whereIn('c.customer_status', ['Active', 'Dormant'])
-->where('c.approval_status', 'approved');
-                
+            'cat.name as category_name',
+            'ind.name as industry_name',
+            'owner.fullname as owner_name',
+            'sales.fullname as assigned_name',
 
-            /**
-             * SEARCH
-             */
-            if ($search) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('c.company_name', 'ILIKE', "%{$search}%")
-                    ->orWhere('c.contact_name', 'ILIKE', "%{$search}%")
-                    ->orWhere('c.email', 'ILIKE', "%{$search}%")
-                    ->orWhere('c.customer_code', 'ILIKE', "%{$search}%");
-                });
-            }
+            'v.id as active_visit_id',
+            'v.visit_status as visit_status',
+            'v.check_in_at as active_check_in_at',
 
-            /**
-             * SORT
-             */
-            $query->orderBy($sortBy, $sortDir);
+            DB::raw("'customer' as target_type"),
+            DB::raw('NULL::bigint as branch_id'),
+            DB::raw('NULL::text as branch_code'),
+            DB::raw('NULL::text as branch_name'),
+            DB::raw('NULL::text as city'),
 
-            $results = $query->paginate($perPage, ['*'], 'page', $page);
+            DB::raw("COALESCE(cc.contacts, '[]'::json) as contacts"),
+        ])
+        ->leftJoin('lead_categories as cat', 'cat.id', '=', 'c.lead_category_id')
+        ->leftJoin('lead_industries as ind', 'ind.id', '=', 'c.industry_id')
+        ->leftJoin('ms_users as owner', 'owner.id_user', '=', 'c.id_user')
+        ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'c.assigned_to')
+        ->leftJoinSub($customerContactSub, 'cc', 'cc.customer_id', '=', 'c.id')
+        ->leftJoinSub(
+            DB::table('visits')
+                ->select('id', 'customer_id', 'visit_status', 'check_in_at')
+                ->whereNull('branch_id') // visit ke head office
+                ->whereIn('visit_status', ['ONGOING', 'CHECKED_IN']),
+            'v',
+            'v.customer_id', '=', 'c.id'
+        )
+        ->whereNull('c.deleted_at')
+        ->where(function ($q) use ($userId) {
+            $q->where('c.created_by', $userId)
+              ->orWhere('c.assigned_to', $userId);
+        })
+        ->whereIn('c.customer_status', ['Active', 'Dormant'])
+        ->where('c.approval_status', 'approved');
 
-            return ApiResponse::paginate(
-                VisitCustomersDataResourcesCollection::make($results),
-                $results->isEmpty()
-                    ? 'Data customer tidak ditemukan'
-                    : 'Success'
-            );
-        }
+    if ($search) {
+        $customerQuery->where(function ($q) use ($search) {
+            $q->where('c.company_name', 'ILIKE', "%{$search}%")
+              ->orWhere('c.contact_name', 'ILIKE', "%{$search}%")
+              ->orWhere('c.email', 'ILIKE', "%{$search}%")
+              ->orWhere('c.customer_code', 'ILIKE', "%{$search}%");
+        });
+    }
+
+    /**
+     * ──────────────────────────────────────────────────────────
+     * QUERY 2: TARGET = BRANCH (customer_branches)
+     * Hanya branch yang di-handle langsung oleh user.
+     * ──────────────────────────────────────────────────────────
+     */
+    $branchContactSub = DB::table('branch_contacts as bc')
+        ->select(
+            'bc.branch_id',
+            DB::raw("
+                json_agg(
+                    json_build_object(
+                        'id', bc.id,
+                        'name', bc.name,
+                        'position', bc.position,
+                        'email', bc.email,
+                        'phone', bc.phone,
+                        'is_primary', bc.is_primary
+                    )
+                    ORDER BY bc.is_primary DESC, bc.id ASC
+                ) as contacts
+            ")
+        )
+        ->whereNull('bc.deleted_at')
+        ->groupBy('bc.branch_id');
+
+    $branchQuery = DB::table('customer_branches as b')
+        ->select([
+            'c.id',
+            'c.customer_code',
+            'c.company_name',
+            'b.contact_name',
+            'b.email',
+            'b.phone',
+
+            DB::raw('NULL::integer as lead_id'),
+            DB::raw('NULL::integer as lead_category_id'),
+            DB::raw('NULL::integer as industry_id'),
+            DB::raw('NULL::integer as id_user'),
+
+            'b.assigned_to',
+            'b.created_by',
+
+            DB::raw('NULL::text as lead_source'),
+            'b.status as customer_status',
+            DB::raw("'PRIVATE' as visibility_type"),
+            'b.notes',
+            'b.address',
+            DB::raw('NULL::timestamp as converted_at'),
+            'b.created_at',
+            'b.updated_at',
+
+            DB::raw('NULL::text as category_name'),
+            DB::raw('NULL::text as industry_name'),
+            'owner.fullname as owner_name',
+            'sales.fullname as assigned_name',
+
+            'v.id as active_visit_id',
+            'v.visit_status as visit_status',
+            'v.check_in_at as active_check_in_at',
+
+            DB::raw("'branch' as target_type"),
+            'b.id as branch_id',
+            'b.branch_code',
+            'b.branch_name',
+            'b.city',
+
+            DB::raw("COALESCE(bc.contacts, '[]'::json) as contacts"),
+        ])
+        ->join('customers as c', 'c.id', '=', 'b.customer_id')
+        ->leftJoin('ms_users as owner', 'owner.id_user', '=', 'b.created_by')
+        ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'b.assigned_to')
+        ->leftJoinSub($branchContactSub, 'bc', 'bc.branch_id', '=', 'b.id')
+        ->leftJoinSub(
+            DB::table('visits')
+                ->select('id', 'branch_id', 'visit_status', 'check_in_at')
+                ->whereNotNull('branch_id') // visit ke branch
+                ->whereIn('visit_status', ['ONGOING', 'CHECKED_IN']),
+            'v',
+            'v.branch_id', '=', 'b.id'
+        )
+        ->whereNull('b.deleted_at')
+        ->where('b.approval_status', 'approved')
+        ->where(function ($q) use ($userId) {
+            $q->where('b.created_by', $userId)
+              ->orWhere('b.assigned_to', $userId);
+        })
+        ->whereIn('b.status', ['Active', 'Dormant']);
+
+    if ($search) {
+        $branchQuery->where(function ($q) use ($search) {
+            $q->where('c.company_name', 'ILIKE', "%{$search}%")
+              ->orWhere('b.branch_name', 'ILIKE', "%{$search}%")
+              ->orWhere('b.contact_name', 'ILIKE', "%{$search}%")
+              ->orWhere('b.email', 'ILIKE', "%{$search}%")
+              ->orWhere('c.customer_code', 'ILIKE', "%{$search}%");
+        });
+    }
+
+    /**
+     * ──────────────────────────────────────────────────────────
+     * GABUNGKAN + SORT + PAGINATE
+     * ──────────────────────────────────────────────────────────
+     */
+    $sortColumn = $sortBy === 'company_name' ? 'company_name' : $sortBy;
+
+    $results = $customerQuery
+        ->unionAll($branchQuery)
+        ->orderBy($sortColumn, $sortDir)
+        ->paginate($perPage, ['*'], 'page', $page);
+
+    $results->setCollection(
+        $results->getCollection()->map(function ($item) {
+            $item->contacts = is_string($item->contacts)
+                ? json_decode($item->contacts, true)
+                : ($item->contacts ?? []);
+            return $item;
+        })
+    );
+
+    return ApiResponse::paginate(
+        VisitCustomersDataResourcesCollection::make($results),
+        $results->isEmpty()
+            ? 'Data customer tidak ditemukan'
+            : 'Success'
+    );
+}
 
 
 
@@ -1258,66 +1822,128 @@ class Visits extends Controller
 
 
 
-            // start code untuk visit ongoing bagian customer
+            // start code untuk visit ongoing bagian customer code lama
+            // public function startVisitCustomer(Request $request, $customersId)
+            //     {
+            //         $user    = auth()->user();
+            //         $salesId = $user->id_user;
+            //         DB::beginTransaction();
+            //         try {
+            //             // Cek visit aktif (ONGOING / CHECKED_IN)
+            //             $activeVisit = VisitsModel::where('sales_id', $salesId)
+            //                 ->whereIn('visit_status', ['ONGOING', 'CHECKED_IN'])
+            //                 ->lockForUpdate()
+            //                 ->first();
+
+            //             if ($activeVisit) {
+            //                 return response()->json([
+            //                     'success' => false,
+            //                     'message' => 'Masih ada visit yang sedang berjalan atau belum check out'
+            //                 ], 422);
+            //             }
+
+                        
+
+            //             // Insert visit baru
+            //             $visit = VisitsModel::create([
+            //                 'visit_code'   => VisitsModel::generateVisitCode(),
+            //                 'sales_id'     => $salesId,
+            //                 'customer_id'  => $customersId,
+            //                 'visit_at'     => now(),
+            //                 'visit_status' => 'ONGOING',
+            //                 'created_by'   => $salesId,
+            //             ]);
+
+            //             DB::commit();
+
+            //             return response()->json([
+            //                 'success' => true,
+            //                 'data'    => $visit
+            //             ], 201);
+
+            //         } catch (\Throwable $e) {
+            //             DB::rollBack();
+
+            //             return response()->json([
+            //                 'success' => false,
+            //                 'message' => 'Gagal memulai visit',
+            //                 'error'   => $e->getMessage()
+            //             ], 500);
+            //         }
+            //     }
             public function startVisitCustomer(Request $request, $customersId)
-                {
-                    $user    = auth()->user();
-                    $salesId = $user->id_user;
-                    DB::beginTransaction();
-                    try {
-                        // Cek visit aktif (ONGOING / CHECKED_IN)
-                        $activeVisit = VisitsModel::where('sales_id', $salesId)
-                            ->whereIn('visit_status', ['ONGOING', 'CHECKED_IN'])
-                            ->lockForUpdate()
-                            ->first();
+{
+    $request->validate([
+        'branch_id' => 'nullable|integer|exists:customer_branches,id',
+    ]);
 
-                        if ($activeVisit) {
-                            return response()->json([
-                                'success' => false,
-                                'message' => 'Masih ada visit yang sedang berjalan atau belum check out'
-                            ], 422);
-                        }
+    $user    = auth()->user();
+    $salesId = $user->id_user;
 
-                        // Cek apakah customer ini sudah pernah divisit oleh sales ini
-                        // $alreadyVisited = VisitsModel::where('sales_id', $salesId)
-                        //     ->where('customer_id', $customersId)
-                        //     ->lockForUpdate()
-                        //     ->exists();
+    DB::beginTransaction();
+    try {
+        // Cek visit aktif (ONGOING / CHECKED_IN)
+        $activeVisit = VisitsModel::where('sales_id', $salesId)
+            ->whereIn('visit_status', ['ONGOING', 'CHECKED_IN'])
+            ->lockForUpdate()
+            ->first();
 
-                        // if ($alreadyVisited) {
-                        //     return response()->json([
-                        //         'success' => false,
-                        //         'message' => 'Customer ini sudah pernah kamu visit'
-                        //     ], 422);
-                        // }
+        if ($activeVisit) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'Masih ada visit yang sedang berjalan atau belum check out'
+            ], 422);
+        }
 
-                        // Insert visit baru
-                        $visit = VisitsModel::create([
-                            'visit_code'   => VisitsModel::generateVisitCode(),
-                            'sales_id'     => $salesId,
-                            'customer_id'  => $customersId,
-                            'visit_at'     => now(),
-                            'visit_status' => 'ONGOING',
-                            'created_by'   => $salesId,
-                        ]);
+        $branchId = $request->branch_id;
 
-                        DB::commit();
+        // ── Kalau branch_id dikirim, pastikan branch itu benar
+        // milik customer ini (bukan customer lain) ──
+        if ($branchId) {
+            $branchValid = DB::table('customer_branches')
+                ->where('id', $branchId)
+                ->where('customer_id', $customersId)
+                ->whereNull('deleted_at')
+                ->exists();
 
-                        return response()->json([
-                            'success' => true,
-                            'data'    => $visit
-                        ], 201);
+            if (!$branchValid) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Branch tidak ditemukan atau bukan milik customer ini.'
+                ], 422);
+            }
+        }
 
-                    } catch (\Throwable $e) {
-                        DB::rollBack();
+        // Insert visit baru
+        $visit = VisitsModel::create([
+            'visit_code'   => VisitsModel::generateVisitCode(),
+            'sales_id'     => $salesId,
+            'customer_id'  => $customersId,
+            'branch_id'    => $branchId, // null = HQ, terisi = branch
+            'visit_at'     => now(),
+            'visit_status' => 'ONGOING',
+            'created_by'   => $salesId,
+        ]);
 
-                        return response()->json([
-                            'success' => false,
-                            'message' => 'Gagal memulai visit',
-                            'error'   => $e->getMessage()
-                        ], 500);
-                    }
-                }
+        DB::commit();
+
+        return response()->json([
+            'success' => true,
+            'data'    => $visit
+        ], 201);
+
+    } catch (\Throwable $e) {
+        DB::rollBack();
+
+        return response()->json([
+            'success' => false,
+            'message' => 'Gagal memulai visit',
+            'error'   => $e->getMessage()
+        ], 500);
+    }
+}
 
 
                 //  check in visit customer
@@ -1388,112 +2014,161 @@ class Visits extends Controller
             }
 
 
-            // ========================
-            // CHECK OUT OLD
-            // ========================
+           
 
-            // public function checkOutCustomer(Request $request, $visitId)
-            //     {
-            //         $request->validate([
-            //             'notes'                  => 'required|string',
-            //             'customer_response'      => 'required|string',
-            //             'has_complaint'          => 'boolean',
-            //             'complaint_detail'       => 'required_if:has_complaint,true|nullable|string',
-            //             'has_potential_order'    => 'boolean',
-            //             'potential_order_detail' => 'required_if:has_potential_order,true|nullable|string',
-            //             'follow_up_at'           => 'required|date|after:today',
-            //             'follow_up_notes'        => 'nullable|string',
-            //             'follow_up_type'        => 'required',
-            //         ]);
+//             public function checkOutCustomer(Request $request, $visitId)
+// {
+//     $request->validate([
+//         'notes'                  => 'required|string',
+//         'customer_response'      => 'required|string',
+//         // 'has_complaint'          => 'boolean',
+//         // 'complaint_detail'       => 'required_if:has_complaint,true|nullable|string',
+//          'has_complaint'          => 'nullable|boolean',  // tambah nullable
+//         'complaint_detail'       => 'required_if:has_complaint,1|nullable|string',
+//         // 'has_potential_order'    => 'boolean',
+//         // 'potential_order_detail' => 'required_if:has_potential_order,true|nullable|string',
+//         'has_potential_order'    => 'nullable|boolean',
+//         'potential_order_detail' => 'required_if:has_potential_order,1|nullable|string',
+//         'follow_up_at'           => 'required|date|after:today',
+//         'follow_up_notes'        => 'nullable|string',
+//         'follow_up_type'         => 'required|string',
+//     ]);
 
-            //         try {
-            //             //  Cari visit
-            //             $visit = VisitsModel::find($visitId);
-
-            //             //  Kalau tidak ada → STOP disini
-            //             if (!$visit) {
-            //                 return response()->json([
-            //                     'message' => 'Visit not found.'
-            //                 ], 404);
-            //             }
-
-            //             //  Kalau status bukan CHECKED_IN → STOP
-            //             if ($visit->visit_status !== 'CHECKED_IN') {
-            //                 return response()->json([
-            //                     'message' => 'Visit is not in CHECKED_IN status.'
-            //                 ], 422);
-            //             }
+   
 
 
-            //             DB::transaction(function () use ($request, $visit) {
-            //             $userId = auth()->user()->id_user;
+//     try {
 
-            //                     //  Update Visit
-            //                     $visit->update([
-            //                     'check_out_at'           => now(),
-            //                     'notes'                  => $request->notes,
-            //                     'customer_response'      => $request->customer_response,
-            //                     'visit_result'           => $request->customer_response,
-            //                     'has_complaint'          => $request->boolean('has_complaint'),
-            //                     'complaint_detail'       => $request->boolean('has_complaint') ? $request->complaint_detail : null,
-            //                     'has_potential_order'    => $request->boolean('has_potential_order'),
-            //                     'potential_order_detail' => $request->boolean('has_potential_order') ? $request->potential_order_detail : null,
-            //                     'visit_status'           => 'DONE',
-            //                     ]);
+//         // Cari Visit
+//         $visit = VisitsModel::find($visitId);
 
-            //                     //  Create Follow Up
-            //                     $followUp = MsFollowUp::create([
-            //                     'follow_up_code' => $this->generateFollowUpCode(),
-            //                     'customer_id'    => $visit->customer_id,
-            //                     'follow_up_type' => $request->input('follow_up_type', 'CALL'),
-            //                     'subject'        => 'Follow up after visit Customer with code ' . $visit->visit_code,
-            //                     'notes'          => $request->follow_up_notes,
-            //                     'follow_up_at'   => $request->follow_up_at,
-            //                     'status'         => 'PENDING',
-            //                     'assigned_to'    => $visit->sales_id,
-            //                     'created_by'     => $userId,
-            //                     ]);
+//         if (!$visit) {
+//             return response()->json([
+//                 'message' => 'Visit not found.'
+//             ], 404);
+//         }
 
-            //                     // Create Follow Up activity log 
-            //                     DB::table('follow_up_activities')->insert([
-            //                         'follow_up_id'  => $followUp->id,
-            //                         'title'         => 'Follow Up Created Result Visit Customer',
-            //                         'description'   => 'Follow up generated automatically after visit Customer '. $visit->visit_code,
-            //                         'activity_type' => 'CREATE',
-            //                         'scheduled_for' => $request->follow_up_at,
-            //                         'activity_at'   => now(),
-            //                         'created_at'    => now(),
-            //                         'created_by'    => $userId,
-            //                     ]);
-            //                 });
+//         // Pastikan status masih CHECKED_IN
+//         if ($visit->visit_status !== 'CHECKED_IN') {
+//             return response()->json([
+//                 'message' => 'Visit is not in CHECKED_IN status.'
+//             ], 422);
+//         }
 
-            //             return response()->json([
-            //                 'message' => 'Check out successful & follow up scheduled.',
-            //                 'data'    => $visit->fresh()
-            //             ]);
+//         DB::transaction(function () use ($request, $visit) {
 
-            //         } catch (\Throwable $e) {
+//             $userId = auth()->user()->id_user;
 
-            //             //  Kalau ada error lain (DB, dll)
-            //             return response()->json([
-            //                 'message' => 'Checkout failed.',
-            //                 'error'   => $e->getMessage()
-            //             ], 500);
-            //         }
-            //     }
+//             /*
+//             |--------------------------------------------------------------------------
+//             | 1. UPDATE VISIT (CHECK OUT)
+//             |--------------------------------------------------------------------------
+//             */
+//             $visit->update([
+//                 'check_out_at'           => now(),
+//                 'notes'                  => $request->notes,
+//                 'customer_response'      => $request->customer_response,
+//                 'visit_result'           => $request->customer_response,
+//                 'has_complaint'          => $request->boolean('has_complaint'),
+//                 'complaint_detail'       => $request->boolean('has_complaint') ? $request->complaint_detail : null,
+//                 'has_potential_order'    => $request->boolean('has_potential_order'),
+//                 'potential_order_detail' => $request->boolean('has_potential_order') ? $request->potential_order_detail : null,
+//                 'visit_status'           => 'DONE',
+//             ]);
+            
+
+//             /*
+//             |--------------------------------------------------------------------------
+//             | 2. AUTO CLOSE FOLLOW UPS LAMA (YANG MASIH AKTIF)
+//             |--------------------------------------------------------------------------
+//             | Semua follow up sebelumnya dianggap sudah tidak relevan
+//             | karena sudah digantikan hasil visit terbaru.
+//             */
+//             $openFollowUps = MsFollowUp::where('customer_id', $visit->customer_id)
+//                 ->whereIn('status', ['PENDING', 'OPEN'])
+//                 ->lockForUpdate() // mencegah race condition
+//                 ->get();
+
+//             foreach ($openFollowUps as $oldFollowUp) {
+
+//                 $oldFollowUp->update([
+//                     'status'        => 'CLOSED',
+//                     'closed_at'     => now(),
+//                     'closed_reason' => 'AUTO_CLOSED_BY_VISIT'
+//                 ]);
+
+//                 // Log activity penutupan otomatis
+//                 DB::table('follow_up_activities')->insert([
+//                     'follow_up_id'  => $oldFollowUp->id,
+//                     'title'         => 'Follow Up Auto Closed',
+//                     'description'   => 'Closed automatically because visit '
+//                                       . $visit->visit_code . ' has been completed.',
+//                     'activity_type' => 'AUTO_CLOSE',
+//                     'scheduled_for' => null,
+//                     'activity_at'   => now(),
+//                     'created_at'    => now(),
+//                     'created_by'    => $userId,
+//                 ]);
+//             }
+
+//             /*
+//             |--------------------------------------------------------------------------
+//             | 3. CREATE FOLLOW UP BARU (NEXT ACTION)
+//             |--------------------------------------------------------------------------
+//             | Ini menjadi satu-satunya follow up aktif setelah visit selesai.
+//             */
+//             $followUp = MsFollowUp::create([
+//                 'follow_up_code' => $this->generateFollowUpCode(),
+//                 'customer_id'    => $visit->customer_id,
+//                 'follow_up_type' => $request->follow_up_type,
+//                 'subject'        => 'Follow up after visit Customer with code ' . $visit->visit_code,
+//                 'notes'          => $request->follow_up_notes,
+//                 'follow_up_at'   => $request->follow_up_at,
+//                 'status'         => 'PENDING',
+//                 'assigned_to'    => $visit->sales_id,
+//                 'created_by'     => $userId,
+//             ]);
+
+//             /*
+//             |--------------------------------------------------------------------------
+//             | 4. CREATE ACTIVITY LOG FOLLOW UP BARU
+//             |--------------------------------------------------------------------------
+//             */
+//             DB::table('follow_up_activities')->insert([
+//                 'follow_up_id'  => $followUp->id,
+//                 'title'         => 'Follow Up Created Result Visit Customer',
+//                 'description'   => 'Follow up generated automatically after visit Customer '
+//                                   . $visit->visit_code,
+//                 'activity_type' => 'CREATE',
+//                 'scheduled_for' => $request->follow_up_at,
+//                 'activity_at'   => now(),
+//                 'created_at'    => now(),
+//                 'created_by'    => $userId,
+//             ]);
+//         });
+
+//         return response()->json([
+//             'message' => 'Check out successful & follow up scheduled.',
+//             'data'    => $visit->fresh()
+//         ]);
+
+//     } catch (\Throwable $e) {
+
+//         return response()->json([
+//             'message' => 'Checkout failed.',
+//             'error'   => $e->getMessage()
+//         ], 500);
+//     }
+// }
 
 
-            public function checkOutCustomer(Request $request, $visitId)
+public function checkOutCustomer(Request $request, $visitId)
 {
     $request->validate([
         'notes'                  => 'required|string',
         'customer_response'      => 'required|string',
-        // 'has_complaint'          => 'boolean',
-        // 'complaint_detail'       => 'required_if:has_complaint,true|nullable|string',
-         'has_complaint'          => 'nullable|boolean',  // tambah nullable
+        'has_complaint'          => 'nullable|boolean',
         'complaint_detail'       => 'required_if:has_complaint,1|nullable|string',
-        // 'has_potential_order'    => 'boolean',
-        // 'potential_order_detail' => 'required_if:has_potential_order,true|nullable|string',
         'has_potential_order'    => 'nullable|boolean',
         'potential_order_detail' => 'required_if:has_potential_order,1|nullable|string',
         'follow_up_at'           => 'required|date|after:today',
@@ -1501,29 +2176,8 @@ class Visits extends Controller
         'follow_up_type'         => 'required|string',
     ]);
 
-    // dd([
-    //     'has_potential_order'    => $request->has_potential_order,
-    //     'has_potential_order_bool' => $request->boolean('has_potential_order'),
-    //     'potential_order_detail' => $request->potential_order_detail,
-    //     'all'              => $request->all()
-    // ]);
-
-//     dd([
-//     'has_potential_order' => $request->boolean('has_potential_order'),
-//     'potential_order_detail' => $request->boolean('has_potential_order') ? $request->potential_order_detail : null,
-// ]);
-   
-// $visit = VisitsModel::find($visitId);
-// dd([
-//     'current_has_potential_order' => $visit->has_potential_order,
-//     'current_potential_order_detail' => $visit->potential_order_detail,
-//     'dirty' => $visit->getDirty(), // field yang akan diupdate
-// ]);
-
-
     try {
 
-        // Cari Visit
         $visit = VisitsModel::find($visitId);
 
         if (!$visit) {
@@ -1532,7 +2186,6 @@ class Visits extends Controller
             ], 404);
         }
 
-        // Pastikan status masih CHECKED_IN
         if ($visit->visit_status !== 'CHECKED_IN') {
             return response()->json([
                 'message' => 'Visit is not in CHECKED_IN status.'
@@ -1559,18 +2212,25 @@ class Visits extends Controller
                 'potential_order_detail' => $request->boolean('has_potential_order') ? $request->potential_order_detail : null,
                 'visit_status'           => 'DONE',
             ]);
-            
 
             /*
             |--------------------------------------------------------------------------
             | 2. AUTO CLOSE FOLLOW UPS LAMA (YANG MASIH AKTIF)
             |--------------------------------------------------------------------------
-            | Semua follow up sebelumnya dianggap sudah tidak relevan
-            | karena sudah digantikan hasil visit terbaru.
+            | Difilter berdasarkan customer_id DAN branch_id yang sama persis
+            | dengan visit ini — supaya follow up milik branch/HQ lain yang
+            | tidak terkait tidak ikut ke-auto-close.
             */
             $openFollowUps = MsFollowUp::where('customer_id', $visit->customer_id)
+                ->where(function ($q) use ($visit) {
+                    if ($visit->branch_id) {
+                        $q->where('branch_id', $visit->branch_id);
+                    } else {
+                        $q->whereNull('branch_id');
+                    }
+                })
                 ->whereIn('status', ['PENDING', 'OPEN'])
-                ->lockForUpdate() // mencegah race condition
+                ->lockForUpdate()
                 ->get();
 
             foreach ($openFollowUps as $oldFollowUp) {
@@ -1581,7 +2241,6 @@ class Visits extends Controller
                     'closed_reason' => 'AUTO_CLOSED_BY_VISIT'
                 ]);
 
-                // Log activity penutupan otomatis
                 DB::table('follow_up_activities')->insert([
                     'follow_up_id'  => $oldFollowUp->id,
                     'title'         => 'Follow Up Auto Closed',
@@ -1599,11 +2258,13 @@ class Visits extends Controller
             |--------------------------------------------------------------------------
             | 3. CREATE FOLLOW UP BARU (NEXT ACTION)
             |--------------------------------------------------------------------------
-            | Ini menjadi satu-satunya follow up aktif setelah visit selesai.
+            | branch_id ikut disalin dari visit, supaya follow up berikutnya
+            | tetap terikat ke target yang sama (HQ atau branch spesifik).
             */
             $followUp = MsFollowUp::create([
                 'follow_up_code' => $this->generateFollowUpCode(),
                 'customer_id'    => $visit->customer_id,
+                'branch_id'      => $visit->branch_id,
                 'follow_up_type' => $request->follow_up_type,
                 'subject'        => 'Follow up after visit Customer with code ' . $visit->visit_code,
                 'notes'          => $request->follow_up_notes,

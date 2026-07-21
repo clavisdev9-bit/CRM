@@ -18,10 +18,15 @@ return new class extends Migration
                 ->comment('Unique visit code (VIS-YYYYMM-XXXXX)');
 
             // =========================
-            // RELATION (LEAD / CUSTOMER)
+            // RELATION (LEAD / CUSTOMER / BRANCH)
             // =========================
             $table->unsignedBigInteger('lead_id')->nullable();
             $table->unsignedBigInteger('customer_id')->nullable();
+
+            // branch_id: null = visit ke head office,
+            // terisi = visit ke branch tertentu (customer_id tetap
+            // diisi sebagai referensi head company induknya)
+            $table->unsignedBigInteger('branch_id')->nullable();
 
             // =========================
             // SALES
@@ -111,6 +116,7 @@ return new class extends Migration
             // =========================
             $table->index('lead_id');
             $table->index('customer_id');
+            $table->index('branch_id');
             $table->index('sales_id');
             $table->index('visit_at');
             $table->index('visit_result');
@@ -126,6 +132,10 @@ return new class extends Migration
 
             $table->foreign('customer_id')
                   ->references('id')->on('customers')
+                  ->nullOnDelete();
+
+            $table->foreign('branch_id')
+                  ->references('id')->on('customer_branches')
                   ->nullOnDelete();
 
             $table->foreign('sales_id')
@@ -149,6 +159,17 @@ return new class extends Migration
                 (lead_id IS NOT NULL AND customer_id IS NULL)
                 OR
                 (lead_id IS NULL AND customer_id IS NOT NULL)
+            )
+        ");
+
+        // branch_id hanya boleh terisi kalau visit ke customer (bukan lead)
+        DB::statement("
+            ALTER TABLE visits
+            ADD CONSTRAINT chk_visits_branch
+            CHECK (
+                branch_id IS NULL
+                OR
+                (branch_id IS NOT NULL AND customer_id IS NOT NULL)
             )
         ");
 

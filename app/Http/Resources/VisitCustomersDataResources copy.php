@@ -10,22 +10,6 @@ class VisitCustomersDataResources extends JsonResource
 {
     public function toArray(Request $request): array
     {
-        // ── CONTACTS ──
-        // Bisa berupa array (sudah di-decode di controller) atau
-        // Collection biasa, jadi di-normalize dulu supaya konsisten.
-        $contacts = collect($this->contacts ?? [])->map(function ($contact) {
-            $contact = (array) $contact;
-
-            return [
-                'id'         => $contact['id'] ?? null,
-                'name'       => $contact['name'] ?? null,
-                'position'   => $contact['position'] ?? null,
-                'email'      => $contact['email'] ?? null,
-                'phone'      => $contact['phone'] ?? null,
-                'is_primary' => (bool) ($contact['is_primary'] ?? false),
-            ];
-        })->values();
-
         return [
             'id' => $this->id,
             'customer_code' => $this->customer_code,
@@ -36,18 +20,6 @@ class VisitCustomersDataResources extends JsonResource
             'address' => $this->address,
             'customer_status' => $this->customer_status,
             'notes' => $this->notes,
-
-            // =========================
-            // TARGET TYPE (customer / branch)
-            // =========================
-            'target_type' => $this->target_type ?? 'customer',
-            'branch_id'   => $this->branch_id ?? null,
-            'branch_code' => $this->branch_code ?? null,
-            'branch_name' => $this->branch_name ?? null,
-            'city'        => $this->city ?? null,
-
-            // ── semua kontak (customer atau branch, tergantung target_type) ──
-            'contacts' => $contacts,
 
             // =========================
             // LEAD RELATION
@@ -75,17 +47,21 @@ class VisitCustomersDataResources extends JsonResource
             'converted_at' => $this->converted_at ? Carbon::parse($this->converted_at)->format('Y-m-d H:i:s') : null,
 
             // =========================
-            // ID JOIN (visit aktif untuk target ini)
+            // ID JOIN
+             'active_visit_id' => $this->active_visit_id,
+             'visit_status' => $this->visit_status,
+             'active_check_in_at' => $this->active_check_in_at,
             // =========================
-            'active_visit_id' => $this->active_visit_id,
-            'visit_status' => $this->visit_status,
-            'active_check_in_at' => $this->active_check_in_at,
+
 
             // =========================
             // AUDIT
             // =========================
             'created_at' => $this->created_at ? Carbon::parse($this->created_at)->format('Y-m-d H:i:s') : null,
             'updated_at' => $this->updated_at ? Carbon::parse($this->updated_at)->format('Y-m-d H:i:s') : null,
+
+
+           
         ];
     }
 }
