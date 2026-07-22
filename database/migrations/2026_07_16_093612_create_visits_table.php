@@ -17,6 +17,12 @@ return new class extends Migration
                 ->unique()
                 ->comment('Unique visit code (VIS-YYYYMM-XXXXX)');
 
+            // NO. REFERENCE (CHECK OUT)
+            $table->string('no_reference', 100)
+                ->nullable()
+                ->unique()
+                ->comment('Manual unique reference number entered by sales');
+
             // =========================
             // RELATION (LEAD / CUSTOMER / BRANCH)
             // =========================
@@ -61,6 +67,10 @@ return new class extends Migration
             // =========================
             $table->string('photo')->nullable()
                   ->comment('Visit documentation photo');
+
+            // FILE UPLOAD SAAT CHECK OUT
+            $table->string('check_out_file')->nullable()
+                  ->comment('File path uploaded at check-out');
 
             $table->text('notes')->nullable();
 

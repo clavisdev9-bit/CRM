@@ -18,6 +18,7 @@ class VisitsModel extends Model
    protected $fillable = [
     'visit_code',
     'lead_id',
+    'no_reference',
     'customer_id',
     'branch_id',       
     'sales_id',
@@ -28,6 +29,7 @@ class VisitsModel extends Model
     'longitude',
     'gps_snapshot',
     'photo',
+    'check_out_file',
     'notes',
     'visit_result',
     'customer_response',

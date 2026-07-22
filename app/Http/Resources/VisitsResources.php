@@ -12,6 +12,7 @@ class VisitsResources extends JsonResource
         return [
             'id'           => $this->id,
             'visit_code'   => $this->visit_code,
+            'no_reference'   => $this->no_reference,
 
             // Target info
             'visit_type'      => $this->visit_type,
