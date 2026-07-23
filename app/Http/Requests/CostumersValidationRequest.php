@@ -30,7 +30,8 @@ class CostumersValidationRequest extends FormRequest
             'contacts.*.name'           => 'required|string|max:100',
             'contacts.*.position'       => 'nullable|string|max:100',
             'contacts.*.email'          => 'nullable|email|max:100',
-            'contacts.*.phone'          => 'nullable|string|max:20',
+            // 'contacts.*.phone'          => 'nullable|string|max:20',
+            'contacts.*.phone'          => ['nullable', 'string', 'max:20', 'regex:/^(\+62|62|0)8[0-9]{8,11}$/'],
             'contacts.*.is_primary'     => 'nullable|boolean',
         ];
     }
@@ -60,6 +61,7 @@ class CostumersValidationRequest extends FormRequest
             'contacts.*.name.required'   => 'Nama kontak wajib diisi.',
             'contacts.*.email.email'     => 'Email kontak tidak valid.',
             'contacts.*.id.exists'       => 'Kontak tidak ditemukan.',
+            'contacts.*.phone.regex'     => 'Format nomor telepon tidak valid. Gunakan 08xx, +628xx, atau 628xx.',
         ];
     }
 }

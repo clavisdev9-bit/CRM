@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -134,6 +135,26 @@ return new class extends Migration
                 ->on('ms_users')
                 ->nullOnDelete();
         });
+
+        // =====================================================
+        // UNIQUE INDEX: branch_name UNIK PER CUSTOMER
+        // ---------------------------------------------------
+        // Beda dengan company_name di tabel customers (unik global),
+        // branch_name di sini hanya perlu unik DALAM SATU customer_id.
+        // Jadi "Cabang Bandung" milik PT A dan "Cabang Bandung" milik
+        // PT B tetap boleh sama — yang tidak boleh adalah PT A punya
+        // 2 cabang bernama "Cabang Bandung" sekaligus.
+        //
+        // - LOWER(TRIM(...)) => case-insensitive, anti spasi nyasar
+        // - WHERE deleted_at IS NULL => branch yang sudah dihapus
+        //   tidak dihitung sebagai duplikat
+        // - composite (customer_id, branch_name) => scoping per customer
+        // =====================================================
+        DB::statement("
+            CREATE UNIQUE INDEX customer_branches_name_unique_idx
+            ON customer_branches (customer_id, LOWER(TRIM(branch_name)))
+            WHERE deleted_at IS NULL
+        ");
     }
 
     public function down(): void

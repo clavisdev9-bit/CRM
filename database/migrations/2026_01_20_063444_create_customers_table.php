@@ -2,6 +2,7 @@
 
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
@@ -178,6 +179,22 @@ return new class extends Migration
                 ->on('ms_users')
                 ->nullOnDelete();
         });
+
+        // =====================================================
+        // UNIQUE INDEX: company_name (case-insensitive, exact match)
+        // ---------------------------------------------------
+        // Dibuat manual pakai raw SQL karena butuh:
+        // - LOWER(TRIM(...)) supaya "PT Maju" & "pt maju " dianggap sama
+        // - Partial index (WHERE deleted_at IS NULL) supaya company_name
+        //   yang sudah di-soft-delete tidak ikut dihitung sebagai duplikat
+        // Laravel's $table->unique() tidak mendukung kedua hal ini,
+        // jadi harus di luar Schema::create.
+        // =====================================================
+        DB::statement("
+            CREATE UNIQUE INDEX customers_company_name_unique_idx
+            ON customers (LOWER(TRIM(company_name)))
+            WHERE deleted_at IS NULL
+        ");
     }
 
     public function down(): void
