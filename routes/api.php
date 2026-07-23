@@ -18,6 +18,7 @@ use App\Http\Controllers\Api\Home\Dashboard\DashboardController;
 use App\Http\Controllers\Api\Manager\Dashboard\DashboardManagerController;
 use App\Http\Controllers\Api\Manager\Approval\ApprovalCustomerController;
 use App\Http\Controllers\Api\Manager\Approval\ApprovalCustomerBranchController;
+use App\Http\Controllers\Api\Manager\Reassign\SalesReassign;
 use Illuminate\Support\Facades\Http;
 
 
@@ -221,6 +222,15 @@ Route::prefix('customer-branch-approval')->group(function () {
     Route::get('/', [ApprovalCustomerBranchController::class, 'index']);
     Route::put('/{id}/approve', [ApprovalCustomerBranchController::class, 'approve']);
     Route::put('/{id}/reject', [ApprovalCustomerBranchController::class, 'reject']);
+});
+
+
+
+Route::prefix('manager-reassign-sales')->group(function () {
+    Route::get('/', [SalesReassign::class, 'index']);
+    Route::get('/sales', [SalesReassign::class, 'sales']);
+    Route::put('/customer/{id}', [SalesReassign::class, 'reassignCustomer']);
+    Route::put('/branch/{id}', [SalesReassign::class, 'reassignBranch']);
 });
 
 
