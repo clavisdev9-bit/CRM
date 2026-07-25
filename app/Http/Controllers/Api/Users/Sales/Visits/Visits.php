@@ -882,119 +882,6 @@ public function getVisitDetail($id)
         }
 
 
-      //  code for get master data visit customer (code lama)
-    // public function VisitCustomers(VisitCustomerDataIndex $request)
-    //     {
-    //         $validated = $request->validated();
-
-    //         $search  = $validated['search'] ?? null;
-    //         $perPage = (int) ($validated['per_page'] ?? 10);
-    //         $page    = (int) ($validated['page'] ?? 1);
-
-    //         /**
-    //          * Whitelist kolom sorting
-    //          */
-    //         $allowedSort = [
-    //             'company_name' => 'c.company_name',
-    //             'created_at'   => 'c.created_at',
-    //             'converted_at' => 'c.converted_at',
-    //         ];
-
-    //         $sortByKey = $validated['sort_by'] ?? 'created_at';
-    //         $sortBy    = $allowedSort[$sortByKey] ?? 'c.created_at';
-
-    //         $sortDirInput = $validated['sort_dir'] ?? 'desc';
-    //         $sortDir = in_array($sortDirInput, ['asc', 'desc']) ? $sortDirInput : 'desc';
-
-    //         $userId = auth()->user()->id_user;
-
-    //         $query = DB::table('customers as c')
-    //             ->select([
-    //                 'c.id',
-    //                 'c.customer_code',
-    //                 'c.company_name',
-    //                 'c.contact_name',
-    //                 'c.email',
-    //                 'c.phone',
-    //                 'c.lead_id',
-    //                 'c.lead_category_id',
-    //                 'c.industry_id',
-    //                 'c.id_user',
-    //                 'c.assigned_to',
-    //                 'c.created_by',
-    //                 'c.lead_source',
-    //                 'c.customer_status',
-    //                 'c.visibility_type',
-    //                 'c.notes',
-    //                 'c.address',
-    //                 'c.converted_at',
-    //                 'c.created_at',
-    //                 'c.updated_at',
-    //                 'cat.name as category_name',
-    //                 'ind.name as industry_name',
-    //                 'owner.fullname as owner_name',
-    //                 'sales.fullname as assigned_name',
-    //                 'v.id as active_visit_id',
-    //                 'v.visit_status as visit_status',
-    //                 'v.check_in_at as active_check_in_at',
-    //             ])
-    //             ->leftJoin('lead_categories as cat', 'cat.id', '=', 'c.lead_category_id')
-    //             ->leftJoin('lead_industries as ind', 'ind.id', '=', 'c.industry_id')
-    //             ->leftJoin('ms_users as owner', 'owner.id_user', '=', 'c.id_user')
-    //             ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'c.assigned_to')
-
-    //             ->leftJoinSub(
-    //                     DB::table('visits')
-    //                         ->select('id', 'customer_id', 'visit_status', 'check_in_at')
-    //                         ->whereIn('visit_status', ['ONGOING', 'CHECKED_IN']),
-    //                     'v',
-    //                     'v.customer_id', '=', 'c.id'
-    //                 )
-    //                         ->whereNull('c.deleted_at')
-
-    //             /**
-    //              * VISIBILITY USER
-    //              */
-    //             ->where(function ($q) use ($userId) {
-    //                 $q->where('c.created_by', $userId)
-    //                 ->orWhere('c.assigned_to', $userId);
-    //             })
-
-    //             /**
-    //              * FILTER STATUS CUSTOMER
-    //              */
-    //             // ->whereIn('c.customer_status', ['Active', 'Dormant']);
-    //             /**
-    //              * FILTER STATUS CUSTOMER
-    //              */
-    //             ->whereIn('c.customer_status', ['Active', 'Dormant'])
-    //             ->where('c.approval_status', 'approved');
-    //         /**
-    //          * SEARCH
-    //          */
-    //         if ($search) {
-    //             $query->where(function ($q) use ($search) {
-    //                 $q->where('c.company_name', 'ILIKE', "%{$search}%")
-    //                 ->orWhere('c.contact_name', 'ILIKE', "%{$search}%")
-    //                 ->orWhere('c.email', 'ILIKE', "%{$search}%")
-    //                 ->orWhere('c.customer_code', 'ILIKE', "%{$search}%");
-    //             });
-    //         }
-
-    //         /**
-    //          * SORT
-    //          */
-    //         $query->orderBy($sortBy, $sortDir);
-
-    //         $results = $query->paginate($perPage, ['*'], 'page', $page);
-
-    //         return ApiResponse::paginate(
-    //             VisitCustomersDataResourcesCollection::make($results),
-    //             $results->isEmpty()
-    //                 ? 'Data customer tidak ditemukan'
-    //                 : 'Success'
-    //         );
-    //     }
 
     public function VisitCustomers(VisitCustomerDataIndex $request)
 {
@@ -1857,7 +1744,6 @@ public function checkOutCustomer(Request $request, $visitId)
 {
     $request->validate([
         'no_reference'           => 'required|string|max:100|unique:visits,no_reference',
-        // 'check_out_file'         => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx|max:10240',
         'check_out_file' => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png,gif|max:10240',
         'notes'                  => 'required|string',
         'customer_response'      => 'required|string',

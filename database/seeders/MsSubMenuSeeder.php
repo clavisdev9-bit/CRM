@@ -640,7 +640,7 @@ class MsSubMenuSeeder extends Seeder
 
             $insert([
                 'id_menu' => 3,
-                'url' => '/reassignment-customers',
+                'url' => '/reassignment-sales',
                 'icon' => 'nav-icon fas fa-people-arrows',
                 'title' => 'Customer Reassignment.',
                 'noted' => 'Customer Reassignment Page',
@@ -648,14 +648,5 @@ class MsSubMenuSeeder extends Seeder
                 'parent_id' => null,
             ]);
 
-            $insert([
-                'id_menu' => 3,
-                'url' => '/reassignment-branch-customers',
-                'icon' => 'nav-icon fas fa-people-arrows',
-                'title' => 'Customer Branch Reassignment.',
-                'noted' => 'Customer Branch Reassignment Page',
-                'is_active' => true,
-                'parent_id' => null,
-            ]);
     }
 }

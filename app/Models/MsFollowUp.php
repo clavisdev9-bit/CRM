@@ -15,18 +15,20 @@ class MsFollowUp extends Model
     protected $primaryKey = 'id';
     public    $incrementing = true;
     public    $timestamps = true;
-    protected $fillable = [
-    'lead_id',
-    'customer_id',
-    'follow_up_type',
-    'subject',
-    'notes',
-    'follow_up_code',
-    'follow_up_at',
-    'status',
-    'assigned_to',
-    'created_by',
-];
+
+        protected $fillable = [
+            'lead_id',
+            'customer_id',
+            'branch_id',        
+            'follow_up_type',
+            'subject',
+            'notes',
+            'follow_up_code',
+            'follow_up_at',
+            'status',
+            'assigned_to',
+            'created_by',
+        ];
 
   // Di dalam class MsFollowUp
 

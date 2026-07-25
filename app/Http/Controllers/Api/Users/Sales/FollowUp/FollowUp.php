@@ -1538,6 +1538,7 @@ public function createDirectFollowUpFromLead(Request $request, $leadId)
         $newFollowUp = MsFollowUp::create([
             'follow_up_code' => $this->generateFollowUpCode(),
             'customer_id'    => $followUp->customer_id,
+            'branch_id'      => $followUp->branch_id,
             'lead_id'        => $followUp->lead_id,
             'notes'          => $followUp->notes,
             'follow_up_at'   => $date,
@@ -1688,6 +1689,7 @@ public function createDirectFollowUpFromLead(Request $request, $leadId)
         try {
             $validated = $request->validate([
                 'customer_id'     => 'required|exists:customers,id',
+                'branch_id'       => 'nullable|exists:customer_branches,id',
                 'follow_up_type'  => 'required|in:CALL,EMAIL,WHATSAPP,MEETING,OTHER',
                 'subject'         => 'required|string|max:255',
                 'notes'           => 'required|string',
@@ -1715,6 +1717,7 @@ public function createDirectFollowUpFromLead(Request $request, $leadId)
                 'follow_up_code' => $this->generateFollowUpCode(),
                 'lead_id'        => null,
                 'customer_id'    => $validated['customer_id'],
+                'branch_id'      => $validated['branch_id'] ?? null,
                 'follow_up_type' => $validated['follow_up_type'], // bukan 'CALL'
                 'subject'        => $validated['subject'],
                 'notes'          => $validated['notes'],

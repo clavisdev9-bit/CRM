@@ -202,144 +202,591 @@ class SalesReassign extends Controller
     // ======================================================
     // REASSIGN CUSTOMER (head company)
     // ======================================================
-    public function reassignCustomer(Request $request, $id)
-    {
-        $data = $request->validate([
-            'new_sales_id' => 'required|integer|exists:ms_users,id_user',
-            'reason'       => 'nullable|string|max:255',
-        ]);
+    // public function reassignCustomer(Request $request, $id)
+    // {
+    //     $data = $request->validate([
+    //         'new_sales_id' => 'required|integer|exists:ms_users,id_user',
+    //         'reason'       => 'nullable|string|max:255',
+    //     ]);
 
-        try {
-            $userId = auth()->user()->id_user;
+    //     try {
+    //         $userId = auth()->user()->id_user;
 
-            $customer = DB::table('customers')
+    //         $customer = DB::table('customers')
+    //             ->where('id', $id)
+    //             ->whereNull('deleted_at')
+    //             ->first();
+
+    //         if (!$customer) {
+    //             return ApiResponse::error('Customer not found', [], 404);
+    //         }
+
+    //         // Fallback: kalau assigned_to belum pernah diisi,
+    //         // anggap created_by sebagai sales yang PEGANG saat ini.
+    //         $effectiveCurrentSales = $customer->assigned_to ?? $customer->created_by;
+
+    //         if ((int) $effectiveCurrentSales === (int) $data['new_sales_id']) {
+    //             return ApiResponse::error(
+    //                 'Sales yang dipilih sama dengan sales yang sedang memegang customer ini.',
+    //                 [],
+    //                 422
+    //             );
+    //         }
+
+    //         DB::transaction(function () use ($id, $data, $effectiveCurrentSales, $userId) {
+
+    //             DB::table('customer_assignment_histories')->insert([
+    //                 'customer_id'        => $id,
+    //                 'previous_sales_id'  => $effectiveCurrentSales,
+    //                 'new_sales_id'       => $data['new_sales_id'],
+    //                 'changed_by'         => $userId,
+    //                 'reason'             => $data['reason'] ?? null,
+    //                 'changed_at'         => now(),
+    //                 'created_at'         => now(),
+    //                 'updated_at'         => now(),
+    //             ]);
+
+    //             DB::table('customers')
+    //                 ->where('id', $id)
+    //                 ->update([
+    //                     'assigned_to' => $data['new_sales_id'],
+    //                     'updated_at'  => now(),
+    //                 ]);
+    //         });
+
+    //         $updated = DB::table('customers as c')
+    //             ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'c.assigned_to')
+    //             ->select('c.id', 'c.customer_code', 'c.company_name', 'c.assigned_to', 'sales.fullname as assigned_name')
+    //             ->where('c.id', $id)
+    //             ->first();
+
+    //         return ApiResponse::success($updated, 'Customer berhasil dipindahkan ke sales baru.', 200);
+
+    //     } catch (\Illuminate\Validation\ValidationException $e) {
+    //         return ApiResponse::error('Validasi gagal', $e->errors(), 422);
+    //     } catch (\Throwable $e) {
+    //         return ApiResponse::error('Gagal memindahkan customer', [
+    //             'exception' => config('app.debug') ? $e->getMessage() : null,
+    //         ], 500);
+    //     }
+    // }
+
+
+    // ======================================================
+// REASSIGN CUSTOMER (HEAD COMPANY)
+// ======================================================
+public function reassignCustomer(Request $request, $id)
+{
+    $data = $request->validate([
+        'new_sales_id' => 'required|integer|exists:ms_users,id_user',
+        'reason'       => 'nullable|string|max:255',
+    ]);
+
+    try {
+
+        $userId = auth()->user()->id_user;
+
+        $customer = DB::table('customers')
+            ->where('id', $id)
+            ->whereNull('deleted_at')
+            ->first();
+
+        if (!$customer) {
+            return ApiResponse::error('Customer not found', [], 404);
+        }
+
+        /**
+         * Fallback:
+         * Jika assigned_to masih NULL,
+         * gunakan created_by sebagai sales yang sedang memegang customer.
+         */
+        $effectiveCurrentSales = $customer->assigned_to ?? $customer->created_by;
+
+        if ((int)$effectiveCurrentSales === (int)$data['new_sales_id']) {
+            return ApiResponse::error(
+                'Sales yang dipilih sama dengan sales yang sedang memegang customer ini.',
+                [],
+                422
+            );
+        }
+
+        DB::transaction(function () use (
+            $id,
+            $data,
+            $effectiveCurrentSales,
+            $userId
+        ) {
+
+            /**
+             * =====================================================
+             * SIMPAN HISTORY PERPINDAHAN CUSTOMER
+             * =====================================================
+             */
+            DB::table('customer_assignment_histories')->insert([
+                'customer_id'       => $id,
+                'previous_sales_id' => $effectiveCurrentSales,
+                'new_sales_id'      => $data['new_sales_id'],
+                'changed_by'        => $userId,
+                'reason'            => $data['reason'] ?? null,
+                'changed_at'        => now(),
+                'created_at'        => now(),
+                'updated_at'        => now(),
+            ]);
+
+            /**
+             * =====================================================
+             * UPDATE CUSTOMER OWNER
+             * =====================================================
+             */
+            DB::table('customers')
                 ->where('id', $id)
-                ->whereNull('deleted_at')
-                ->first();
-
-            if (!$customer) {
-                return ApiResponse::error('Customer not found', [], 404);
-            }
-
-            // Fallback: kalau assigned_to belum pernah diisi,
-            // anggap created_by sebagai sales yang PEGANG saat ini.
-            $effectiveCurrentSales = $customer->assigned_to ?? $customer->created_by;
-
-            if ((int) $effectiveCurrentSales === (int) $data['new_sales_id']) {
-                return ApiResponse::error(
-                    'Sales yang dipilih sama dengan sales yang sedang memegang customer ini.',
-                    [],
-                    422
-                );
-            }
-
-            DB::transaction(function () use ($id, $data, $effectiveCurrentSales, $userId) {
-
-                DB::table('customer_assignment_histories')->insert([
-                    'customer_id'        => $id,
-                    'previous_sales_id'  => $effectiveCurrentSales,
-                    'new_sales_id'       => $data['new_sales_id'],
-                    'changed_by'         => $userId,
-                    'reason'             => $data['reason'] ?? null,
-                    'changed_at'         => now(),
-                    'created_at'         => now(),
-                    'updated_at'         => now(),
+                ->update([
+                    'assigned_to' => $data['new_sales_id'],
+                    'updated_at'  => now(),
                 ]);
 
-                DB::table('customers')
-                    ->where('id', $id)
-                    ->update([
-                        'assigned_to' => $data['new_sales_id'],
-                        'updated_at'  => now(),
-                    ]);
-            });
+            /**
+             * =====================================================
+             * UPDATE VISIT HISTORY
+             * =====================================================
+             */
+            DB::table('visits')
+                ->where('customer_id', $id)
+                ->update([
+                    'sales_id'   => $data['new_sales_id'],
+                    'created_by' => $data['new_sales_id'],
+                    'updated_at' => now(),
+                ]);
 
-            $updated = DB::table('customers as c')
-                ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'c.assigned_to')
-                ->select('c.id', 'c.customer_code', 'c.company_name', 'c.assigned_to', 'sales.fullname as assigned_name')
-                ->where('c.id', $id)
-                ->first();
+            /**
+             * =====================================================
+             * UPDATE FOLLOW UP HISTORY
+             * =====================================================
+             */
+            DB::table('follow_ups')
+                ->where('customer_id', $id)
+                ->update([
+                    'assigned_to' => $data['new_sales_id'],
+                    'created_by'  => $data['new_sales_id'],
+                    'updated_at'  => now(),
+                ]);
 
-            return ApiResponse::success($updated, 'Customer berhasil dipindahkan ke sales baru.', 200);
+        });
 
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return ApiResponse::error('Validasi gagal', $e->errors(), 422);
-        } catch (\Throwable $e) {
-            return ApiResponse::error('Gagal memindahkan customer', [
-                'exception' => config('app.debug') ? $e->getMessage() : null,
-            ], 500);
-        }
+        $updated = DB::table('customers as c')
+            ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'c.assigned_to')
+            ->select(
+                'c.id',
+                'c.customer_code',
+                'c.company_name',
+                'c.assigned_to',
+                'sales.fullname as assigned_name'
+            )
+            ->where('c.id', $id)
+            ->first();
+
+        return ApiResponse::success(
+            $updated,
+            'Customer berhasil dipindahkan beserta seluruh visit dan follow up history.',
+            200
+        );
+
+    } catch (\Illuminate\Validation\ValidationException $e) {
+
+        return ApiResponse::error(
+            'Validasi gagal',
+            $e->errors(),
+            422
+        );
+
+    } catch (\Throwable $e) {
+
+        return ApiResponse::error(
+            'Gagal memindahkan customer',
+            [
+                'exception' => config('app.debug')
+                    ? $e->getMessage()
+                    : null,
+            ],
+            500
+        );
+
     }
+}
 
     // ======================================================
     // REASSIGN BRANCH
     // ======================================================
-    public function reassignBranch(Request $request, $id)
-    {
-        $data = $request->validate([
-            'new_sales_id' => 'required|integer|exists:ms_users,id_user',
-            'reason'       => 'nullable|string|max:255',
-        ]);
+    // public function reassignBranch(Request $request, $id)
+    // {
+    //     $data = $request->validate([
+    //         'new_sales_id' => 'required|integer|exists:ms_users,id_user',
+    //         'reason'       => 'nullable|string|max:255',
+    //     ]);
 
-        try {
-            $userId = auth()->user()->id_user;
+    //     try {
+    //         $userId = auth()->user()->id_user;
 
-            $branch = DB::table('customer_branches')
+    //         $branch = DB::table('customer_branches')
+    //             ->where('id', $id)
+    //             ->whereNull('deleted_at')
+    //             ->first();
+
+    //         if (!$branch) {
+    //             return ApiResponse::error('Branch not found', [], 404);
+    //         }
+
+    //         // Fallback: kalau assigned_to belum pernah diisi,
+    //         // anggap created_by sebagai sales yang PEGANG saat ini.
+    //         $effectiveCurrentSales = $branch->assigned_to ?? $branch->created_by;
+
+    //         if ((int) $effectiveCurrentSales === (int) $data['new_sales_id']) {
+    //             return ApiResponse::error(
+    //                 'Sales yang dipilih sama dengan sales yang sedang memegang cabang ini.',
+    //                 [],
+    //                 422
+    //             );
+    //         }
+
+    //         DB::transaction(function () use ($id, $data, $effectiveCurrentSales, $userId) {
+
+    //             DB::table('branch_assignment_histories')->insert([
+    //                 'branch_id'         => $id,
+    //                 'previous_sales_id' => $effectiveCurrentSales,
+    //                 'new_sales_id'      => $data['new_sales_id'],
+    //                 'changed_by'        => $userId,
+    //                 'reason'            => $data['reason'] ?? null,
+    //                 'changed_at'        => now(),
+    //                 'created_at'        => now(),
+    //                 'updated_at'        => now(),
+    //             ]);
+
+    //             DB::table('customer_branches')
+    //                 ->where('id', $id)
+    //                 ->update([
+    //                     'assigned_to' => $data['new_sales_id'],
+    //                     'updated_at'  => now(),
+    //                 ]);
+    //         });
+
+    //         $updated = DB::table('customer_branches as cb')
+    //             ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'cb.assigned_to')
+    //             ->select('cb.id', 'cb.branch_code', 'cb.branch_name', 'cb.assigned_to', 'sales.fullname as assigned_name')
+    //             ->where('cb.id', $id)
+    //             ->first();
+
+    //         return ApiResponse::success($updated, 'Cabang berhasil dipindahkan ke sales baru.', 200);
+
+    //     } catch (\Illuminate\Validation\ValidationException $e) {
+    //         return ApiResponse::error('Validasi gagal', $e->errors(), 422);
+    //     } catch (\Throwable $e) {
+    //         return ApiResponse::error('Gagal memindahkan cabang', [
+    //             'exception' => config('app.debug') ? $e->getMessage() : null,
+    //         ], 500);
+    //     }
+    // }
+
+    // ======================================================
+// REASSIGN BRANCH
+// ======================================================
+// public function reassignBranch(Request $request, $id)
+// {
+//     $data = $request->validate([
+//         'new_sales_id' => 'required|integer|exists:ms_users,id_user',
+//         'reason'       => 'nullable|string|max:255',
+//     ]);
+
+//     try {
+
+//         $userId = auth()->user()->id_user;
+
+//         $branch = DB::table('customer_branches')
+//             ->where('id', $id)
+//             ->whereNull('deleted_at')
+//             ->first();
+
+//         if (!$branch) {
+//             return ApiResponse::error('Branch not found', [], 404);
+//         }
+
+//         /**
+//          * Fallback:
+//          * Jika assigned_to masih NULL,
+//          * gunakan created_by sebagai sales yang sedang memegang cabang.
+//          */
+//         $effectiveCurrentSales = $branch->assigned_to ?? $branch->created_by;
+
+//         if ((int)$effectiveCurrentSales === (int)$data['new_sales_id']) {
+//             return ApiResponse::error(
+//                 'Sales yang dipilih sama dengan sales yang sedang memegang cabang ini.',
+//                 [],
+//                 422
+//             );
+//         }
+
+//         DB::transaction(function () use (
+//             $id,
+//             $data,
+//             $effectiveCurrentSales,
+//             $userId
+//         ) {
+
+//             /**
+//              * =====================================================
+//              * SIMPAN HISTORY PERPINDAHAN CABANG
+//              * =====================================================
+//              */
+//             DB::table('branch_assignment_histories')->insert([
+//                 'branch_id'         => $id,
+//                 'previous_sales_id' => $effectiveCurrentSales,
+//                 'new_sales_id'      => $data['new_sales_id'],
+//                 'changed_by'        => $userId,
+//                 'reason'            => $data['reason'] ?? null,
+//                 'changed_at'        => now(),
+//                 'created_at'        => now(),
+//                 'updated_at'        => now(),
+//             ]);
+
+//             /**
+//              * =====================================================
+//              * UPDATE OWNER CABANG
+//              * =====================================================
+//              */
+//             DB::table('customer_branches')
+//                 ->where('id', $id)
+//                 ->update([
+//                     'assigned_to' => $data['new_sales_id'],
+//                     'updated_at'  => now(),
+//                 ]);
+
+//             /**
+//              * =====================================================
+//              * UPDATE VISIT HISTORY CABANG
+//              * =====================================================
+//              */
+//             DB::table('visits')
+//                 ->where('branch_id', $id)
+//                 ->update([
+//                     'sales_id'   => $data['new_sales_id'],
+//                     'created_by' => $data['new_sales_id'],
+//                     'updated_at' => now(),
+//                 ]);
+
+//             /**
+//              * =====================================================
+//              * UPDATE FOLLOW UP HISTORY CABANG
+//              * =====================================================
+//              */
+//             DB::table('follow_ups')
+//                 ->where('branch_id', $id)
+//                 ->update([
+//                     'assigned_to' => $data['new_sales_id'],
+//                     'created_by'  => $data['new_sales_id'],
+//                     'updated_at'  => now(),
+//                 ]);
+
+//         });
+
+//         $updated = DB::table('customer_branches as cb')
+//             ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'cb.assigned_to')
+//             ->select(
+//                 'cb.id',
+//                 'cb.branch_code',
+//                 'cb.branch_name',
+//                 'cb.assigned_to',
+//                 'sales.fullname as assigned_name'
+//             )
+//             ->where('cb.id', $id)
+//             ->first();
+
+//         return ApiResponse::success(
+//             $updated,
+//             'Cabang berhasil dipindahkan beserta seluruh visit dan follow up history.',
+//             200
+//         );
+
+//     } catch (\Illuminate\Validation\ValidationException $e) {
+
+//         return ApiResponse::error(
+//             'Validasi gagal',
+//             $e->errors(),
+//             422
+//         );
+
+//     } catch (\Throwable $e) {
+
+//         return ApiResponse::error(
+//             'Gagal memindahkan cabang',
+//             [
+//                 'exception' => config('app.debug')
+//                     ? $e->getMessage()
+//                     : null,
+//             ],
+//             500
+//         );
+
+//     }
+// }
+// ======================================================
+// REASSIGN BRANCH
+// ======================================================
+public function reassignBranch(Request $request, $id)
+{
+    $data = $request->validate([
+        'new_sales_id' => 'required|integer|exists:ms_users,id_user',
+        'reason'       => 'nullable|string|max:255',
+    ]);
+
+    try {
+
+        $userId = auth()->user()->id_user;
+
+        $branch = DB::table('customer_branches')
+            ->where('id', $id)
+            ->whereNull('deleted_at')
+            ->first();
+
+        if (!$branch) {
+            return ApiResponse::error('Branch not found', [], 404);
+        }
+
+        /**
+         * Fallback:
+         * Jika assigned_to masih NULL,
+         * gunakan created_by sebagai sales yang sedang memegang cabang.
+         */
+        $effectiveCurrentSales = $branch->assigned_to ?? $branch->created_by;
+
+        if ((int)$effectiveCurrentSales === (int)$data['new_sales_id']) {
+            return ApiResponse::error(
+                'Sales yang dipilih sama dengan sales yang sedang memegang cabang ini.',
+                [],
+                422
+            );
+        }
+
+        DB::transaction(function () use (
+            $id,
+            $data,
+            $effectiveCurrentSales,
+            $userId
+        ) {
+
+            /**
+             * =====================================================
+             * SIMPAN HISTORY PERPINDAHAN CABANG
+             * =====================================================
+             */
+            DB::table('branch_assignment_histories')->insert([
+                'branch_id'         => $id,
+                'previous_sales_id' => $effectiveCurrentSales,
+                'new_sales_id'      => $data['new_sales_id'],
+                'changed_by'        => $userId,
+                'reason'            => $data['reason'] ?? null,
+                'changed_at'        => now(),
+                'created_at'        => now(),
+                'updated_at'        => now(),
+            ]);
+
+            /**
+             * =====================================================
+             * UPDATE OWNER CABANG
+             * =====================================================
+             */
+            DB::table('customer_branches')
                 ->where('id', $id)
-                ->whereNull('deleted_at')
-                ->first();
-
-            if (!$branch) {
-                return ApiResponse::error('Branch not found', [], 404);
-            }
-
-            // Fallback: kalau assigned_to belum pernah diisi,
-            // anggap created_by sebagai sales yang PEGANG saat ini.
-            $effectiveCurrentSales = $branch->assigned_to ?? $branch->created_by;
-
-            if ((int) $effectiveCurrentSales === (int) $data['new_sales_id']) {
-                return ApiResponse::error(
-                    'Sales yang dipilih sama dengan sales yang sedang memegang cabang ini.',
-                    [],
-                    422
-                );
-            }
-
-            DB::transaction(function () use ($id, $data, $effectiveCurrentSales, $userId) {
-
-                DB::table('branch_assignment_histories')->insert([
-                    'branch_id'         => $id,
-                    'previous_sales_id' => $effectiveCurrentSales,
-                    'new_sales_id'      => $data['new_sales_id'],
-                    'changed_by'        => $userId,
-                    'reason'            => $data['reason'] ?? null,
-                    'changed_at'        => now(),
-                    'created_at'        => now(),
-                    'updated_at'        => now(),
+                ->update([
+                    'assigned_to' => $data['new_sales_id'],
+                    'updated_at'  => now(),
                 ]);
 
-                DB::table('customer_branches')
-                    ->where('id', $id)
+            /**
+             * =====================================================
+             * UPDATE VISIT HISTORY CABANG
+             * =====================================================
+             */
+            DB::table('visits')
+                ->where('branch_id', $id)
+                ->update([
+                    'sales_id'   => $data['new_sales_id'],
+                    'created_by' => $data['new_sales_id'],
+                    'updated_at' => now(),
+                ]);
+
+            /**
+             * =====================================================
+             * UPDATE FOLLOW UP HISTORY CABANG
+             * =====================================================
+             */
+            DB::table('follow_ups')
+                ->where('branch_id', $id)
+                ->update([
+                    'assigned_to' => $data['new_sales_id'],
+                    'created_by'  => $data['new_sales_id'],
+                    'updated_at'  => now(),
+                ]);
+
+            /**
+             * =====================================================
+             * UPDATE FOLLOW UP ACTIVITIES (LOG) CABANG
+             * ----------------------------------------------------
+             * Ambil semua follow_up_id milik branch ini,
+             * lalu update created_by di setiap log aktivitasnya
+             * supaya history di timeline ikut pindah ke sales baru.
+             * =====================================================
+             */
+            $followUpIds = DB::table('follow_ups')
+                ->where('branch_id', $id)
+                ->pluck('id');
+
+            if ($followUpIds->isNotEmpty()) {
+                DB::table('follow_up_activities')
+                    ->whereIn('follow_up_id', $followUpIds)
                     ->update([
-                        'assigned_to' => $data['new_sales_id'],
-                        'updated_at'  => now(),
+                        'created_by' => $data['new_sales_id'],
                     ]);
-            });
+            }
 
-            $updated = DB::table('customer_branches as cb')
-                ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'cb.assigned_to')
-                ->select('cb.id', 'cb.branch_code', 'cb.branch_name', 'cb.assigned_to', 'sales.fullname as assigned_name')
-                ->where('cb.id', $id)
-                ->first();
+        });
 
-            return ApiResponse::success($updated, 'Cabang berhasil dipindahkan ke sales baru.', 200);
+        $updated = DB::table('customer_branches as cb')
+            ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'cb.assigned_to')
+            ->select(
+                'cb.id',
+                'cb.branch_code',
+                'cb.branch_name',
+                'cb.assigned_to',
+                'sales.fullname as assigned_name'
+            )
+            ->where('cb.id', $id)
+            ->first();
 
-        } catch (\Illuminate\Validation\ValidationException $e) {
-            return ApiResponse::error('Validasi gagal', $e->errors(), 422);
-        } catch (\Throwable $e) {
-            return ApiResponse::error('Gagal memindahkan cabang', [
-                'exception' => config('app.debug') ? $e->getMessage() : null,
-            ], 500);
-        }
+        return ApiResponse::success(
+            $updated,
+            'Cabang berhasil dipindahkan beserta seluruh visit, follow up, dan history aktivitasnya.',
+            200
+        );
+
+    } catch (\Illuminate\Validation\ValidationException $e) {
+
+        return ApiResponse::error(
+            'Validasi gagal',
+            $e->errors(),
+            422
+        );
+
+    } catch (\Throwable $e) {
+
+        return ApiResponse::error(
+            'Gagal memindahkan cabang',
+            [
+                'exception' => config('app.debug')
+                    ? $e->getMessage()
+                    : null,
+            ],
+            500
+        );
+
     }
+}
 }
