@@ -184,7 +184,7 @@ Route::post('/follow-ups/{id}/submit-result', [FollowUp::class, 'submitResultFol
 Route::post('/follow-ups/{id}/direct-follow-up', [FollowUp::class, 'createDirectFollowUpFromLead'])->name('api.follow.up.start.follow.up');
 Route::post('/follow-ups/{id}/submit-result/customer', [FollowUp::class, 'submitResultCustomers'])->name('api.follow.up.submit.result.customers');
 Route::post('/follow-ups/direct-follow-up-customer', [FollowUp::class, 'storeDirectCustomer'])->name('api.follow.up.direct.customer');
-
+Route::put('follow-ups/{id}/close', [FollowUp::class, 'closeFollowUpManually']);
 
 
 // api sales Visits bagian lead

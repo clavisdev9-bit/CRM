@@ -13,7 +13,6 @@ class FollowUpCustomerResources extends JsonResource
         return [
             'id'              => $this->id,
             'customer_id'     => $this->customer_id,
-            'branch_id'       => $this->branch_id,
             'follow_up_code'  => $this->follow_up_code,
             'follow_up_type'  => $this->follow_up_type,
             'subject'         => $this->subject,
@@ -24,29 +23,10 @@ class FollowUpCustomerResources extends JsonResource
             'computed_status' => $this->computed_status,
             'is_overdue'      => (bool) $this->is_overdue,
 
-            /* ===== TARGET (CUSTOMER + BRANCH) ===== */
-            // target_name: nama yang paling relevan ditampilkan di list
-            // -> kalau follow up ke branch, tampilkan "Company - Branch"
-            // -> kalau ke head office, tampilkan company saja
-            'target_name' => $this->branch_id
-                ? trim(($this->customer_company_name ?? '-') . ' - ' . ($this->branch_name ?? '-'))
-                : ($this->customer_company_name ?? '-'),
-
-            'customer_company_name' => $this->customer_company_name,
-            'customer_status'       => $this->customer_status,
-
-            'branch' => $this->branch_id ? [
-                'id'            => $this->branch_id,
-                'branch_name'   => $this->branch_name,
-                'is_main_branch'=> (bool) $this->is_main_branch,
-                'city'          => $this->branch_city,
-            ] : null,
-
-            /* ===== CONTACT (RESOLVED) ===== */
-            'contact' => [
-                'name'  => $this->resolved_contact_name,
-                'phone' => $this->resolved_contact_phone,
-            ],
+            /* ===== TARGET (CUSTOMER ONLY) ===== */
+            'target_name'            => $this->customer_company_name ?? '-',
+            'customer_company_name'  => $this->customer_company_name,
+            'customer_status'        => $this->customer_status,
 
             /* ===== SALES ===== */
             'sales_name' => $this->sales_name,
