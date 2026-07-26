@@ -1806,7 +1806,8 @@ public function checkOutCustomer(Request $request, $visitId)
                 'customer_id'    => $visit->customer_id,
                 'branch_id'      => $visit->branch_id,
                 'follow_up_type' => $request->follow_up_type,
-                'subject'        => 'Follow up after visit Customer with code ' . $visit->visit_code,
+                // 'subject'        => 'Follow up after visit Customer with code ' . $visit->visit_code,
+                'subject'        => '(Follow Up) Tindak lanjut setelah kunjungan ke Customer dengan kode ' . $visit->visit_code,
                 'notes'          => $request->follow_up_notes,
                 'follow_up_at'   => $request->follow_up_at,
                 'status'         => 'PENDING',
@@ -1821,8 +1822,10 @@ public function checkOutCustomer(Request $request, $visitId)
             */
             DB::table('follow_up_activities')->insert([
                 'follow_up_id'  => $followUp->id,
-                'title'         => 'Follow Up Created Result Visit Customer',
-                'description'   => 'Follow up generated automatically after visit Customer '
+                'title'         => 'Follow Up berhasil dibuat berdasarkan hasil kunjungan Customer',
+                // 'description'   => 'Follow up generated automatically after visit Customer '
+                //     . $visit->visit_code,
+                'description'   => 'Follow Up dibuat secara otomatis setelah kunjungan ke pelanggan Dengan Code '
                     . $visit->visit_code,
                 'activity_type' => 'CREATE',
                 'scheduled_for' => $request->follow_up_at,
