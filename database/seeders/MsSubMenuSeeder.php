@@ -642,17 +642,17 @@ class MsSubMenuSeeder extends Seeder
                 'id_menu' => 3,
                 'url' => '/reassignment-sales',
                 'icon' => 'nav-icon fas fa-people-arrows',
-                'title' => 'Customer Reassignment.',
+                'title' => 'Customer Reassignment',
                 'noted' => 'Customer Reassignment Page',
                 'is_active' => true,
                 'parent_id' => null,
             ]);
 
             $insert([
-                'id_menu' => 3,
+                'id_menu' => 2,
                 'url' => '/customer-population',
                 'icon' => 'nav-icon fas fa-map-location-dot',
-                'title' => 'Customer Population.',
+                'title' => 'Customer Population',
                 'noted' => 'Customer Population Page',
                 'is_active' => true,
                 'parent_id' => null,

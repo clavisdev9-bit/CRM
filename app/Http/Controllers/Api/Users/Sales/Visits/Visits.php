@@ -1592,145 +1592,6 @@ public function getVisitDetail($id)
 
 
 
-
-
-
-// public function checkOutCustomer(Request $request, $visitId)
-// {
-//     $request->validate([
-//         'no_reference'           => 'required|string|max:100|unique:visits,no_reference',
-//         'check_out_file' => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png,gif|max:10240',
-//         'notes'                  => 'required|string',
-//         'customer_response'      => 'required|string',
-//         'has_complaint'          => 'nullable|boolean',
-//         'complaint_detail'       => 'required_if:has_complaint,1|nullable|string',
-//         'has_potential_order'    => 'nullable|boolean',
-//         'potential_order_detail' => 'required_if:has_potential_order,1|nullable|string',
-//         'follow_up_at'           => 'required|date|after:today',
-//         'follow_up_notes'        => 'nullable|string',
-//         'follow_up_type'         => 'required|string',
-//     ]);
-
-//     try {
-//         $visit = VisitsModel::find($visitId);
-
-//         if (!$visit) {
-//             return response()->json([
-//                 'message' => 'Visit not found.'
-//             ], 404);
-//         }
-
-//         if ($visit->visit_status !== 'CHECKED_IN') {
-//             return response()->json([
-//                 'message' => 'Visit is not in CHECKED_IN status.'
-//             ], 422);
-//         }
-
-//         DB::transaction(function () use ($request, $visit) {
-//             $userId = auth()->user()->id_user;
-
-//             // Upload file check out bila dikirim
-//             $checkOutFilePath = null;
-
-//             if ($request->hasFile('check_out_file')) {
-//                 $checkOutFilePath = $request
-//                     ->file('check_out_file')
-//                     ->store('visits/checkout/files', 'public');
-//             }
-
-//             // 1. UPDATE VISIT (CHECK OUT)
-//             $visit->update([
-//                 'check_out_at'           => now(),
-//                 'no_reference'           => $request->no_reference,
-//                 'check_out_file'         => $checkOutFilePath,
-//                 'notes'                  => $request->notes,
-//                 'customer_response'      => $request->customer_response,
-//                 'visit_result'           => $request->customer_response,
-//                 'has_complaint'          => $request->boolean('has_complaint'),
-//                 'complaint_detail'       => $request->boolean('has_complaint')
-//                     ? $request->complaint_detail
-//                     : null,
-//                 'has_potential_order'    => $request->boolean('has_potential_order'),
-//                 'potential_order_detail' => $request->boolean('has_potential_order')
-//                     ? $request->potential_order_detail
-//                     : null,
-//                 'visit_status'           => 'DONE',
-//             ]);
-
-//             // 2. AUTO CLOSE FOLLOW UPS LAMA
-//             $openFollowUps = MsFollowUp::where('customer_id', $visit->customer_id)
-//                 ->where(function ($q) use ($visit) {
-//                     if ($visit->branch_id) {
-//                         $q->where('branch_id', $visit->branch_id);
-//                     } else {
-//                         $q->whereNull('branch_id');
-//                     }
-//                 })
-//                 ->whereIn('status', ['PENDING', 'OPEN'])
-//                 ->lockForUpdate()
-//                 ->get();
-
-//             foreach ($openFollowUps as $oldFollowUp) {
-//                 $oldFollowUp->update([
-//                     'status'        => 'CLOSED',
-//                     'closed_at'     => now(),
-//                     'closed_reason' => 'AUTO_CLOSED_BY_VISIT'
-//                 ]);
-
-//                 DB::table('follow_up_activities')->insert([
-//                     'follow_up_id'  => $oldFollowUp->id,
-//                     'title'         => 'Follow Up Auto Closed',
-//                     'description'   => 'Closed automatically because visit '
-//                         . $visit->visit_code . ' has been completed.',
-//                     'activity_type' => 'AUTO_CLOSE',
-//                     'scheduled_for' => null,
-//                     'activity_at'   => now(),
-//                     'created_at'    => now(),
-//                     'created_by'    => $userId,
-//                 ]);
-//             }
-
-//             // 3. CREATE FOLLOW UP BARU
-//             $followUp = MsFollowUp::create([
-//                 'follow_up_code' => $this->generateFollowUpCode(),
-//                 'customer_id'    => $visit->customer_id,
-//                 'branch_id'      => $visit->branch_id,
-//                 'follow_up_type' => $request->follow_up_type,
-//                 'subject'        => 'Follow up after visit Customer with code ' . $visit->visit_code,
-//                 'notes'          => $request->follow_up_notes,
-//                 'follow_up_at'   => $request->follow_up_at,
-//                 'status'         => 'PENDING',
-//                 'assigned_to'    => $visit->sales_id,
-//                 'created_by'     => $userId,
-//             ]);
-
-//             // 4. CREATE ACTIVITY LOG FOLLOW UP
-//             DB::table('follow_up_activities')->insert([
-//                 'follow_up_id'  => $followUp->id,
-//                 'title'         => 'Follow Up Created Result Visit Customer',
-//                 'description'   => 'Follow up generated automatically after visit Customer '
-//                     . $visit->visit_code,
-//                 'activity_type' => 'CREATE',
-//                 'scheduled_for' => $request->follow_up_at,
-//                 'activity_at'   => now(),
-//                 'created_at'    => now(),
-//                 'created_by'    => $userId,
-//             ]);
-//         });
-
-//         return response()->json([
-//             'message' => 'Check out successful & follow up scheduled.',
-//             'data'    => $visit->fresh()
-//         ]);
-
-//     } catch (\Throwable $e) {
-//         return response()->json([
-//             'message' => 'Checkout failed.',
-//             'error'   => $e->getMessage()
-//         ], 500);
-//     }
-// }
-
 public function checkOutCustomer(Request $request, $visitId)
 {
     $request->validate([
@@ -1807,7 +1668,12 @@ public function checkOutCustomer(Request $request, $visitId)
                 'branch_id'      => $visit->branch_id,
                 'follow_up_type' => $request->follow_up_type,
                 // 'subject'        => 'Follow up after visit Customer with code ' . $visit->visit_code,
-                'subject'        => '(Follow Up) Tindak lanjut setelah kunjungan ke Customer dengan kode ' . $visit->visit_code,
+                // 'subject'        => '(Follow Up) Tindak lanjut setelah kunjungan ke Customer dengan kode ' . $visit->visit_code,
+                'subject' => sprintf(
+                    '(Follow Up) Tindak lanjut setelah kunjungan ke Customer dengan kode %s (Nomor Ref: %s)',
+                    $visit->visit_code,
+                    $request->no_reference
+                ),
                 'notes'          => $request->follow_up_notes,
                 'follow_up_at'   => $request->follow_up_at,
                 'status'         => 'PENDING',
