@@ -702,7 +702,9 @@ public function customers(CostumersValidationIndex $request)
                 'approved_by', b.approved_by,
                 'approved_at', b.approved_at,
                 'creator_name', owner.fullname,
-                'assigned_name', sales.fullname
+                'assigned_name', sales.fullname,
+                'approval_note', b.approval_note,
+'approval_revision', b.approval_revision
             ))::text as branches"),
  
             DB::raw('0 as branch_count'),
@@ -1087,30 +1089,63 @@ public function customers(CostumersValidationIndex $request)
 }
 
 
+            // public function destroyCostumers($id)
+            // {
+            //     try {
+            //         // Cek apakah customer ada
+            //         $customer = DB::table('customers')->where('id', $id)->first();
+            //         if (!$customer) {
+            //             return ApiResponse::error('Customer not found.', [], 404);
+            //         }
+
+            //         // Hapus customer
+            //         DB::table('customers')->where('id', $id)->delete();
+
+            //         return ApiResponse::success(null, 'Customer deleted successfully.', 200);
+
+            //     } catch (\Illuminate\Database\QueryException $e) {
+            //         return ApiResponse::error('Failed to delete customer (query error)', [
+            //             'exception' => config('app.debug') ? $e->getMessage() : null
+            //         ], 422);
+            //     } catch (\Exception $e) {
+            //         return ApiResponse::error('An error occurred while deleting the customer.', [
+            //             'exception' => config('app.debug') ? $e->getMessage() : null
+            //         ], 500);
+            //     }
+            // }
+
             public function destroyCostumers($id)
-            {
-                try {
-                    // Cek apakah customer ada
-                    $customer = DB::table('customers')->where('id', $id)->first();
-                    if (!$customer) {
-                        return ApiResponse::error('Customer not found.', [], 404);
-                    }
+{
+    try {
+        $customer = DB::table('customers')->where('id', $id)->first();
+        if (!$customer) {
+            return ApiResponse::error('Customer not found.', [], 404);
+        }
 
-                    // Hapus customer
-                    DB::table('customers')->where('id', $id)->delete();
+        // Cek relasi ke visits (atau tabel lain yang terkait)
+        $hasVisits = DB::table('visits')->where('customer_id', $id)->exists();
+        if ($hasVisits) {
+            return ApiResponse::error(
+                'Customer tidak bisa dihapus karena masih memiliki data visit terkait.',
+                [],
+                409
+            );
+        }
 
-                    return ApiResponse::success(null, 'Customer deleted successfully.', 200);
+        DB::table('customers')->where('id', $id)->delete();
 
-                } catch (\Illuminate\Database\QueryException $e) {
-                    return ApiResponse::error('Failed to delete customer (query error)', [
-                        'exception' => config('app.debug') ? $e->getMessage() : null
-                    ], 422);
-                } catch (\Exception $e) {
-                    return ApiResponse::error('An error occurred while deleting the customer.', [
-                        'exception' => config('app.debug') ? $e->getMessage() : null
-                    ], 500);
-                }
-            }
+        return ApiResponse::success(null, 'Customer deleted successfully.', 200);
+
+    } catch (\Illuminate\Database\QueryException $e) {
+        return ApiResponse::error('Failed to delete customer (query error)', [
+            'exception' => config('app.debug') ? $e->getMessage() : null
+        ], 422);
+    } catch (\Exception $e) {
+        return ApiResponse::error('An error occurred while deleting the customer.', [
+            'exception' => config('app.debug') ? $e->getMessage() : null
+        ], 500);
+    }
+}
 
 
 
@@ -1510,38 +1545,38 @@ public function storeBranch(Request $request, $id)
 
         // Validasi input
         // $data = $request->validate([
-        //     'branch_name'  => 'required|string|max:255',
-        //     'city'         => 'nullable|string|max:255',
-        //     'address'      => 'nullable|string',
-        //     'notes'        => 'nullable|string',
+        //         'branch_name'  => 'required|string|max:255',
+        //         'city'         => 'nullable|string|max:255',
+        //         'address'      => 'nullable|string',
+        //         'notes'        => 'nullable|string',
 
-        //     // ── CONTACTS (bisa banyak) ──
-        //     'contacts'                  => 'required|array|min:1',
-        //     'contacts.*.id'             => 'nullable|integer|exists:branch_contacts,id',
-        //     'contacts.*.name'           => 'required|string|max:100',
-        //     'contacts.*.position'       => 'nullable|string|max:100',
-        //     'contacts.*.email'          => 'nullable|email|max:100',
-        //     // 'contacts.*.phone'          => 'nullable|string|max:20',
-        //     'contacts.*.phone'          => ['nullable', 'string', 'max:20', 'regex:/^(\+62|62|0)8[0-9]{8,11}$/'],
-        //     'contacts.*.is_primary'     => 'nullable|boolean',
-        // ]);
+        //         // ── CONTACTS (bisa banyak) ──
+        //         'contacts'                  => 'required|array|min:1',
+        //         'contacts.*.id'             => 'nullable|integer|exists:branch_contacts,id',
+        //         'contacts.*.name'           => 'required|string|max:100',
+        //         'contacts.*.position'       => 'nullable|string|max:100',
+        //         'contacts.*.email'          => 'nullable|email|max:100',
+        //         'contacts.*.phone'          => ['nullable', 'string', 'max:20', 'regex:/^(\+62|62|0)8[0-9]{8,11}$/'],
+        //         'contacts.*.is_primary'     => 'nullable|boolean',
+        //     ], [
+        //         'contacts.*.phone.regex' => 'Format nomor telepon tidak valid. Gunakan 08xx, +628xx, atau 628xx.',
+        //     ]);
         $data = $request->validate([
                 'branch_name'  => 'required|string|max:255',
                 'city'         => 'nullable|string|max:255',
                 'address'      => 'nullable|string',
                 'notes'        => 'nullable|string',
 
-                // ── CONTACTS (bisa banyak) ──
                 'contacts'                  => 'required|array|min:1',
                 'contacts.*.id'             => 'nullable|integer|exists:branch_contacts,id',
                 'contacts.*.name'           => 'required|string|max:100',
                 'contacts.*.position'       => 'nullable|string|max:100',
                 'contacts.*.email'          => 'nullable|email|max:100',
-                'contacts.*.phone'          => ['nullable', 'string', 'max:20', 'regex:/^(\+62|62|0)8[0-9]{8,11}$/'],
+                'contacts.*.phone'          => ['nullable', 'string', 'max:20', 'regex:/^[\+]?[0-9\-\s()]{8,20}$/'],
                 'contacts.*.is_primary'     => 'nullable|boolean',
             ], [
-                'contacts.*.phone.regex' => 'Format nomor telepon tidak valid. Gunakan 08xx, +628xx, atau 628xx.',
-            ]);
+                'contacts.*.phone.regex' => 'Format nomor telepon tidak valid. Gunakan angka (boleh diawali +, mengandung strip, spasi, atau tanda kurung).',
+        ]);
 
 
 
@@ -1977,6 +2012,19 @@ public function destroyBranch($id)
 
         if (! $branch) {
             return ApiResponse::error('Branch not found', [], 404);
+        }
+
+        // ── Cek relasi ke visits (kalau visits juga terikat ke branch) ──
+        $hasVisits = DB::table('visits')
+            ->where('branch_id', $id)   // sesuaikan nama kolom FK-nya di tabel visits
+            ->exists();
+
+        if ($hasVisits) {
+            return ApiResponse::error(
+                'Cabang tidak bisa dihapus karena masih memiliki data visit terkait.',
+                [],
+                409
+            );
         }
 
         DB::transaction(function () use ($id) {

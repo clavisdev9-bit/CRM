@@ -1734,7 +1734,7 @@ public function getVisitDetail($id)
 public function checkOutCustomer(Request $request, $visitId)
 {
     $request->validate([
-        'no_reference'           => 'required|string|max:100|unique:visits,no_reference',
+        'no_reference'           => 'required|string|max:100',
         'check_out_file'         => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png,gif|max:10240',
         'notes'                  => 'required|string',
         'customer_response'      => 'required|string',

@@ -20,8 +20,8 @@ return new class extends Migration
             // NO. REFERENCE (CHECK OUT)
             $table->string('no_reference', 100)
                 ->nullable()
-                ->unique()
                 ->comment('Manual unique reference number entered by sales');
+                // ->unique()
 
             // =========================
             // RELATION (LEAD / CUSTOMER / BRANCH)

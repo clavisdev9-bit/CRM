@@ -70,6 +70,8 @@ class CostumersResources extends JsonResource
 
                     'status' => $branch['status'] ?? null,
                     'approval_status' => $branch['approval_status'] ?? null,
+                     'approval_note' => $branch['approval_note'] ?? null,
+                    'approval_revision' => $branch['approval_revision'] ?? null,
 
                     'assigned_to' => $branch['assigned_to'] ?? null,
                     'assigned_name' => $branch['assigned_name'] ?? null,

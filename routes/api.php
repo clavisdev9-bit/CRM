@@ -104,6 +104,10 @@ Route::put('/employee-restore-management/{id}',[Master::class, 'restoreEmployee'
 Route::get('/employee-available-users',[Master::class, 'getAvailableUsers'])->name('api.employee.available.users');
 Route::get('/select-office-for-employee', [Master::class, 'selectOffice'])->name('api.select.api');
 
+// api master product
+Route::get('/master-product', [Master::class, 'Product'])->name('api.product.management');
+Route::get('/products/debug-brand', [Master::class, 'debugFields']);
+
 
 // api User Attendance app
 Route::get('/attendance-management', [Attendance::class, 'GetAttendanceById'])->name('api.attendance.management');
@@ -185,6 +189,7 @@ Route::post('/follow-ups/{id}/direct-follow-up', [FollowUp::class, 'createDirect
 Route::post('/follow-ups/{id}/submit-result/customer', [FollowUp::class, 'submitResultCustomers'])->name('api.follow.up.submit.result.customers');
 Route::post('/follow-ups/direct-follow-up-customer', [FollowUp::class, 'storeDirectCustomer'])->name('api.follow.up.direct.customer');
 Route::put('follow-ups/{id}/close', [FollowUp::class, 'closeFollowUpManually']);
+Route::get('/follow-up/get-customers-direct', [FollowUp::class, 'getCustomerForDirect'])->name('api.get.customers.direct');
 
 
 // api sales Visits bagian lead

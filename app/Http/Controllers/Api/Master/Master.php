@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\DB;
 use App\Helpers\ApiResponse;
+use App\Services\OdooService;
 
 use App\Models\MsEmployee;
 use App\Http\Resources\EmployeeResources;
@@ -27,30 +28,6 @@ class Master extends Controller
         $this->MsOffice = $MsOffice;
     }
 
-
-    //  public function Employee(EmployeeValidationindex $request) 
-    //    {
-    //         $validated = $request->validated();
-    //         $search = $validated['search'] ?? null;
-    //         $perPage = is_numeric($validated['per_page'] ?? null) ? $validated['per_page'] : 10;
-    //         $sortBy = $validated['sort_by'] ?? 'created_at';
-    //         $sortDir = $validated['sort_dir'] ?? 'desc';
-    //         $onlyDeleted = $validated['only_deleted'] ?? false;
-
-    //     $query = $this->MsEmployee
-    //     ->with([
-    //         'user:id_user,fullname,username,email,image,is_active,divisi_id,group_id',
-    //         'user.division:id,name_division',
-    //         'user.groups:id_group,name_group',
-    //     ])
-    //     ->onlyDeleted($onlyDeleted)
-    //     ->search($search)
-    //     ->sort($sortBy, $sortDir);
-
-    //         $results = $query->paginate($perPage);
-    //         $message = $results->isEmpty() ? "Data yang Anda cari tidak ditemukan" : "Success";
-    //         return ApiResponse::paginate(new EmployeeResourcesCollection($results), $message);
-    //    }
 
     public function Employee(EmployeeValidationindex $request) 
 {
@@ -319,5 +296,58 @@ class Master extends Controller
                         ->get()
                 );
             }
+
+
+
+
+        //  start code api odoo
+        public function debugFields(OdooService $odoo)
+        {
+            $fields = $odoo->fieldsGet('product.template');
+
+            $brandFields = collect($fields)->filter(
+                fn($v, $k) => str_contains(strtolower($k), 'brand')
+            );
+
+            $categFields = collect($fields)->filter(
+                fn($v, $k) => str_contains(strtolower($k), 'categ')
+            );
+
+            $brandModels = $odoo->searchModels('brand');
+
+            return response()->json([
+                'brand_fields_in_product_template' => $brandFields,
+                'category_fields_in_product_template' => $categFields,
+                'models_containing_brand' => $brandModels,
+            ]);
+        }
+
+
+            // code Master untuk Brand dan Product dari Odoo
+             public function Product(OdooService $odoo)
+                {
+                    // $products = $odoo->searchRead(
+                    //     'product.template',
+                    //     [['sale_ok', '=', true]], // filter produk yang bisa dijual
+                    //     ['name', 'list_price']
+                    //     // ['name', 'list_price', 'default_code', 'image_1920', 'product_brand_id']
+                    // );
+
+                    // $brands = $odoo->searchRead(
+                    //     'product.brand', // sesuaikan nama model brand di Odoo Anda
+                    //     [],
+                    //     ['name', 'logo']
+                    // );
+
+                    // return view('products.index', compact('products', 'brands'));
+                    // return view('products.index', compact('products'));
+                     $products = $odoo->searchRead(
+            'product.template',
+            [['sale_ok', '=', true]],
+            ['name', 'list_price', 'default_code'] // tanpa image & brand dulu biar ringan
+        );
+
+        return response()->json($products);
+                }
 
 }

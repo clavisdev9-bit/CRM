@@ -1028,7 +1028,7 @@ public function searchCompanyName(Request $request) {
                         'fu.id',
                         'fu.follow_up_at',
                         'fu.follow_up_type',
-                        'fu.status',        // ⬅️ status follow up
+                        'fu.status',        
                         'fu.notes',
                         'fu.created_at',
 

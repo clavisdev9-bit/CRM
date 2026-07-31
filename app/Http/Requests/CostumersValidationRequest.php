@@ -31,7 +31,8 @@ class CostumersValidationRequest extends FormRequest
             'contacts.*.position'       => 'nullable|string|max:100',
             'contacts.*.email'          => 'nullable|email|max:100',
             // 'contacts.*.phone'          => 'nullable|string|max:20',
-            'contacts.*.phone'          => ['nullable', 'string', 'max:20', 'regex:/^(\+62|62|0)8[0-9]{8,11}$/'],
+            // 'contacts.*.phone'          => ['nullable', 'string', 'max:20', 'regex:/^(\+62|62|0)8[0-9]{8,11}$/'],
+            'contacts.*.phone' => ['nullable', 'string', 'max:20', 'regex:/^[\+]?[0-9\-\s()]{8,20}$/'],
             'contacts.*.is_primary'     => 'nullable|boolean',
         ];
     }

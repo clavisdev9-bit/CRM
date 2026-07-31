@@ -11,29 +11,30 @@ class LeadCategorySeeder extends Seeder
     {
         DB::table('lead_categories')->insert([
             [
-                'name' => 'Hot',
-                'description' => 'Prospek dengan peluang tinggi',
+                'name' => 'Develop',
+                'description' => 'Customer yang memiliki potensi untuk dikembangkan melalui peningkatan hubungan,
+                 frekuensi transaksi, atau peluang bisnis baru.',
                 'is_active' => true,
                 'created_at' => Carbon::now(),
                 'updated_at' => Carbon::now(),
             ],
             [
-                'name' => 'Warm',
-                'description' => 'Prospek potensial tapi perlu follow up',
+                'name' => 'Retain',
+                'description' => 'Customer yang sudah aktif dan menjadi prioritas untuk dipertahankan agar tetap loyal dan terus bertransaksi.',
                 'is_active' => true,
                 'created_at' => Carbon::now(),
                 'updated_at' => Carbon::now(),
             ],
             [
-                'name' => 'Cold',
-                'description' => 'Prospek dengan peluang rendah',
+                'name' => 'Acquire',
+                'description' => 'Customer atau prospek baru yang menjadi target untuk mendapatkan peluang bisnis atau transaksi pertama.',
                 'is_active' => true,
                 'created_at' => Carbon::now(),
                 'updated_at' => Carbon::now(),
             ],
             [
-                'name' => 'Partner',
-                'description' => 'Partner atau referral',
+                'name' => 'Light Touch',
+                'description' => 'Customer yang hanya memerlukan komunikasi atau kunjungan berkala dengan intensitas rendah untuk menjaga hubungan dan tetap terhubung.',
                 'is_active' => true,
                 'created_at' => Carbon::now(),
                 'updated_at' => Carbon::now(),

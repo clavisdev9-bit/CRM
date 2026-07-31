@@ -2233,45 +2233,316 @@ public function createDirectFollowUpFromLead(Request $request, $leadId)
 
 
 
-    //  code untuk ambil data customer 
-    function getCustomerForDirect(Request $request) {
+    //  code untuk ambil data customer old
+    // function getCustomerForDirect(Request $request) {
 
-                    {
-                        $userId = auth()->user()->id_user;
-                        $search = $request->get('search');
+    //                 {
+    //                     $userId = auth()->user()->id_user;
+    //                     $search = $request->get('search');
 
-                        $query = DB::table('customers as c')
-                            ->select([
-                                'c.id',
-                                'c.company_name',
-                                'c.contact_name',
-                            ])
-                            ->where(function ($q) use ($userId) {
-                                $q->where('c.created_by', $userId)
-                                ->orWhere('c.assigned_to', $userId);
-                            })
-                            ->whereNull('c.deleted_at')
-                            ->where('c.lead_status', 'New');
+    //                     $query = DB::table('customers as c')
+    //                         ->select([
+    //                             'c.id',
+    //                             'c.company_name',
+    //                             'c.contact_name',
+    //                         ]) 
+    //                         ->where(function ($q) use ($userId) {
+    //                             $q->where('c.created_by', $userId)
+    //                             ->orWhere('c.assigned_to', $userId);
+    //                         })
+    //                         ->whereNull('c.deleted_at')
+    //                         ->where('c.lead_status', 'New');
 
-                        if ($search) {
-                            $query->where(function ($q) use ($search) {
-                                $q->where('c.company_name', 'ILIKE', "%{$search}%")
-                                ->orWhere('c.contact_name', 'ILIKE', "%{$search}%");
-                            });
-                        }
+    //                     if ($search) {
+    //                         $query->where(function ($q) use ($search) {
+    //                             $q->where('c.company_name', 'ILIKE', "%{$search}%")
+    //                             ->orWhere('c.contact_name', 'ILIKE', "%{$search}%");
+    //                         });
+    //                     }
 
-                        return ApiResponse::success(
-                            $query->orderBy('c.company_name')->limit(100)->get(),
-                            'Success Get Customers For Direct Follow Up'
-                        );
-                    }
+    //                     return ApiResponse::success(
+    //                         $query->orderBy('c.company_name')->limit(100)->get(),
+    //                         'Success Get Customers For Direct Follow Up'
+    //                     );
+    //                 }
+    // }
+
+    // code untuk ambil data customer (+ branch) milik sales yang sudah di-approve, untuk Direct Follow Up Customer
+// public function getCustomerForDirect(Request $request)
+// {
+//     $userId = auth()->user()->id_user;
+//     $search = $request->get('search');
+
+//     /* ================= PRIMARY CONTACT CUSTOMER (subquery) ================= */
+//     $customerContactSql = "
+//         (SELECT cc.name FROM customer_contacts cc
+//             WHERE cc.customer_id = c.id
+//             AND cc.is_primary = true
+//             AND cc.deleted_at IS NULL
+//             LIMIT 1)
+//     ";
+//     $customerPhoneSql = "
+//         (SELECT cc.phone FROM customer_contacts cc
+//             WHERE cc.customer_id = c.id
+//             AND cc.is_primary = true
+//             AND cc.deleted_at IS NULL
+//             LIMIT 1)
+//     ";
+
+//     $query = DB::table('customers as c')
+//         ->select([
+//             'c.id',
+//             'c.company_name',
+//             DB::raw("{$customerContactSql} as contact_name"),
+//             DB::raw("{$customerPhoneSql} as phone"),
+//         ])
+//         ->where(function ($q) use ($userId) {
+//             $q->where('c.created_by', $userId)
+//               ->orWhere('c.assigned_to', $userId);
+//         })
+//         ->where('c.approval_status', 'approved')   //  hanya customer yang sudah approved
+//         ->whereNull('c.deleted_at');
+
+//     if ($search) {
+//         $query->where(function ($q) use ($search) {
+//             $q->where('c.company_name', 'ILIKE', "%{$search}%")
+//               ->orWhereExists(function ($sub) use ($search) {
+//                   $sub->select(DB::raw(1))
+//                       ->from('customer_contacts as cc')
+//                       ->whereColumn('cc.customer_id', 'c.id')
+//                       ->whereNull('cc.deleted_at')
+//                       ->where('cc.name', 'ILIKE', "%{$search}%");
+//               });
+//         });
+//     }
+
+//     $customers = $query->orderBy('c.company_name')->limit(100)->get();
+
+//     if ($customers->isEmpty()) {
+//         return ApiResponse::success($customers, 'Success Get Customers For Direct Follow Up');
+//     }
+
+//     $customerIds = $customers->pluck('id');
+
+//     /* ================= BRANCHES (hanya approved) + PRIMARY CONTACT ================= */
+//     $branchContactSql = "
+//         (SELECT bc.name FROM branch_contacts bc
+//             WHERE bc.branch_id = cb.id
+//             AND bc.is_primary = true
+//             AND bc.deleted_at IS NULL
+//             LIMIT 1)
+//     ";
+//     $branchPhoneSql = "
+//         (SELECT bc.phone FROM branch_contacts bc
+//             WHERE bc.branch_id = cb.id
+//             AND bc.is_primary = true
+//             AND bc.deleted_at IS NULL
+//             LIMIT 1)
+//     ";
+
+//     $branches = DB::table('customer_branches as cb')
+//         ->select([
+//             'cb.id',
+//             'cb.customer_id',
+//             'cb.branch_name',
+//             'cb.is_main_branch',
+//             'cb.city',
+//             DB::raw("{$branchContactSql} as contact_name"),
+//             DB::raw("{$branchPhoneSql} as phone"),
+//         ])
+//         ->whereIn('cb.customer_id', $customerIds)
+//         ->where('cb.approval_status', 'approved')   //  hanya branch yang sudah approved
+//         ->whereNull('cb.deleted_at')
+//         ->orderByDesc('cb.is_main_branch')
+//         ->orderBy('cb.branch_name')
+//         ->get()
+//         ->groupBy('customer_id');
+
+//     $customers = $customers->map(function ($c) use ($branches) {
+//         $c->branches = $branches->get($c->id, collect())->values();
+//         return $c;
+//     });
+
+//     return ApiResponse::success($customers, 'Success Get Customers For Direct Follow Up');
+// }
+
+
+public function getCustomerForDirect(Request $request)
+{
+    $userId = auth()->user()->id_user;
+    $search = $request->get('search');
+
+    /* ================= PRIMARY CONTACT CUSTOMER (subquery) ================= */
+    $customerContactSql = "
+        (SELECT cc.name FROM customer_contacts cc
+            WHERE cc.customer_id = c.id
+            AND cc.is_primary = true
+            AND cc.deleted_at IS NULL
+            LIMIT 1)
+    ";
+    $customerPhoneSql = "
+        (SELECT cc.phone FROM customer_contacts cc
+            WHERE cc.customer_id = c.id
+            AND cc.is_primary = true
+            AND cc.deleted_at IS NULL
+            LIMIT 1)
+    ";
+
+    $query = DB::table('customers as c')
+        ->select([
+            'c.id',
+            'c.company_name',
+            'c.created_by',
+            'c.assigned_to',
+            DB::raw("{$customerContactSql} as contact_name"),
+            DB::raw("{$customerPhoneSql} as phone"),
+        ])
+        ->where(function ($q) use ($userId) {
+            // customer masuk list kalau user OWNS HEAD-nya...
+            $q->where('c.created_by', $userId)
+              ->orWhere('c.assigned_to', $userId)
+              // ...ATAU owns minimal 1 branch di bawah customer ini
+              ->orWhereExists(function ($sub) use ($userId) {
+                  $sub->select(DB::raw(1))
+                      ->from('customer_branches as cb2')
+                      ->whereColumn('cb2.customer_id', 'c.id')
+                      ->where('cb2.approval_status', 'approved')
+                      ->whereNull('cb2.deleted_at')
+                      ->where(function ($qq) use ($userId) {
+                          $qq->where('cb2.created_by', $userId)
+                             ->orWhere('cb2.assigned_to', $userId);
+                      });
+              });
+        })
+        ->where('c.approval_status', 'approved')
+        ->whereNull('c.deleted_at');
+
+    if ($search) {
+        $query->where(function ($q) use ($search) {
+            $q->where('c.company_name', 'ILIKE', "%{$search}%")
+              ->orWhereExists(function ($sub) use ($search) {
+                  $sub->select(DB::raw(1))
+                      ->from('customer_contacts as cc')
+                      ->whereColumn('cc.customer_id', 'c.id')
+                      ->whereNull('cc.deleted_at')
+                      ->where('cc.name', 'ILIKE', "%{$search}%");
+              });
+        });
     }
+
+    $customers = $query->orderBy('c.company_name')->limit(100)->get();
+
+    if ($customers->isEmpty()) {
+        return ApiResponse::success($customers, 'Success Get Customers For Direct Follow Up');
+    }
+
+    $customerIds = $customers->pluck('id');
+
+    /* ================= BRANCHES: hanya yang di-OWN user ini ================= */
+    $branchContactSql = "
+        (SELECT bc.name FROM branch_contacts bc
+            WHERE bc.branch_id = cb.id
+            AND bc.is_primary = true
+            AND bc.deleted_at IS NULL
+            LIMIT 1)
+    ";
+    $branchPhoneSql = "
+        (SELECT bc.phone FROM branch_contacts bc
+            WHERE bc.branch_id = cb.id
+            AND bc.is_primary = true
+            AND bc.deleted_at IS NULL
+            LIMIT 1)
+    ";
+
+    $branches = DB::table('customer_branches as cb')
+        ->select([
+            'cb.id',
+            'cb.customer_id',
+            'cb.branch_name',
+            'cb.is_main_branch',
+            'cb.city',
+            DB::raw("{$branchContactSql} as contact_name"),
+            DB::raw("{$branchPhoneSql} as phone"),
+        ])
+        ->whereIn('cb.customer_id', $customerIds)
+        ->where('cb.approval_status', 'approved')
+        ->whereNull('cb.deleted_at')
+        ->where(function ($q) use ($userId) {
+            $q->where('cb.created_by', $userId)
+              ->orWhere('cb.assigned_to', $userId);
+        })
+        ->orderByDesc('cb.is_main_branch')
+        ->orderBy('cb.branch_name')
+        ->get()
+        ->groupBy('customer_id');
+
+    $customers = $customers->map(function ($c) use ($branches, $userId) {
+        $c->owns_head = ((int) $c->created_by === (int) $userId)
+            || ((int) $c->assigned_to === (int) $userId);
+
+        $c->branches = $branches->get($c->id, collect())->values();
+
+        unset($c->created_by, $c->assigned_to);
+
+        return $c;
+    });
+
+    return ApiResponse::success($customers, 'Success Get Customers For Direct Follow Up');
+}
 
 
 
 
     // code untuk  store direct follow up customer 
-    public function storeDirectCustomer(Request $request)
+//     public function storeDirectCustomer(Request $request)
+// {
+//     try {
+//         $validated = $request->validate([
+//             'customer_id'     => 'required|exists:customers,id',
+//             'branch_id'       => 'nullable|exists:customer_branches,id',
+//             'follow_up_type'  => 'required|in:CALL,EMAIL,WHATSAPP,MEETING,OTHER',
+//             'subject'         => 'required|string|max:255',
+//             'notes'           => 'required|string',
+//             'follow_up_at'    => 'required|date',
+//         ]);
+//         $salesId = auth()->user()->id_user;
+
+//         // ── DIHAPUS: block "Customer masih memiliki follow up yang aktif" ──
+//         // Sales sekarang boleh punya banyak follow up aktif sekaligus
+//         // untuk customer yang sama (beda urusan/beda waktu kunjungan).
+//         // Penutupan follow up lama sepenuhnya manual lewat tombol
+//         // "Close" di journey/timeline (lihat closeFollowUpManually).
+
+//         $followUp = MsFollowUp::create([
+//             'follow_up_code' => $this->generateFollowUpCode(),
+//             'lead_id'        => null,
+//             'customer_id'    => $validated['customer_id'],
+//             'branch_id'      => $validated['branch_id'] ?? null,
+//             'follow_up_type' => $validated['follow_up_type'],
+//             'subject'        => $validated['subject'],
+//             'notes'          => $validated['notes'],
+//             'follow_up_at'   => $validated['follow_up_at'],
+//             'status'         => 'PENDING',
+//             'created_by'     => $salesId,
+//         ]);
+
+//         $this->recordActivity(
+//             $followUp,
+//             'FOLLOW_UP_CREATED (DIRECT FOLLOW UP)',
+//             'Direct Follow Up Dibuat',
+//             $validated['notes'],
+//             $validated['follow_up_at']
+//         );
+
+//         return ApiResponse::success($followUp, 'Follow up berhasil dibuat');
+
+//     } catch (\Exception $e) {
+//         return ApiResponse::error($e->getMessage());
+//     }
+// }
+
+
+public function storeDirectCustomer(Request $request)
 {
     try {
         $validated = $request->validate([
@@ -2283,6 +2554,57 @@ public function createDirectFollowUpFromLead(Request $request, $leadId)
             'follow_up_at'    => 'required|date',
         ]);
         $salesId = auth()->user()->id_user;
+
+        /* ================================================================
+        |  OWNERSHIP GUARD
+        |  Konsisten dengan aturan di getCustomerForDirect:
+        |  - Kalau branch_id NULL (submit ke Head Office) → sales harus
+        |    owns customer HEAD-nya (created_by/assigned_to)
+        |  - Kalau branch_id diisi → sales harus owns BRANCH itu sendiri
+        |    (created_by/assigned_to di customer_branches), terlepas dari
+        |    siapa yang owns customer head-nya
+        |  Ini mencegah orang submit follow up via API langsung ke
+        |  customer/branch yang bukan miliknya, walau dropdown FE sudah
+        |  disembunyikan.
+        ================================================================ */
+
+        if (empty($validated['branch_id'])) {
+            $ownsHead = DB::table('customers')
+                ->where('id', $validated['customer_id'])
+                ->where(function ($q) use ($salesId) {
+                    $q->where('created_by', $salesId)
+                      ->orWhere('assigned_to', $salesId);
+                })
+                ->whereNull('deleted_at')
+                ->exists();
+
+            if (!$ownsHead) {
+                return ApiResponse::error(
+                    'Anda tidak memiliki akses ke Head Office customer ini',
+                    null,
+                    403
+                );
+            }
+        } else {
+            $ownsBranch = DB::table('customer_branches')
+                ->where('id', $validated['branch_id'])
+                ->where('customer_id', $validated['customer_id']) // pastikan branch ini memang milik customer_id yang dikirim
+                ->where('approval_status', 'approved')
+                ->where(function ($q) use ($salesId) {
+                    $q->where('created_by', $salesId)
+                      ->orWhere('assigned_to', $salesId);
+                })
+                ->whereNull('deleted_at')
+                ->exists();
+
+            if (!$ownsBranch) {
+                return ApiResponse::error(
+                    'Anda tidak memiliki akses ke cabang ini',
+                    null,
+                    403
+                );
+            }
+        }
 
         // ── DIHAPUS: block "Customer masih memiliki follow up yang aktif" ──
         // Sales sekarang boleh punya banyak follow up aktif sekaligus
@@ -2313,6 +2635,8 @@ public function createDirectFollowUpFromLead(Request $request, $leadId)
 
         return ApiResponse::success($followUp, 'Follow up berhasil dibuat');
 
+    } catch (\Illuminate\Validation\ValidationException $e) {
+        throw $e; // biar Laravel kembalikan 422 standar dengan detail error field
     } catch (\Exception $e) {
         return ApiResponse::error($e->getMessage());
     }

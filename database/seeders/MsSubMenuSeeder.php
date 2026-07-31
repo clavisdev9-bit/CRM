@@ -648,5 +648,36 @@ class MsSubMenuSeeder extends Seeder
                 'parent_id' => null,
             ]);
 
+            $insert([
+                'id_menu' => 3,
+                'url' => '/customer-population',
+                'icon' => 'nav-icon fas fa-map-location-dot',
+                'title' => 'Customer Population.',
+                'noted' => 'Customer Population Page',
+                'is_active' => true,
+                'parent_id' => null,
+            ]);
+
+
+             $insert([
+                'id_menu' => 2,
+                'url' => '/master-principle',
+                'icon' => 'nav-icon fas fa-layer-group',
+                'title' => 'Master Brand',
+                'noted' => 'Master Brand Page',
+                'is_active' => true,
+                'parent_id' => $masterData,
+            ]);
+
+            $insert([
+                'id_menu' => 2,
+                'url' => '/master-product',
+                'icon' => 'nav-icon fas fa-table-list',
+                'title' => 'Master Product',
+                'noted' => 'Master Product Page',
+                'is_active' => true,
+                'parent_id' => $masterData,
+            ]);
+
     }
 }
