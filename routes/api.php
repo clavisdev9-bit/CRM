@@ -245,12 +245,14 @@ Route::prefix('manager-reassign-sales')->group(function () {
 
 
 
-
+// route terbaru untuk population cust
 Route::prefix('customers')->group(function () {
+    Route::get('/population/summary', [OdooSync::class, 'customerPopulationSummary']);
     Route::get('/population', [OdooSync::class, 'customerPopulation']);
     Route::get('/{id}/purchase-detail', [OdooSync::class, 'customerPurchaseDetail']);
 });
 
+// route terbaru untuk population cust (sync)
 Route::prefix('odoo')->group(function () {
     Route::post('/sync-customers', [OdooSync::class, 'syncCustomers']);
     Route::post('/sync-customer-purchases', [OdooSync::class, 'syncCustomerPurchases']);

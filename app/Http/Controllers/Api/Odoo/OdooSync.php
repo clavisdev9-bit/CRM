@@ -66,6 +66,27 @@ public function customerPurchaseDetail($odooPartnerId)
 }
 
 
+public function customerPopulationSummary()
+{
+    $totalCustomers   = OdooCustomer::count();
+    $totalPurchased   = OdooCustomer::where('has_purchased', true)->count();
+    $totalNotPurchase = $totalCustomers - $totalPurchased;
+    $totalTransaksi   = OdooCustomer::sum('total_transaksi');
+
+    $topCustomers = OdooCustomer::orderByDesc('total_transaksi')
+        ->limit(5)
+        ->get(['name', 'total_transaksi']);
+
+    return ApiResponse::success([
+        'total_customers'     => $totalCustomers,
+        'total_purchased'     => $totalPurchased,
+        'total_not_purchased' => $totalNotPurchase,
+        'total_transaksi'     => (int) $totalTransaksi,
+        'top_customers'       => $topCustomers,
+    ], 'Success, customer population summary retrieved');
+}
+
+
 
 
 // Trigger sync manual lewat API (opsional, buat testing tanpa masuk terminal)
