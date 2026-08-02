@@ -19,6 +19,7 @@ use App\Http\Controllers\Api\Manager\Dashboard\DashboardManagerController;
 use App\Http\Controllers\Api\Manager\Approval\ApprovalCustomerController;
 use App\Http\Controllers\Api\Manager\Approval\ApprovalCustomerBranchController;
 use App\Http\Controllers\Api\Manager\Reassign\SalesReassign;
+use App\Http\Controllers\Api\Odoo\OdooSync;
 use Illuminate\Support\Facades\Http;
 
 
@@ -105,8 +106,11 @@ Route::get('/employee-available-users',[Master::class, 'getAvailableUsers'])->na
 Route::get('/select-office-for-employee', [Master::class, 'selectOffice'])->name('api.select.api');
 
 // api master product
-Route::get('/master-product', [Master::class, 'Product'])->name('api.product.management');
-Route::get('/products/debug-brand', [Master::class, 'debugFields']);
+// Route::get('/master-product', [Master::class, 'Product'])->name('api.product.management');
+// Route::get('/products/debug-companies', [Master::class, 'debugCompanies']);
+// Route::get('/products/debug-product-companies', [Master::class, 'debugProductCompanies']);
+
+
 
 
 // api User Attendance app
@@ -236,6 +240,20 @@ Route::prefix('manager-reassign-sales')->group(function () {
     Route::get('/sales', [SalesReassign::class, 'sales']);
     Route::put('/customer/{id}', [SalesReassign::class, 'reassignCustomer']);
     Route::put('/branch/{id}', [SalesReassign::class, 'reassignBranch']);
+});
+
+
+
+
+
+Route::prefix('customers')->group(function () {
+    Route::get('/population', [OdooSync::class, 'customerPopulation']);
+    Route::get('/{id}/purchase-detail', [OdooSync::class, 'customerPurchaseDetail']);
+});
+
+Route::prefix('odoo')->group(function () {
+    Route::post('/sync-customers', [OdooSync::class, 'syncCustomers']);
+    Route::post('/sync-customer-purchases', [OdooSync::class, 'syncCustomerPurchases']);
 });
 
 

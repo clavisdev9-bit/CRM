@@ -55,9 +55,27 @@ class OdooService
         return $this->uid;
     }
 
-    public function searchRead(string $model, array $domain = [], array $fields = [], int $limit = 0)
+    /**
+     * Search & read records from Odoo.
+     *
+     * @param string $model  Nama model odoo, misal 'product.template'
+     * @param array  $domain Domain filter, misal [['sale_ok', '=', true]]
+     * @param array  $fields Field yang mau diambil
+     * @param int    $limit  0 = tanpa limit
+     * @param string $order  Contoh: 'name asc', 'id desc'
+     */
+    public function searchRead(string $model, array $domain = [], array $fields = [], int $limit = 0, string $order = '')
     {
         $uid = $this->authenticate();
+
+        $options = [
+            'fields' => $fields,
+            'limit'  => $limit,
+        ];
+
+        if ($order !== '') {
+            $options['order'] = $order;
+        }
 
         return $this->call('object', 'execute_kw', [
             $this->db,
@@ -66,41 +84,57 @@ class OdooService
             $model,
             'search_read',
             [$domain],
-            [
-                'fields' => $fields,
-                'limit'  => $limit,
-            ],
+            $options,
         ]);
     }
 
-// start code untuk debug  mencari field di oddo ini berelasi ke controller 
+    /**
+     * Hitung jumlah record yang cocok dengan domain, tanpa fetch datanya.
+     * Berguna untuk validasi/debug apakah filter sudah benar
+     * (bandingkan dengan jumlah yang tampil di UI Odoo).
+     */
+    public function searchCount(string $model, array $domain = [])
+    {
+        $uid = $this->authenticate();
+
+        return $this->call('object', 'execute_kw', [
+            $this->db,
+            $uid,
+            $this->apiKey,
+            $model,
+            'search_count',
+            [$domain],
+        ]);
+    }
+
+// start code untuk debug  mencari field di oddo ini berelasi ke controller
     public function fieldsGet(string $model)
-{
-    $uid = $this->authenticate();
+    {
+        $uid = $this->authenticate();
 
-    return $this->call('object', 'execute_kw', [
-        $this->db,
-        $uid,
-        $this->apiKey,
-        $model,
-        'fields_get',
-        [],
-        ['attributes' => ['string', 'type']],
-    ]);
-}
+        return $this->call('object', 'execute_kw', [
+            $this->db,
+            $uid,
+            $this->apiKey,
+            $model,
+            'fields_get',
+            [],
+            ['attributes' => ['string', 'type']],
+        ]);
+    }
 
-public function searchModels(string $keyword)
-{
-    $uid = $this->authenticate();
+    public function searchModels(string $keyword)
+    {
+        $uid = $this->authenticate();
 
-    return $this->call('object', 'execute_kw', [
-        $this->db,
-        $uid,
-        $this->apiKey,
-        'ir.model',
-        'search_read',
-        [[['model', 'like', $keyword]]],
-        ['fields' => ['model', 'name']],
-    ]);
-}
+        return $this->call('object', 'execute_kw', [
+            $this->db,
+            $uid,
+            $this->apiKey,
+            'ir.model',
+            'search_read',
+            [[['model', 'like', $keyword]]],
+            ['fields' => ['model', 'name']],
+        ]);
+    }
 }

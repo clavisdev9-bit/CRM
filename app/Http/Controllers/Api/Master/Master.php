@@ -324,30 +324,79 @@ class Master extends Controller
 
 
             // code Master untuk Brand dan Product dari Odoo
-             public function Product(OdooService $odoo)
-                {
-                    // $products = $odoo->searchRead(
-                    //     'product.template',
-                    //     [['sale_ok', '=', true]], // filter produk yang bisa dijual
-                    //     ['name', 'list_price']
-                    //     // ['name', 'list_price', 'default_code', 'image_1920', 'product_brand_id']
-                    // );
+        //      public function Product(OdooService $odoo)
+        //         {
+        //             // $products = $odoo->searchRead(
+        //             //     'product.template',
+        //             //     [['sale_ok', '=', true]], // filter produk yang bisa dijual
+        //             //     ['name', 'list_price']
+        //             //     // ['name', 'list_price', 'default_code', 'image_1920', 'product_brand_id']
+        //             // );
 
-                    // $brands = $odoo->searchRead(
-                    //     'product.brand', // sesuaikan nama model brand di Odoo Anda
-                    //     [],
-                    //     ['name', 'logo']
-                    // );
+        //             // $brands = $odoo->searchRead(
+        //             //     'product.brand', // sesuaikan nama model brand di Odoo Anda
+        //             //     [],
+        //             //     ['name', 'logo']
+        //             // );
 
-                    // return view('products.index', compact('products', 'brands'));
-                    // return view('products.index', compact('products'));
-                     $products = $odoo->searchRead(
-            'product.template',
-            [['sale_ok', '=', true]],
-            ['name', 'list_price', 'default_code'] // tanpa image & brand dulu biar ringan
-        );
+        //             // return view('products.index', compact('products', 'brands'));
+        //             // return view('products.index', compact('products'));
+        //              $products = $odoo->searchRead(
+        //     'product.template',
+        //     [['sale_ok', '=', true]],
+        //     ['name', 'list_price', 'default_code'] // tanpa image & brand dulu biar ringan
+        // );
 
-        return response()->json($products);
-                }
+        // return response()->json($products);
+        //         }
+
+
+        public function debugCompanies(OdooService $odoo)
+{
+    $companies = $odoo->searchRead('res.company', [], ['id', 'name']);
+    return response()->json($companies);
+}
+
+
+
+public function debugProductCompanies(OdooService $odoo)
+{
+    $products = $odoo->searchRead(
+        'product.template',
+        [['sale_ok', '=', true]],
+        ['id', 'name', 'company_id'],
+        20 // sample 20 produk aja
+    );
+
+    return response()->json($products);
+}
+
+
+
+
+       public function Product(OdooService $odoo)
+{
+    $companyId = (int) config('odoo.default_company_id');
+
+    $domain = [
+        ['sale_ok', '=', true],
+        ['company_id', 'in', [$companyId, false]],
+    ];
+
+    $total = $odoo->searchCount('product.template', $domain);
+
+    $products = $odoo->searchRead(
+        'product.template',
+        $domain,
+        ['name', 'list_price', 'default_code'],
+        0,
+        'name asc'
+    );
+
+    return response()->json([
+        'total'    => $total,
+        'products' => $products,
+    ]);
+}
 
 }
