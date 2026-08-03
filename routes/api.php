@@ -317,17 +317,6 @@ Route::get('/asset-version', function () {
 });
 
 
-// Route::get('/holidays', function (Request $request) {
-//     $month = $request->month;
-//     $year  = $request->year;
-
-//     $url = "https://api-harilibur.vercel.app/api?month=$month&year=$year";
-
-//     $response = Http::get($url);
-
-//     return response()->json($response->json());
-// });
-
 
 Route::get('/holidays', function (Request $request) {
     return Http::withoutVerifying() 

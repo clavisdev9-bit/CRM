@@ -45,133 +45,291 @@ class Visits extends Controller
                 //Tanggal tertentu   ?date_from=2025-06-01&date_to=2025-06-01
                 //Range seminggu     ?date_from=2025-06-01&date_to=2025-06-07
                 //Semua data         ?date_from=2020-01-01&date_to=2099-12-31
-                public function getVisitTargetMap(Request $request)
-                {
-                    // Default hari ini, bisa dioverride via query param
-                    $dateFrom = $request->input('date_from', today()->toDateString());
-                    $dateTo   = $request->input('date_to', today()->toDateString());
+                // public function getVisitTargetMap(Request $request)
+                // {
+                //     // Default hari ini, bisa dioverride via query param
+                //     $dateFrom = $request->input('date_from', today()->toDateString());
+                //     $dateTo   = $request->input('date_to', today()->toDateString());
 
-                    $query = DB::table('visits as v')
-                        ->select([
-                            'v.id',
-                            'v.visit_code',
-                            'v.visit_at',
-                            'v.check_in_at',
-                            'v.check_out_at',
-                        // Tambahkan di select
-                            DB::raw("CAST(v.latitude AS DECIMAL(10,7)) as latitude"),
-                            DB::raw("CAST(v.longitude AS DECIMAL(10,7)) as longitude"),
-                            'v.gps_snapshot',
-                            'v.lead_id',
-                            'v.customer_id',
+                //     $query = DB::table('visits as v')
+                //         ->select([
+                //             'v.id',
+                //             'v.visit_code',
+                //             'v.visit_at',
+                //             'v.check_in_at',
+                //             'v.check_out_at',
+                //         // Tambahkan di select
+                //             DB::raw("CAST(v.latitude AS DECIMAL(10,7)) as latitude"),
+                //             DB::raw("CAST(v.longitude AS DECIMAL(10,7)) as longitude"),
+                //             'v.gps_snapshot',
+                //             'v.lead_id',
+                //             'v.customer_id',
 
-                            'u.id_user as sales_id',
-                            'u.fullname as sales_name',
-                            'u.image as sales_photo',
+                //             'u.id_user as sales_id',
+                //             'u.fullname as sales_name',
+                //             'u.image as sales_photo',
 
-                            DB::raw("
-                                CASE
-                                    WHEN u.image IS NOT NULL AND u.image != ''
-                                        THEN CONCAT('" . asset('storage/users') . "/', u.image)
-                                    ELSE '" . asset('storage/users/default.png') . "'
-                                END as sales_photo_url
-                            "),
+                //             DB::raw("
+                //                 CASE
+                //                     WHEN u.image IS NOT NULL AND u.image != ''
+                //                         THEN CONCAT('" . asset('storage/users') . "/', u.image)
+                //                     ELSE '" . asset('storage/users/default.png') . "'
+                //                 END as sales_photo_url
+                //             "),
 
-                            DB::raw("
-                                CASE
-                                    WHEN v.lead_id IS NOT NULL THEN 'LEAD'
-                                    WHEN v.customer_id IS NOT NULL THEN 'CUSTOMER'
-                                    ELSE 'UNKNOWN'
-                                END as target_type
-                            "),
+                //             DB::raw("
+                //                 CASE
+                //                     WHEN v.lead_id IS NOT NULL THEN 'LEAD'
+                //                     WHEN v.customer_id IS NOT NULL THEN 'CUSTOMER'
+                //                     ELSE 'UNKNOWN'
+                //                 END as target_type
+                //             "),
 
-                            DB::raw("
-                                CASE
-                                    WHEN v.lead_id IS NOT NULL THEN l.company_name
-                                    WHEN v.customer_id IS NOT NULL THEN c.company_name
-                                    ELSE NULL
-                                END as target_name
-                            "),
+                //             DB::raw("
+                //                 CASE
+                //                     WHEN v.lead_id IS NOT NULL THEN l.company_name
+                //                     WHEN v.customer_id IS NOT NULL THEN c.company_name
+                //                     ELSE NULL
+                //                 END as target_name
+                //             "),
 
-                            DB::raw("
-                                CASE
-                                    WHEN v.lead_id IS NOT NULL THEN l.contact_name
-                                    WHEN v.customer_id IS NOT NULL THEN c.contact_name
-                                    ELSE NULL
-                                END as target_contact
-                            "),
+                //             DB::raw("
+                //                 CASE
+                //                     WHEN v.lead_id IS NOT NULL THEN l.contact_name
+                //                     WHEN v.customer_id IS NOT NULL THEN c.contact_name
+                //                     ELSE NULL
+                //                 END as target_contact
+                //             "),
 
-                            DB::raw("
-                                CASE
-                                    WHEN v.lead_id IS NOT NULL THEN l.address
-                                    WHEN v.customer_id IS NOT NULL THEN c.address
-                                    ELSE NULL
-                                END as target_address
-                            "),
+                //             DB::raw("
+                //                 CASE
+                //                     WHEN v.lead_id IS NOT NULL THEN l.address
+                //                     WHEN v.customer_id IS NOT NULL THEN c.address
+                //                     ELSE NULL
+                //                 END as target_address
+                //             "),
 
-                            DB::raw("
-                                CASE
-                                    WHEN v.check_in_at IS NULL
-                                        AND v.visit_at <= NOW()
-                                        THEN 'BELUM_CHECK_IN'
-                                    WHEN v.check_in_at IS NOT NULL
-                                        AND v.check_out_at IS NULL
-                                        THEN 'SEDANG_CHECK_IN'
-                                    WHEN v.check_out_at IS NOT NULL
-                                        THEN 'SELESAI'
-                                    ELSE 'UNKNOWN'
-                                END as visit_status_label
-                            "),
+                //             DB::raw("
+                //                 CASE
+                //                     WHEN v.check_in_at IS NULL
+                //                         AND v.visit_at <= NOW()
+                //                         THEN 'BELUM_CHECK_IN'
+                //                     WHEN v.check_in_at IS NOT NULL
+                //                         AND v.check_out_at IS NULL
+                //                         THEN 'SEDANG_CHECK_IN'
+                //                     WHEN v.check_out_at IS NOT NULL
+                //                         THEN 'SELESAI'
+                //                     ELSE 'UNKNOWN'
+                //                 END as visit_status_label
+                //             "),
 
-                            DB::raw("
-                                CASE
-                                    WHEN v.latitude IS NOT NULL
-                                        AND v.longitude IS NOT NULL
-                                        THEN true
-                                    ELSE false
-                                END as show_on_map
-                            ")
-                        ])
+                //             DB::raw("
+                //                 CASE
+                //                     WHEN v.latitude IS NOT NULL
+                //                         AND v.longitude IS NOT NULL
+                //                         THEN true
+                //                     ELSE false
+                //                 END as show_on_map
+                //             ")
+                //         ])
 
-                        ->leftJoin('leads as l', 'l.id', '=', 'v.lead_id')
-                        ->leftJoin('customers as c', 'c.id', '=', 'v.customer_id')
-                        ->leftJoin('ms_users as u', 'u.id_user', '=', 'v.sales_id')
+                //         ->leftJoin('leads as l', 'l.id', '=', 'v.lead_id')
+                //         ->leftJoin('customers as c', 'c.id', '=', 'v.customer_id')
+                //         ->leftJoin('ms_users as u', 'u.id_user', '=', 'v.sales_id')
 
-                        ->where(function ($q) {
-                            $q
-                                ->where(function ($qq) {
-                                    $qq->whereNull('v.check_in_at')
-                                    ->where('v.visit_at', '<=', now());
-                                })
-                                ->orWhere(function ($qq) {
-                                    $qq->whereNotNull('v.check_in_at')
-                                    ->whereNull('v.check_out_at');
-                                })
-                                ->orWhereNotNull('v.check_out_at');
-                        })
+                //         ->where(function ($q) {
+                //             $q
+                //                 ->where(function ($qq) {
+                //                     $qq->whereNull('v.check_in_at')
+                //                     ->where('v.visit_at', '<=', now());
+                //                 })
+                //                 ->orWhere(function ($qq) {
+                //                     $qq->whereNotNull('v.check_in_at')
+                //                     ->whereNull('v.check_out_at');
+                //                 })
+                //                 ->orWhereNotNull('v.check_out_at');
+                //         })
 
-                        // Filter tanggal — default hari ini
-                        ->whereBetween('v.visit_at', [
-                            $dateFrom . ' 00:00:00',
-                            $dateTo   . ' 23:59:59',
-                        ])
+                //         // Filter tanggal — default hari ini
+                //         ->whereBetween('v.visit_at', [
+                //             $dateFrom . ' 00:00:00',
+                //             $dateTo   . ' 23:59:59',
+                //         ])
                         
-                        //untuk soft delete
-                        ->whereNull('v.deleted_at')
-                        ->whereNull('l.deleted_at')  
-                        ->whereNull('c.deleted_at')
+                //         //untuk soft delete
+                //         ->whereNull('v.deleted_at')
+                //         ->whereNull('l.deleted_at')  
+                //         ->whereNull('c.deleted_at')
 
-                        ->orderBy('v.visit_at', 'desc');
+                //         ->orderBy('v.visit_at', 'desc');
 
-                    $results = $query->get();
+                //     $results = $query->get();
 
-                    return ApiResponse::success(
-                        $results,
-                        $results->isEmpty()
-                            ? 'Tidak ada data visit pada periode ini'
-                            : 'Success'
-                    );
-                }
+                //     return ApiResponse::success(
+                //         $results,
+                //         $results->isEmpty()
+                //             ? 'Tidak ada data visit pada periode ini'
+                //             : 'Success'
+                //     );
+                // }
+
+                public function getVisitTargetMap(Request $request)
+{
+    // Default hari ini, bisa dioverride via query param
+    $dateFrom = $request->input('date_from', today()->toDateString());
+    $dateTo   = $request->input('date_to', today()->toDateString());
+
+    $query = DB::table('visits as v')
+        ->select([
+            'v.id',
+            'v.visit_code',
+            'v.no_reference',
+            'v.visit_at',
+            'v.check_in_at',
+            'v.check_out_at',
+
+            DB::raw("CAST(v.latitude AS DECIMAL(10,7)) as latitude"),
+            DB::raw("CAST(v.longitude AS DECIMAL(10,7)) as longitude"),
+            'v.gps_snapshot',
+            'v.lead_id',
+            'v.customer_id',
+            'v.branch_id',
+
+            // ── info branch mentah (opsional dipakai frontend) ──
+            'b.branch_code',
+            'b.branch_name',
+            'b.city as branch_city',
+
+            'u.id_user as sales_id',
+            'u.fullname as sales_name',
+            'u.image as sales_photo',
+
+            DB::raw("
+                CASE
+                    WHEN u.image IS NOT NULL AND u.image != ''
+                        THEN CONCAT('" . asset('storage/users') . "/', u.image)
+                    ELSE '" . asset('storage/users/default.png') . "'
+                END as sales_photo_url
+            "),
+
+            // ── target_type: LEAD tetap LEAD, tapi CUSTOMER dipecah BRANCH vs HEAD_OFFICE ──
+            DB::raw("
+                CASE
+                    WHEN v.lead_id IS NOT NULL THEN 'LEAD'
+                    WHEN v.branch_id IS NOT NULL THEN 'BRANCH'
+                    WHEN v.customer_id IS NOT NULL THEN 'HEAD_OFFICE'
+                    ELSE 'UNKNOWN'
+                END as target_type
+            "),
+
+            // ── target_name: kalau ke branch, tampilkan nama cabang + company induk ──
+            DB::raw("
+                CASE
+                    WHEN v.lead_id IS NOT NULL THEN l.company_name
+                    WHEN v.branch_id IS NOT NULL THEN CONCAT(c.company_name, ' - ', b.branch_name)
+                    WHEN v.customer_id IS NOT NULL THEN c.company_name
+                    ELSE NULL
+                END as target_name
+            "),
+
+            // ── nama company induk terpisah, berguna kalau frontend mau tampilkan badge/label sendiri ──
+            DB::raw("
+                CASE
+                    WHEN v.customer_id IS NOT NULL THEN c.company_name
+                    ELSE NULL
+                END as parent_company_name
+            "),
+
+            // ── target_contact: prioritas branch > lead/customer ──
+            DB::raw("
+                CASE
+                    WHEN v.branch_id IS NOT NULL THEN b.contact_name
+                    WHEN v.lead_id IS NOT NULL THEN l.contact_name
+                    WHEN v.customer_id IS NOT NULL THEN c.contact_name
+                    ELSE NULL
+                END as target_contact
+            "),
+
+            // ── target_address: prioritas branch > lead/customer ──
+            DB::raw("
+                CASE
+                    WHEN v.branch_id IS NOT NULL THEN b.address
+                    WHEN v.lead_id IS NOT NULL THEN l.address
+                    WHEN v.customer_id IS NOT NULL THEN c.address
+                    ELSE NULL
+                END as target_address
+            "),
+
+            DB::raw("
+                CASE
+                    WHEN v.check_in_at IS NULL
+                        AND v.visit_at <= NOW()
+                        THEN 'BELUM_CHECK_IN'
+                    WHEN v.check_in_at IS NOT NULL
+                        AND v.check_out_at IS NULL
+                        THEN 'SEDANG_CHECK_IN'
+                    WHEN v.check_out_at IS NOT NULL
+                        THEN 'SELESAI'
+                    ELSE 'UNKNOWN'
+                END as visit_status_label
+            "),
+
+            DB::raw("
+                CASE
+                    WHEN v.latitude IS NOT NULL
+                        AND v.longitude IS NOT NULL
+                        THEN true
+                    ELSE false
+                END as show_on_map
+            ")
+        ])
+
+        ->leftJoin('leads as l', 'l.id', '=', 'v.lead_id')
+        ->leftJoin('customers as c', 'c.id', '=', 'v.customer_id')
+        ->leftJoin('customer_branches as b', 'b.id', '=', 'v.branch_id') 
+        ->leftJoin('ms_users as u', 'u.id_user', '=', 'v.sales_id')
+
+        ->where(function ($q) {
+            $q
+                ->where(function ($qq) {
+                    $qq->whereNull('v.check_in_at')
+                    ->where('v.visit_at', '<=', now());
+                })
+                ->orWhere(function ($qq) {
+                    $qq->whereNotNull('v.check_in_at')
+                    ->whereNull('v.check_out_at');
+                })
+                ->orWhereNotNull('v.check_out_at');
+        })
+
+        // Filter tanggal — default hari ini
+        ->whereBetween('v.visit_at', [
+            $dateFrom . ' 00:00:00',
+            $dateTo   . ' 23:59:59',
+        ])
+
+        // ── SOFT DELETE ──
+        ->whereNull('v.deleted_at')
+        ->whereNull('l.deleted_at')
+        ->whereNull('c.deleted_at')
+        // branch soft-deleted harus di-exclude, TAPI jangan buang baris
+        // yang branch_id-nya memang NULL (visit ke LEAD/HEAD_OFFICE)
+        ->where(function ($q) {
+            $q->whereNull('v.branch_id')
+              ->orWhereNull('b.deleted_at');
+        })
+
+        ->orderBy('v.visit_at', 'desc');
+
+    $results = $query->get();
+
+    return ApiResponse::success(
+        $results,
+        $results->isEmpty()
+            ? 'Tidak ada data visit pada periode ini'
+            : 'Success'
+    );
+}
 
 
         // code for get data visit leads and customer  for  (external)
