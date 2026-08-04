@@ -11,6 +11,34 @@ use Carbon\Carbon;
 class DashboardController extends Controller
 {
 
+// public function homeStats()
+// {
+//     $totalLeads = DB::table('leads')
+//         ->whereNull('deleted_at')
+//         ->count();
+
+//     $totalCustomers = DB::table('customers')
+//         ->whereNull('deleted_at')
+//         ->count();
+
+//     $visitsToday = DB::table('visits')
+//         ->whereNull('deleted_at')
+//         ->whereDate('visit_at', Carbon::today())
+//         ->count();
+
+//     $dealsClosed = DB::table('follow_ups')
+//         ->whereNull('deleted_at')
+//         ->where('result', 'DEAL')
+//         ->count();
+
+//     return ApiResponse::success([
+//         'total_leads'     => $totalLeads,
+//         'total_customers' => $totalCustomers,
+//         'visits_today'    => $visitsToday,
+//         'deals_closed'    => $dealsClosed,
+//     ], 'Success');
+// }
+
 public function homeStats()
 {
     $totalLeads = DB::table('leads')
@@ -26,20 +54,20 @@ public function homeStats()
         ->whereDate('visit_at', Carbon::today())
         ->count();
 
-    $dealsClosed = DB::table('follow_ups')
+    // ── GANTI 'deals_closed' → 'total_branches' ──
+    // Total cabang customer yang aktif & sudah approved
+    $totalBranches = DB::table('customer_branches')
         ->whereNull('deleted_at')
-        ->where('result', 'DEAL')
+        ->where('approval_status', 'approved')
         ->count();
 
     return ApiResponse::success([
         'total_leads'     => $totalLeads,
         'total_customers' => $totalCustomers,
         'visits_today'    => $visitsToday,
-        'deals_closed'    => $dealsClosed,
+        'total_branches'  => $totalBranches,
     ], 'Success');
 }
-
-
 
 
    /*
