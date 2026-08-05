@@ -1750,126 +1750,294 @@ public function getVisitDetail($id)
 
 
 
+// public function checkOutCustomer(Request $request, $visitId)
+// {
+//     $request->validate([
+//         'no_reference'           => 'required|string|max:100',
+//         'check_out_file'         => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png,gif|max:10240',
+//         'notes'                  => 'required|string',
+//         'customer_response'      => 'required|string',
+//         'has_complaint'          => 'nullable|boolean',
+//         'complaint_detail'       => 'required_if:has_complaint,1|nullable|string',
+//         'has_potential_order'    => 'nullable|boolean',
+//         'potential_order_detail' => 'required_if:has_potential_order,1|nullable|string',
+//         'follow_up_at'           => 'required|date|after:today',
+//         'follow_up_notes'        => 'nullable|string',
+//         'follow_up_type'         => 'required|string',
+//     ]);
+
+//     try {
+//         $visit = VisitsModel::find($visitId);
+
+//         if (!$visit) {
+//             return response()->json(['message' => 'Visit not found.'], 404);
+//         }
+
+//         if ($visit->visit_status !== 'CHECKED_IN') {
+//             return response()->json(['message' => 'Visit is not in CHECKED_IN status.'], 422);
+//         }
+
+//         DB::transaction(function () use ($request, $visit) {
+//             $userId = auth()->user()->id_user;
+
+//             $checkOutFilePath = null;
+//             if ($request->hasFile('check_out_file')) {
+//                 $checkOutFilePath = $request
+//                     ->file('check_out_file')
+//                     ->store('visits/checkout/files', 'public');
+//             }
+
+//             /*
+//             |--------------------------------------------------------------------------
+//             | 1. UPDATE VISIT (CHECK OUT)
+//             |--------------------------------------------------------------------------
+//             */
+//             $visit->update([
+//                 'check_out_at'           => now(),
+//                 'no_reference'           => $request->no_reference,
+//                 'check_out_file'         => $checkOutFilePath,
+//                 'notes'                  => $request->notes,
+//                 'customer_response'      => $request->customer_response,
+//                 'visit_result'           => $request->customer_response,
+//                 'has_complaint'          => $request->boolean('has_complaint'),
+//                 'complaint_detail'       => $request->boolean('has_complaint')
+//                     ? $request->complaint_detail
+//                     : null,
+//                 'has_potential_order'    => $request->boolean('has_potential_order'),
+//                 'potential_order_detail' => $request->boolean('has_potential_order')
+//                     ? $request->potential_order_detail
+//                     : null,
+//                 'visit_status'           => 'DONE',
+//             ]);
+
+//             /*
+//             |--------------------------------------------------------------------------
+//             | 2. CREATE FOLLOW UP BARU (NEXT ACTION)
+//             |--------------------------------------------------------------------------
+//             | TIDAK auto-close follow up lain lagi. Sales bisa punya banyak
+//             | follow up aktif sekaligus untuk customer/branch yang sama
+//             | (beda urusan/beda visit). Penutupan follow up lama sepenuhnya
+//             | manual lewat tombol "Close" di journey/timeline
+//             | (lihat FollowUp::closeFollowUpManually).
+//             */
+//             $followUp = MsFollowUp::create([
+//                 'follow_up_code' => $this->generateFollowUpCode(),
+//                 'customer_id'    => $visit->customer_id,
+//                 'branch_id'      => $visit->branch_id,
+//                 'follow_up_type' => $request->follow_up_type,
+//                 // 'subject'        => 'Follow up after visit Customer with code ' . $visit->visit_code,
+//                 // 'subject'        => '(Follow Up) Tindak lanjut setelah kunjungan ke Customer dengan kode ' . $visit->visit_code,
+//                 'subject' => sprintf(
+//                     '(Follow Up) Tindak lanjut setelah kunjungan ke Customer dengan kode %s (Nomor Ref: %s)',
+//                     $visit->visit_code,
+//                     $request->no_reference
+//                 ),
+//                 'notes'          => $request->follow_up_notes,
+//                 'follow_up_at'   => $request->follow_up_at,
+//                 'status'         => 'PENDING',
+//                 'assigned_to'    => $visit->sales_id,
+//                 'created_by'     => $userId,
+//             ]);
+
+//             /*
+//             |--------------------------------------------------------------------------
+//             | 3. CREATE ACTIVITY LOG FOLLOW UP BARU
+//             |--------------------------------------------------------------------------
+//             */
+//             DB::table('follow_up_activities')->insert([
+//                 'follow_up_id'  => $followUp->id,
+//                 'title'         => 'Follow Up berhasil dibuat berdasarkan hasil kunjungan Customer',
+//                 // 'description'   => 'Follow up generated automatically after visit Customer '
+//                 //     . $visit->visit_code,
+//                 'description'   => 'Follow Up dibuat secara otomatis setelah kunjungan ke pelanggan Dengan Code '
+//                     . $visit->visit_code,
+//                 'activity_type' => 'CREATE',
+//                 'scheduled_for' => $request->follow_up_at,
+//                 'activity_at'   => now(),
+//                 'created_at'    => now(),
+//                 'created_by'    => $userId,
+//             ]);
+//         });
+
+//         return response()->json([
+//             'message' => 'Check out successful & follow up scheduled.',
+//             'data'    => $visit->fresh()
+//         ]);
+
+//     } catch (\Throwable $e) {
+//         return response()->json([
+//             'message' => 'Checkout failed.',
+//             'error'   => $e->getMessage()
+//         ], 500);
+//     }
+// }
+
+
+
+
+
+
+
+
 public function checkOutCustomer(Request $request, $visitId)
 {
-    $request->validate([
+    $commonRules = [
         'no_reference'           => 'required|string|max:100',
         'check_out_file'         => 'nullable|file|mimes:pdf,doc,docx,xls,xlsx,jpg,jpeg,png,gif|max:10240',
         'notes'                  => 'required|string',
         'customer_response'      => 'required|string',
         'has_complaint'          => 'nullable|boolean',
-        'complaint_detail'       => 'required_if:has_complaint,1|nullable|string',
+        'complaint_detail'       => 'nullable|string',
         'has_potential_order'    => 'nullable|boolean',
-        'potential_order_detail' => 'required_if:has_potential_order,1|nullable|string',
+        'potential_order_detail' => 'nullable|string',
         'follow_up_at'           => 'required|date|after:today',
         'follow_up_notes'        => 'nullable|string',
-        'follow_up_type'         => 'required|string',
-    ]);
+        'follow_up_type'         => 'required|in:CALL,EMAIL,WHATSAPP,MEETING,VISIT,OTHER',
+    ];
+
+    // Request lama tetap didukung. Request baru memakai results[] untuk multi-reference.
+    if ($request->has('results')) {
+        $rules = ['results' => 'required|array|min:1'];
+        foreach ($commonRules as $field => $rule) {
+            $rules['results.*.' . $field] = $rule;
+        }
+        $validatedResults = $request->validate($rules)['results'];
+    } else {
+        $validatedResults = [$request->validate($commonRules)];
+    }
+
+    foreach ($validatedResults as $index => $result) {
+        $hasComplaint = filter_var($result['has_complaint'] ?? false, FILTER_VALIDATE_BOOLEAN);
+        $hasPotentialOrder = filter_var($result['has_potential_order'] ?? false, FILTER_VALIDATE_BOOLEAN);
+
+        if ($hasComplaint && empty($result['complaint_detail'])) {
+            return response()->json([
+                'message' => "Complaint detail wajib diisi pada result ke-" . ($index + 1) . '.',
+            ], 422);
+        }
+
+        if ($hasPotentialOrder && empty($result['potential_order_detail'])) {
+            return response()->json([
+                'message' => "Potential order detail wajib diisi pada result ke-" . ($index + 1) . '.',
+            ], 422);
+        }
+    }
+
+    $userId = auth()->user()->id_user;
 
     try {
-        $visit = VisitsModel::find($visitId);
+        $savedVisits = DB::transaction(function () use ($request, $visitId, $userId, $validatedResults) {
+            // Penting: checkout hanya boleh dilakukan oleh sales pemilik visit.
+            $visit = VisitsModel::where('id', $visitId)
+                ->where('sales_id', $userId)
+                ->where('visit_status', 'CHECKED_IN')
+                ->lockForUpdate()
+                ->first();
 
-        if (!$visit) {
-            return response()->json(['message' => 'Visit not found.'], 404);
-        }
-
-        if ($visit->visit_status !== 'CHECKED_IN') {
-            return response()->json(['message' => 'Visit is not in CHECKED_IN status.'], 422);
-        }
-
-        DB::transaction(function () use ($request, $visit) {
-            $userId = auth()->user()->id_user;
-
-            $checkOutFilePath = null;
-            if ($request->hasFile('check_out_file')) {
-                $checkOutFilePath = $request
-                    ->file('check_out_file')
-                    ->store('visits/checkout/files', 'public');
+            if (!$visit) {
+                throw new \Illuminate\Http\Exceptions\HttpResponseException(response()->json([
+                    'message' => 'Visit tidak ditemukan, bukan milik Anda, atau belum check in.',
+                ], 422));
             }
 
-            /*
-            |--------------------------------------------------------------------------
-            | 1. UPDATE VISIT (CHECK OUT)
-            |--------------------------------------------------------------------------
-            */
-            $visit->update([
-                'check_out_at'           => now(),
-                'no_reference'           => $request->no_reference,
-                'check_out_file'         => $checkOutFilePath,
-                'notes'                  => $request->notes,
-                'customer_response'      => $request->customer_response,
-                'visit_result'           => $request->customer_response,
-                'has_complaint'          => $request->boolean('has_complaint'),
-                'complaint_detail'       => $request->boolean('has_complaint')
-                    ? $request->complaint_detail
-                    : null,
-                'has_potential_order'    => $request->boolean('has_potential_order'),
-                'potential_order_detail' => $request->boolean('has_potential_order')
-                    ? $request->potential_order_detail
-                    : null,
-                'visit_status'           => 'DONE',
-            ]);
+            $checkedOutAt = now();
+            $savedVisits = [];
 
-            /*
-            |--------------------------------------------------------------------------
-            | 2. CREATE FOLLOW UP BARU (NEXT ACTION)
-            |--------------------------------------------------------------------------
-            | TIDAK auto-close follow up lain lagi. Sales bisa punya banyak
-            | follow up aktif sekaligus untuk customer/branch yang sama
-            | (beda urusan/beda visit). Penutupan follow up lama sepenuhnya
-            | manual lewat tombol "Close" di journey/timeline
-            | (lihat FollowUp::closeFollowUpManually).
-            */
-            $followUp = MsFollowUp::create([
-                'follow_up_code' => $this->generateFollowUpCode(),
-                'customer_id'    => $visit->customer_id,
-                'branch_id'      => $visit->branch_id,
-                'follow_up_type' => $request->follow_up_type,
-                // 'subject'        => 'Follow up after visit Customer with code ' . $visit->visit_code,
-                // 'subject'        => '(Follow Up) Tindak lanjut setelah kunjungan ke Customer dengan kode ' . $visit->visit_code,
-                'subject' => sprintf(
-                    '(Follow Up) Tindak lanjut setelah kunjungan ke Customer dengan kode %s (Nomor Ref: %s)',
-                    $visit->visit_code,
-                    $request->no_reference
-                ),
-                'notes'          => $request->follow_up_notes,
-                'follow_up_at'   => $request->follow_up_at,
-                'status'         => 'PENDING',
-                'assigned_to'    => $visit->sales_id,
-                'created_by'     => $userId,
-            ]);
+            foreach ($validatedResults as $index => $result) {
+                $hasComplaint = filter_var($result['has_complaint'] ?? false, FILTER_VALIDATE_BOOLEAN);
+                $hasPotentialOrder = filter_var($result['has_potential_order'] ?? false, FILTER_VALIDATE_BOOLEAN);
+                $checkOutFilePath = null;
 
-            /*
-            |--------------------------------------------------------------------------
-            | 3. CREATE ACTIVITY LOG FOLLOW UP BARU
-            |--------------------------------------------------------------------------
-            */
-            DB::table('follow_up_activities')->insert([
-                'follow_up_id'  => $followUp->id,
-                'title'         => 'Follow Up berhasil dibuat berdasarkan hasil kunjungan Customer',
-                // 'description'   => 'Follow up generated automatically after visit Customer '
-                //     . $visit->visit_code,
-                'description'   => 'Follow Up dibuat secara otomatis setelah kunjungan ke pelanggan Dengan Code '
-                    . $visit->visit_code,
-                'activity_type' => 'CREATE',
-                'scheduled_for' => $request->follow_up_at,
-                'activity_at'   => now(),
-                'created_at'    => now(),
-                'created_by'    => $userId,
-            ]);
+                if (!empty($result['check_out_file'])) {
+                    $checkOutFilePath = $result['check_out_file']
+                        ->store('visits/checkout/files', 'public');
+                }
+
+                $checkoutData = [
+                    'check_out_at'           => $checkedOutAt,
+                    'no_reference'           => $result['no_reference'],
+                    'check_out_file'         => $checkOutFilePath,
+                    'notes'                  => $result['notes'],
+                    'customer_response'      => $result['customer_response'],
+                    'visit_result'           => $result['customer_response'],
+                    'has_complaint'          => $hasComplaint,
+                    'complaint_detail'       => $hasComplaint ? $result['complaint_detail'] : null,
+                    'has_potential_order'    => $hasPotentialOrder,
+                    'potential_order_detail' => $hasPotentialOrder ? $result['potential_order_detail'] : null,
+                    'visit_status'           => 'DONE',
+                ];
+
+                if ($index === 0) {
+                    // Result pertama melengkapi visit asli yang sudah check in.
+                    $visit->update($checkoutData);
+                    $completedVisit = $visit->fresh();
+                } else {
+                    // Result berikutnya menjadi visit baru, tetapi menyalin bukti kunjungan fisik yang sama.
+                    $completedVisit = VisitsModel::create(array_merge([
+                        'visit_code'   => VisitsModel::generateVisitCode(),
+                        'lead_id'      => null,
+                        'customer_id'  => $visit->customer_id,
+                        'branch_id'    => $visit->branch_id,
+                        'sales_id'     => $visit->sales_id,
+                        'visit_at'     => $visit->visit_at,
+                        'check_in_at'  => $visit->check_in_at,
+                        'latitude'     => $visit->latitude,
+                        'longitude'    => $visit->longitude,
+                        'gps_snapshot' => $visit->gps_snapshot,
+                        'photo'        => $visit->photo,
+                        'created_by'   => $userId,
+                    ], $checkoutData));
+                }
+
+                $followUp = MsFollowUp::create([
+                    'follow_up_code' => $this->generateFollowUpCode(),
+                    'customer_id'    => $completedVisit->customer_id,
+                    'branch_id'      => $completedVisit->branch_id,
+                    'follow_up_type' => $result['follow_up_type'],
+                    'subject'        => sprintf(
+                        '(Follow Up) Tindak lanjut visit %s (Nomor Ref: %s)',
+                        $completedVisit->visit_code,
+                        $result['no_reference']
+                    ),
+                    'notes'          => $result['follow_up_notes'] ?? null,
+                    'follow_up_at'   => $result['follow_up_at'],
+                    'status'         => 'PENDING',
+                    'assigned_to'    => $completedVisit->sales_id,
+                    'created_by'     => $userId,
+                ]);
+
+                DB::table('follow_up_activities')->insert([
+                    'follow_up_id'  => $followUp->id,
+                    'title'         => 'Follow Up berhasil dibuat berdasarkan hasil kunjungan Customer',
+                    'description'   => 'Follow Up dibuat otomatis setelah visit ' . $completedVisit->visit_code,
+                    'activity_type' => 'CREATE',
+                    'scheduled_for' => $result['follow_up_at'],
+                    'activity_at'   => now(),
+                    'created_at'    => now(),
+                    'created_by'    => $userId,
+                ]);
+
+                $savedVisits[] = $completedVisit;
+            }
+
+            return $savedVisits;
         });
 
         return response()->json([
-            'message' => 'Check out successful & follow up scheduled.',
-            'data'    => $visit->fresh()
+            'message' => count($savedVisits) . ' visit berhasil di-check out dan follow up dibuat.',
+            'data'    => $savedVisits,
         ]);
-
+    } catch (\Illuminate\Http\Exceptions\HttpResponseException $e) {
+        // Response 4xx dari dalam transaction (misalnya visit tidak valid) jangan diubah menjadi 500.
+        throw $e;
     } catch (\Throwable $e) {
+        report($e);
+
         return response()->json([
             'message' => 'Checkout failed.',
-            'error'   => $e->getMessage()
         ], 500);
     }
 }
+
 
         }
