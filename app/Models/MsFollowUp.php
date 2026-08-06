@@ -19,7 +19,8 @@ class MsFollowUp extends Model
         protected $fillable = [
             'lead_id',
             'customer_id',
-            'branch_id',        
+            'branch_id',  
+            'visit_id',      
             'follow_up_type',
             'subject',
             'notes',

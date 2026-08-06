@@ -650,6 +650,16 @@ class MsSubMenuSeeder extends Seeder
 
             $insert([
                 'id_menu' => 2,
+                'url' => '/customer-history',
+                'icon' => 'nav-icon fas fa-map-location-dot',
+                'title' => 'Customer History',
+                'noted' => 'Customer History Page',
+                'is_active' => true,
+                'parent_id' => null,
+            ]);
+
+            $insert([
+                'id_menu' => 2,
                 'url' => '/customer-population',
                 'icon' => 'nav-icon fas fa-map-location-dot',
                 'title' => 'Customer Population',
@@ -658,6 +668,7 @@ class MsSubMenuSeeder extends Seeder
                 'parent_id' => null,
             ]);
 
+            
 
              $insert([
                 'id_menu' => 2,

@@ -1989,22 +1989,40 @@ public function checkOutCustomer(Request $request, $visitId)
                     ], $checkoutData));
                 }
 
+                // $followUp = MsFollowUp::create([
+                //     'follow_up_code' => $this->generateFollowUpCode(),
+                //     'customer_id'    => $completedVisit->customer_id,
+                //     'branch_id'      => $completedVisit->branch_id,
+                //     'follow_up_type' => $result['follow_up_type'],
+                //     'subject'        => sprintf(
+                //         '(Follow Up) Tindak lanjut visit %s (Nomor Ref: %s)',
+                //         $completedVisit->visit_code,
+                //         $result['no_reference']
+                //     ),
+                //     'notes'          => $result['follow_up_notes'] ?? null,
+                //     'follow_up_at'   => $result['follow_up_at'],
+                //     'status'         => 'PENDING',
+                //     'assigned_to'    => $completedVisit->sales_id,
+                //     'created_by'     => $userId,
+                // ]);
+                
                 $followUp = MsFollowUp::create([
-                    'follow_up_code' => $this->generateFollowUpCode(),
-                    'customer_id'    => $completedVisit->customer_id,
-                    'branch_id'      => $completedVisit->branch_id,
-                    'follow_up_type' => $result['follow_up_type'],
-                    'subject'        => sprintf(
-                        '(Follow Up) Tindak lanjut visit %s (Nomor Ref: %s)',
-                        $completedVisit->visit_code,
-                        $result['no_reference']
-                    ),
-                    'notes'          => $result['follow_up_notes'] ?? null,
-                    'follow_up_at'   => $result['follow_up_at'],
-                    'status'         => 'PENDING',
-                    'assigned_to'    => $completedVisit->sales_id,
-                    'created_by'     => $userId,
-                ]);
+                            'follow_up_code' => $this->generateFollowUpCode(),
+                            'customer_id'    => $completedVisit->customer_id,
+                            'branch_id'      => $completedVisit->branch_id,
+                            'visit_id'       => $completedVisit->id,   // <-- TAMBAHKAN INI
+                            'follow_up_type' => $result['follow_up_type'],
+                            'subject'        => sprintf(
+                                '(Follow Up) Tindak lanjut visit %s (Nomor Ref: %s)',
+                                $completedVisit->visit_code,
+                                $result['no_reference']
+                            ),
+                            'notes'          => $result['follow_up_notes'] ?? null,
+                            'follow_up_at'   => $result['follow_up_at'],
+                            'status'         => 'PENDING',
+                            'assigned_to'    => $completedVisit->sales_id,
+                            'created_by'     => $userId,
+                        ]);
 
                 DB::table('follow_up_activities')->insert([
                     'follow_up_id'  => $followUp->id,

@@ -303,52 +303,110 @@ class FollowUp extends Controller
                         ) as resolved_contact_phone
                     ";
 
+                    // $query = $this->MsFollowUp->query()
+                    //     ->select([
+                    //         'follow_ups.id',
+                    //         'follow_ups.customer_id',
+                    //         'follow_ups.branch_id',
+                    //         'follow_ups.lead_id', // tetap diambil untuk histori
+                    //         'follow_ups.follow_up_type',
+                    //         'follow_ups.subject',
+                    //         'follow_ups.notes',
+                    //         'follow_ups.follow_up_at',
+                    //         'follow_ups.status',
+                    //         'follow_ups.created_at',
+                    //         'follow_ups.follow_up_code',
+
+                    //         // Head company (selalu ada)
+                    //         'c.company_name as customer_company_name',
+                    //         'c.customer_status',
+
+                    //         // Branch (null kalau follow up ke head office)
+                    //         'br.branch_name as branch_name',
+                    //         'br.is_main_branch',
+                    //         'br.city as branch_city',
+
+                    //         'sales.fullname as sales_name',
+
+                    //         DB::raw($contactNameSql),
+                    //         DB::raw($contactPhoneSql),
+
+                    //         DB::raw("CASE WHEN {$overdueCondition} THEN 1 ELSE 0 END as is_overdue"),
+                    //         DB::raw("CASE WHEN {$overdueCondition} THEN 'OVERDUE' ELSE follow_ups.status END as computed_status"),
+                    //     ])
+
+                    //     /* ================= JOIN ================= */
+                    //     ->join('customers as c', 'c.id', '=', 'follow_ups.customer_id')
+                    //     ->leftJoin('customer_branches as br', 'br.id', '=', 'follow_ups.branch_id')
+                    //     ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'follow_ups.created_by')
+
+                    //     /* ================= OWNERSHIP ================= */
+                    //     ->where('follow_ups.created_by', $user->id_user)
+                    //     ->whereNotNull('follow_ups.customer_id')
+                    //     ->whereNull('follow_ups.deleted_at');
+
+
                     $query = $this->MsFollowUp->query()
-                        ->select([
-                            'follow_ups.id',
-                            'follow_ups.customer_id',
-                            'follow_ups.branch_id',
-                            'follow_ups.lead_id', // tetap diambil untuk histori
-                            'follow_ups.follow_up_type',
-                            'follow_ups.subject',
-                            'follow_ups.notes',
-                            'follow_ups.follow_up_at',
-                            'follow_ups.status',
-                            'follow_ups.created_at',
-                            'follow_ups.follow_up_code',
+    ->select([
+        'follow_ups.id',
+        'follow_ups.customer_id',
+        'follow_ups.branch_id',
+        'follow_ups.lead_id',
+        'follow_ups.visit_id',
+        'follow_ups.follow_up_type',
+        'follow_ups.subject',
+        'follow_ups.notes',
+        'follow_ups.follow_up_at',
+        'follow_ups.status',
+        'follow_ups.created_at',
 
-                            // Head company (selalu ada)
-                            'c.company_name as customer_company_name',
-                            'c.customer_status',
+        // GANTI: follow_up_code jadi no_reference dari visit (fallback ke follow_up_code)
+       DB::raw("COALESCE(v.no_reference, follow_ups.follow_up_code) as follow_up_code"),
+'follow_ups.follow_up_code as internal_follow_up_code',
+'v.no_reference as no_reference', // <-- tambahin ini// simpan yang asli kalau masih perlu di FE
 
-                            // Branch (null kalau follow up ke head office)
-                            'br.branch_name as branch_name',
-                            'br.is_main_branch',
-                            'br.city as branch_city',
+        'c.company_name as customer_company_name',
+        'c.customer_status',
 
-                            'sales.fullname as sales_name',
+        'br.branch_name as branch_name',
+        'br.is_main_branch',
+        'br.city as branch_city',
 
-                            DB::raw($contactNameSql),
-                            DB::raw($contactPhoneSql),
+        'sales.fullname as sales_name',
 
-                            DB::raw("CASE WHEN {$overdueCondition} THEN 1 ELSE 0 END as is_overdue"),
-                            DB::raw("CASE WHEN {$overdueCondition} THEN 'OVERDUE' ELSE follow_ups.status END as computed_status"),
-                        ])
+        DB::raw($contactNameSql),
+        DB::raw($contactPhoneSql),
 
-                        /* ================= JOIN ================= */
-                        ->join('customers as c', 'c.id', '=', 'follow_ups.customer_id')
-                        ->leftJoin('customer_branches as br', 'br.id', '=', 'follow_ups.branch_id')
-                        ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'follow_ups.created_by')
+        DB::raw("CASE WHEN {$overdueCondition} THEN 1 ELSE 0 END as is_overdue"),
+        DB::raw("CASE WHEN {$overdueCondition} THEN 'OVERDUE' ELSE follow_ups.status END as computed_status"),
+    ])
 
-                        /* ================= OWNERSHIP ================= */
-                        ->where('follow_ups.created_by', $user->id_user)
-                        ->whereNotNull('follow_ups.customer_id')
-                        ->whereNull('follow_ups.deleted_at');
+    /* ================= JOIN ================= */
+    ->join('customers as c', 'c.id', '=', 'follow_ups.customer_id')
+    ->leftJoin('customer_branches as br', 'br.id', '=', 'follow_ups.branch_id')
+    ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'follow_ups.created_by')
+    ->leftJoin('visits as v', 'v.id', '=', 'follow_ups.visit_id') // <-- BARU
+
+    /* ================= OWNERSHIP ================= */
+    ->where('follow_ups.created_by', $user->id_user)
+    ->whereNotNull('follow_ups.customer_id')
+    ->whereNull('follow_ups.deleted_at');
 
                     /* ================= SEARCH ================= */
+                    // if ($search) {
+                    //     $query->where(function ($q) use ($search) {
+                    //         $q->where('follow_ups.follow_up_code', 'ILIKE', "%{$search}%")
+                    //         ->orWhere('c.company_name', 'ILIKE', "%{$search}%")
+                    //         ->orWhere('br.branch_name', 'ILIKE', "%{$search}%")
+                    //         ->orWhere('follow_ups.subject', 'ILIKE', "%{$search}%")
+                    //         ->orWhere('follow_ups.status', 'ILIKE', "%{$search}%");
+                    //     });
+                    // }
+
                     if ($search) {
                         $query->where(function ($q) use ($search) {
                             $q->where('follow_ups.follow_up_code', 'ILIKE', "%{$search}%")
+                            ->orWhere('v.no_reference', 'ILIKE', "%{$search}%")   // <-- BARU
                             ->orWhere('c.company_name', 'ILIKE', "%{$search}%")
                             ->orWhere('br.branch_name', 'ILIKE', "%{$search}%")
                             ->orWhere('follow_ups.subject', 'ILIKE', "%{$search}%")
@@ -773,155 +831,19 @@ class FollowUp extends Controller
 
 
 
-                // code untuk menampilkan detail follow up (beserta info lead, customer, dan computed column overdue) old
-                // public function showFollowUp($id)
-                // public function showFollowUp($id)
-                //     {
-                //         $user = auth()->user();
+            
 
-                //         try {
-
-                //             /* ================= GET MAIN FOLLOW UP ================= */
-
-                //             $followUp = DB::table('follow_ups as fu')
-                //                 ->select([
-                //                     'fu.id',
-                //                     'fu.follow_up_code',
-                //                     'fu.lead_id',
-                //                     'fu.customer_id',
-                //                     'fu.follow_up_type',
-                //                     'fu.subject',
-                //                     'fu.notes',
-                //                     'fu.follow_up_at',
-                //                     'fu.status',
-                //                     'fu.result',
-                //                     'fu.completed_at',
-                //                     'fu.closed_at',
-                //                     'fu.closed_reason',
-                //                     'fu.created_at',
-                //                     'fu.updated_at',
-
-                //                     // Lead
-                //                     'l.company_name as lead_company_name',
-                //                     'l.contact_name as lead_contact_name',
-                //                     'l.lead_status',
-
-                //                     // Customer
-                //                     'c.company_name as customer_company_name',
-                //                     'c.contact_name as customer_contact_name',
-                //                     'c.customer_status',
-
-                //                     // Sales
-                //                     'sales.fullname as sales_name',
-                //                 ])
-                //                 ->leftJoin('leads as l', 'l.id', '=', 'fu.lead_id')
-                //                 ->leftJoin('customers as c', 'c.id', '=', 'fu.customer_id')
-                //                 ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'fu.created_by')
-                //                 ->where('fu.id', $id)
-                //                 ->where('fu.created_by', $user->id_user)
-                //                 ->whereNull('fu.deleted_at')
-                //                 ->first();
-
-                //             if (!$followUp) {
-                //                 return ApiResponse::error(
-                //                     'Follow up not found or access denied',
-                //                     null,
-                //                     404
-                //                 );
-                //             }
-
-                //             /* ================= OVERDUE LOGIC ================= */
-
-                //             $isOverdue = false;
-                //             $computedStatus = $followUp->status;
-
-                //             if (
-                //                 $followUp->status === 'PENDING' &&
-                //                 $followUp->follow_up_at &&
-                //                 now()->greaterThan($followUp->follow_up_at)
-                //             ) {
-                //                 $isOverdue = true;
-                //                 $computedStatus = 'OVERDUE';
-                //             }
-
-                //             $followUp->is_overdue = $isOverdue;
-                //             $followUp->computed_status = $computedStatus;
-
-
-                //             /* ================= GET ACTIVITIES ================= */
-
-                //             $activities = DB::table('follow_up_activities')
-                //                 ->where('follow_up_id', $followUp->id)
-                //                 ->orderByDesc('activity_at')
-                //                 ->get();
-
-                //             $followUp->activities = $activities;
-
-
-                //             /* ================= GET COMPLAINT FROM VISITS ================= */
-
-                //             $complaints = collect();
-
-                //             if ($followUp->customer_id) {
-
-                               
-                //                 $complaints = DB::table('visits')
-                //             ->select([
-                //                 'id as visit_id',
-                //                 'visit_code',
-                //                 'visit_at',
-                //                 'check_in_at',
-                //                 'check_out_at',
-                //                 'latitude',
-                //                 'longitude',
-                //                 'gps_snapshot',
-                //                 'has_complaint',
-                //                 'complaint_detail',
-                //                 'has_potential_order',
-                //                 'potential_order_detail',
-                //                 'visit_result',
-                //                 'visit_status',
-                //                 'notes as visit_notes',
-                //                 'created_at'
-                //             ])
-                //             ->where('customer_id', $followUp->customer_id)
-                //             ->where(function($query) {
-                //                 $query->whereNotNull('complaint_detail')  // ada complaint
-                //                     ->orWhere('has_potential_order', true); // ATAU ada potential order
-                //             })
-                //             ->orderByDesc('created_at')
-                //             ->get();
-                //                                     }
-
-                //             $followUp->complaint_details = $complaints;
-
-
-                //             /* ================= RETURN RESPONSE ================= */
-
-                //             return ApiResponse::success(
-                //                 $followUp,
-                //                 'Success Get Follow Up Detail'
-                //             );
-
-                //         } catch (\Throwable $e) {
-
-                //             return ApiResponse::error(
-                //                 'Failed to get follow up detail',
-                //                 config('app.debug') ? ['exception' => $e->getMessage()] : null,
-                //                 500
-                //             );
-                //         }
-                //     }
-
-                public function showFollowUp($id)
+public function showFollowUp($id)
 {
     $user = auth()->user();
-
+ 
     try {
-
+ 
         /*
         |--------------------------------------------------------------------------
         | GET MAIN FOLLOW UP
+        | leftJoin visits via fu.visit_id -> no_reference & visit_code ikut,
+        | dipakai FE (codeDisplay) untuk header badge di modal Detail.
         |--------------------------------------------------------------------------
         */
         $followUp = DB::table('follow_ups as fu')
@@ -931,6 +853,7 @@ class FollowUp extends Controller
                 'fu.lead_id',
                 'fu.customer_id',
                 'fu.branch_id',
+                'fu.visit_id',        
                 'fu.follow_up_type',
                 'fu.subject',
                 'fu.notes',
@@ -942,28 +865,33 @@ class FollowUp extends Controller
                 'fu.closed_reason',
                 'fu.created_at',
                 'fu.updated_at',
-
+ 
                 // Lead
                 'l.company_name as lead_company_name',
                 'l.contact_name as lead_contact_name',
                 'l.lead_status',
-
+ 
                 // Customer
                 'c.company_name as customer_company_name',
                 'c.contact_name as customer_contact_name',
                 'c.customer_status',
-
+ 
                 // Sales
                 'sales.fullname as sales_name',
+ 
+                // Visit reference (BARU)
+                'v.no_reference',
+                'v.visit_code',
             ])
             ->leftJoin('leads as l', 'l.id', '=', 'fu.lead_id')
             ->leftJoin('customers as c', 'c.id', '=', 'fu.customer_id')
             ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'fu.created_by')
+            ->leftJoin('visits as v', 'v.id', '=', 'fu.visit_id')
             ->where('fu.id', $id)
             ->where('fu.created_by', $user->id_user)
             ->whereNull('fu.deleted_at')
             ->first();
-
+ 
         if (!$followUp) {
             return ApiResponse::error(
                 'Follow up not found or access denied',
@@ -971,7 +899,7 @@ class FollowUp extends Controller
                 404
             );
         }
-
+ 
         /*
         |--------------------------------------------------------------------------
         | OVERDUE
@@ -979,7 +907,7 @@ class FollowUp extends Controller
         */
         $isOverdue = false;
         $computedStatus = $followUp->status;
-
+ 
         if (
             $followUp->status === 'PENDING' &&
             $followUp->follow_up_at &&
@@ -988,10 +916,10 @@ class FollowUp extends Controller
             $isOverdue = true;
             $computedStatus = 'OVERDUE';
         }
-
+ 
         $followUp->is_overdue = $isOverdue;
         $followUp->computed_status = $computedStatus;
-
+ 
         /*
         |--------------------------------------------------------------------------
         | ACTIVITIES
@@ -1001,18 +929,20 @@ class FollowUp extends Controller
             ->where('follow_up_id', $followUp->id)
             ->orderByDesc('activity_at')
             ->get();
-
+ 
         $followUp->activities = $activities;
-
+ 
         /*
         |--------------------------------------------------------------------------
         | COMPLAINT & POTENTIAL ORDER
+        | Di-scope HANYA ke visit yang menjadi asal follow-up ini
+        | (fu.visit_id), bukan seluruh visit milik customer/branch.
         |--------------------------------------------------------------------------
         */
         $complaints = collect();
-
-        if ($followUp->customer_id) {
-
+ 
+        if ($followUp->visit_id) {
+ 
             $complaints = DB::table('visits')
                 ->select([
                     'id as visit_id',
@@ -1032,33 +962,24 @@ class FollowUp extends Controller
                     'notes as visit_notes',
                     'created_at'
                 ])
-
-                ->where('customer_id', $followUp->customer_id)
-
-                ->when(
-                    $followUp->branch_id,
-                    function ($query) use ($followUp) {
-                        $query->where('branch_id', $followUp->branch_id);
-                    },
-                    function ($query) {
-                        $query->whereNull('branch_id');
-                    }
-                )
-
+ 
+                // scoping utama: hanya visit yang melahirkan follow-up ini
+                ->where('id', $followUp->visit_id)
+ 
                 ->where(function ($query) {
                     $query->whereNotNull('complaint_detail')
                           ->orWhere('has_potential_order', true);
                 })
-
+ 
                 ->whereNull('deleted_at')
-
+ 
                 ->orderByDesc('created_at')
-
+ 
                 ->get();
         }
-
+ 
         $followUp->complaint_details = $complaints;
-
+ 
         /*
         |--------------------------------------------------------------------------
         | RETURN
@@ -1068,9 +989,9 @@ class FollowUp extends Controller
             $followUp,
             'Success Get Follow Up Detail'
         );
-
+ 
     } catch (\Throwable $e) {
-
+ 
         return ApiResponse::error(
             'Failed to get follow up detail',
             config('app.debug')
@@ -1080,7 +1001,6 @@ class FollowUp extends Controller
         );
     }
 }
-
 
 
             // code untuk menampilkan timeline aktivitas follow up (semua aktivitas dari semua follow up dalam 1 lead)
@@ -1181,10 +1101,237 @@ class FollowUp extends Controller
 
 
 
-          
 
 
-            public function customerTimeline($id)
+// public function customerTimeline($id)
+// {
+//     /*
+//     |--------------------------------------------------------------------------
+//     | Ambil Follow Up yang diklik
+//     |--------------------------------------------------------------------------
+//     */
+//     $followUp = DB::table('follow_ups')
+//         ->select(
+//             'id',
+//             'customer_id',
+//             'branch_id',
+//             'follow_up_code'
+//         )
+//         ->where('id', $id)
+//         ->first();
+ 
+//     if (!$followUp) {
+//         return response()->json([
+//             'message' => 'Follow Up not found'
+//         ], 404);
+//     }
+ 
+//     $customerId = $followUp->customer_id;
+//     $branchId   = $followUp->branch_id;
+ 
+//     /*
+//     |--------------------------------------------------------------------------
+//     | Semua Follow Up Customer / Branch
+//     |--------------------------------------------------------------------------
+//     */
+//     $followUps = DB::table('follow_ups')
+//         ->where('customer_id', $customerId)
+//         ->when(
+//             $branchId,
+//             fn ($q) => $q->where('branch_id', $branchId),
+//             fn ($q) => $q->whereNull('branch_id')
+//         )
+//         ->whereNull('deleted_at')
+//         ->orderBy('created_at', 'asc')
+//         ->get([
+//             'id',
+//             'follow_up_code'
+//         ]);
+ 
+//     $followUpIds = $followUps->pluck('id');
+ 
+//     /*
+//     |--------------------------------------------------------------------------
+//     | Follow Up yang masih aktif
+//     | leftJoin visits via fu.visit_id -> no_reference & visit_code ikut
+//     |--------------------------------------------------------------------------
+//     */
+//     $openFollowUps = DB::table('follow_ups as fu')
+//         ->leftJoin('visits as v', 'v.id', '=', 'fu.visit_id')
+//         ->where('fu.customer_id', $customerId)
+//         ->when(
+//             $branchId,
+//             fn ($q) => $q->where('fu.branch_id', $branchId),
+//             fn ($q) => $q->whereNull('fu.branch_id')
+//         )
+//         ->whereNull('fu.deleted_at')
+//         ->whereNotIn('fu.status', [
+//             'DONE',
+//             'CLOSED',
+//             'CANCELLED'
+//         ])
+//         ->orderBy('fu.follow_up_at', 'asc')
+//         ->get([
+//             'fu.id',
+//             'fu.follow_up_code',
+//             'fu.subject',
+//             'fu.status',
+//             'fu.follow_up_at',
+//             'v.no_reference',
+//             'v.visit_code',
+//         ]);
+ 
+//     /*
+//     |--------------------------------------------------------------------------
+//     | Activity Follow Up
+//     | leftJoin visits via fu.visit_id -> no_reference & visit_code ikut
+//     |--------------------------------------------------------------------------
+//     */
+//     $activities = DB::table('follow_up_activities as act')
+//         ->join('follow_ups as fu', 'fu.id', '=', 'act.follow_up_id')
+//         ->leftJoin('visits as v', 'v.id', '=', 'fu.visit_id')
+//         ->whereIn('act.follow_up_id', $followUpIds)
+//         ->select([
+//             'act.id',
+//             'act.activity_type as type',
+//             'act.title',
+//             'act.description',
+//             'act.activity_at',
+//             'fu.follow_up_code',
+//             'fu.id as follow_up_id',
+//             'v.no_reference',
+//             'v.visit_code',
+//         ])
+//         ->get()
+//         ->map(function ($a) {
+ 
+//             return [
+//                 'source'         => 'FOLLOW_UP',
+//                 'type'           => $a->type,
+//                 'follow_up_code' => $a->follow_up_code,
+//                 'no_reference'   => $a->no_reference,
+//                 'visit_code'     => $a->visit_code,
+//                 'follow_up_id'   => $a->follow_up_id,
+//                 'title'          => $a->title,
+//                 'description'    => $a->description,
+//                 'activity_raw'   => $a->activity_at,
+//                 'activity_at'    => Carbon::parse($a->activity_at)
+//                     ->timezone('Asia/Jakarta')
+//                     ->format('d M Y H:i'),
+//             ];
+//         });
+ 
+//     /*
+//     |--------------------------------------------------------------------------
+//     | Visit History
+//     | tambah select no_reference (sudah ada di tabel visits, tanpa join)
+//     |--------------------------------------------------------------------------
+//     */
+//     $visits = DB::table('visits')
+//         ->where('customer_id', $customerId)
+//         ->when(
+//             $branchId,
+//             fn ($q) => $q->where('branch_id', $branchId),
+//             fn ($q) => $q->whereNull('branch_id')
+//         )
+//         ->whereNull('deleted_at')
+//         ->orderBy('visit_at', 'asc')
+//         ->select([
+//             'id',
+//             'visit_code',
+//             'no_reference',
+//             'visit_at',
+//             'check_in_at',
+//             'check_out_at',
+//             'visit_status',
+//             'visit_result',
+//             'notes',
+//             'has_complaint',
+//             'complaint_detail',
+//             'has_potential_order',
+//             'potential_order_detail',
+//         ])
+//         ->get()
+//         ->map(function ($v) {
+ 
+//             return [
+ 
+//                 'source'                 => 'VISIT',
+//                 'type'                   => 'VISIT',
+ 
+//                 'visit_code'             => $v->visit_code,
+//                 'no_reference'           => $v->no_reference,
+ 
+//                 'title'                  => 'Visit - ' . $v->visit_code,
+//                 'description'            => $v->notes ?? '-',
+ 
+//                 'visit_status'           => $v->visit_status,
+//                 'visit_result'           => $v->visit_result,
+ 
+//                 'check_in_at' => $v->check_in_at
+//                     ? Carbon::parse($v->check_in_at)
+//                         ->timezone('Asia/Jakarta')
+//                         ->format('d M Y H:i')
+//                     : null,
+ 
+//                 'check_out_at' => $v->check_out_at
+//                     ? Carbon::parse($v->check_out_at)
+//                         ->timezone('Asia/Jakarta')
+//                         ->format('d M Y H:i')
+//                     : null,
+ 
+//                 'has_complaint'          => (bool) $v->has_complaint,
+//                 'complaint_detail'       => $v->complaint_detail,
+ 
+//                 'has_potential_order'    => (bool) $v->has_potential_order,
+//                 'potential_order_detail' => $v->potential_order_detail,
+ 
+//                 'activity_raw' => $v->visit_at,
+ 
+//                 'activity_at' => Carbon::parse($v->visit_at)
+//                     ->timezone('Asia/Jakarta')
+//                     ->format('d M Y H:i'),
+ 
+//             ];
+//         });
+ 
+//     /*
+//     |--------------------------------------------------------------------------
+//     | Merge Timeline
+//     |--------------------------------------------------------------------------
+//     */
+//     $histories = $activities
+//         ->concat($visits)
+//         ->sortByDesc(function ($item) {
+//             return Carbon::parse($item['activity_raw'])->timestamp;
+//         })
+//         ->values();
+ 
+//     /*
+//     |--------------------------------------------------------------------------
+//     | Response
+//     |--------------------------------------------------------------------------
+//     */
+//     return response()->json([
+//         'data' => [
+ 
+//             'customer_id'      => $customerId,
+//             'branch_id'        => $branchId,
+//             'current_followup' => $followUp->follow_up_code,
+ 
+//             'total_followups'  => $followUps->count(),
+//             'total_visits'     => $visits->count(),
+ 
+//             'open_follow_ups'  => $openFollowUps,
+ 
+//             'histories'        => $histories,
+ 
+//         ]
+//     ]);
+// }
+
+
+public function customerTimeline($id)
 {
     /*
     |--------------------------------------------------------------------------
@@ -1200,16 +1347,16 @@ class FollowUp extends Controller
         )
         ->where('id', $id)
         ->first();
-
+ 
     if (!$followUp) {
         return response()->json([
             'message' => 'Follow Up not found'
         ], 404);
     }
-
+ 
     $customerId = $followUp->customer_id;
     $branchId   = $followUp->branch_id;
-
+ 
     /*
     |--------------------------------------------------------------------------
     | Semua Follow Up Customer / Branch
@@ -1228,43 +1375,51 @@ class FollowUp extends Controller
             'id',
             'follow_up_code'
         ]);
-
+ 
     $followUpIds = $followUps->pluck('id');
-
+ 
     /*
     |--------------------------------------------------------------------------
     | Follow Up yang masih aktif
+    | leftJoin visits via fu.visit_id -> no_reference & visit_code ikut
     |--------------------------------------------------------------------------
     */
-    $openFollowUps = DB::table('follow_ups')
-        ->where('customer_id', $customerId)
+    $openFollowUps = DB::table('follow_ups as fu')
+        ->leftJoin('visits as v', 'v.id', '=', 'fu.visit_id')
+        ->where('fu.customer_id', $customerId)
         ->when(
             $branchId,
-            fn ($q) => $q->where('branch_id', $branchId),
-            fn ($q) => $q->whereNull('branch_id')
+            fn ($q) => $q->where('fu.branch_id', $branchId),
+            fn ($q) => $q->whereNull('fu.branch_id')
         )
-        ->whereNull('deleted_at')
-        ->whereNotIn('status', [
+        ->whereNull('fu.deleted_at')
+        ->whereNotIn('fu.status', [
             'DONE',
             'CLOSED',
             'CANCELLED'
         ])
-        ->orderBy('follow_up_at', 'asc')
+        ->orderBy('fu.follow_up_at', 'asc')
         ->get([
-            'id',
-            'follow_up_code',
-            'subject',
-            'status',
-            'follow_up_at'
+            'fu.id',
+            'fu.follow_up_code',
+            'fu.subject',
+            'fu.status',
+            'fu.follow_up_at',
+            'v.no_reference',
+            'v.visit_code',
         ]);
-
+ 
     /*
     |--------------------------------------------------------------------------
     | Activity Follow Up
+    | leftJoin visits via fu.visit_id -> no_reference & visit_code ikut
+    | fu.notes ikut diambil -> notes asli yang diketik user (bukan cuma
+    | activity description otomatis dari sistem)
     |--------------------------------------------------------------------------
     */
     $activities = DB::table('follow_up_activities as act')
         ->join('follow_ups as fu', 'fu.id', '=', 'act.follow_up_id')
+        ->leftJoin('visits as v', 'v.id', '=', 'fu.visit_id')
         ->whereIn('act.follow_up_id', $followUpIds)
         ->select([
             'act.id',
@@ -1274,27 +1429,34 @@ class FollowUp extends Controller
             'act.activity_at',
             'fu.follow_up_code',
             'fu.id as follow_up_id',
+            'fu.notes as follow_up_notes',
+            'v.no_reference',
+            'v.visit_code',
         ])
         ->get()
         ->map(function ($a) {
-
+ 
             return [
                 'source'         => 'FOLLOW_UP',
                 'type'           => $a->type,
                 'follow_up_code' => $a->follow_up_code,
+                'no_reference'   => $a->no_reference,
+                'visit_code'     => $a->visit_code,
                 'follow_up_id'   => $a->follow_up_id,
                 'title'          => $a->title,
                 'description'    => $a->description,
+                'notes'          => $a->follow_up_notes,
                 'activity_raw'   => $a->activity_at,
                 'activity_at'    => Carbon::parse($a->activity_at)
                     ->timezone('Asia/Jakarta')
                     ->format('d M Y H:i'),
             ];
         });
-
+ 
     /*
     |--------------------------------------------------------------------------
     | Visit History
+    | tambah select no_reference (sudah ada di tabel visits, tanpa join)
     |--------------------------------------------------------------------------
     */
     $visits = DB::table('visits')
@@ -1309,6 +1471,7 @@ class FollowUp extends Controller
         ->select([
             'id',
             'visit_code',
+            'no_reference',
             'visit_at',
             'check_in_at',
             'check_out_at',
@@ -1322,63 +1485,60 @@ class FollowUp extends Controller
         ])
         ->get()
         ->map(function ($v) {
-
+ 
             return [
-
+ 
                 'source'                 => 'VISIT',
                 'type'                   => 'VISIT',
-
+ 
                 'visit_code'             => $v->visit_code,
-
+                'no_reference'           => $v->no_reference,
+ 
                 'title'                  => 'Visit - ' . $v->visit_code,
                 'description'            => $v->notes ?? '-',
-
+ 
                 'visit_status'           => $v->visit_status,
                 'visit_result'           => $v->visit_result,
-
+ 
                 'check_in_at' => $v->check_in_at
                     ? Carbon::parse($v->check_in_at)
                         ->timezone('Asia/Jakarta')
                         ->format('d M Y H:i')
                     : null,
-
+ 
                 'check_out_at' => $v->check_out_at
                     ? Carbon::parse($v->check_out_at)
                         ->timezone('Asia/Jakarta')
                         ->format('d M Y H:i')
                     : null,
-
+ 
                 'has_complaint'          => (bool) $v->has_complaint,
                 'complaint_detail'       => $v->complaint_detail,
-
+ 
                 'has_potential_order'    => (bool) $v->has_potential_order,
                 'potential_order_detail' => $v->potential_order_detail,
-
+ 
                 'activity_raw' => $v->visit_at,
-
+ 
                 'activity_at' => Carbon::parse($v->visit_at)
                     ->timezone('Asia/Jakarta')
                     ->format('d M Y H:i'),
-
+ 
             ];
         });
-
+ 
     /*
     |--------------------------------------------------------------------------
     | Merge Timeline
     |--------------------------------------------------------------------------
     */
-    // $histories = $activities
-    //     ->concat($visits)
-    //     ->sortBy('activity_raw')
-    //     ->values();
     $histories = $activities
-    ->concat($visits)
-    ->sortByDesc(function ($item) {
-        return Carbon::parse($item['activity_raw'])->timestamp;
-    })
-    ->values();
-
+        ->concat($visits)
+        ->sortByDesc(function ($item) {
+            return Carbon::parse($item['activity_raw'])->timestamp;
+        })
+        ->values();
+ 
     /*
     |--------------------------------------------------------------------------
     | Response
@@ -1386,21 +1546,23 @@ class FollowUp extends Controller
     */
     return response()->json([
         'data' => [
-
+ 
             'customer_id'      => $customerId,
             'branch_id'        => $branchId,
             'current_followup' => $followUp->follow_up_code,
-
+ 
             'total_followups'  => $followUps->count(),
             'total_visits'     => $visits->count(),
-
+ 
             'open_follow_ups'  => $openFollowUps,
-
+ 
             'histories'        => $histories,
-
+ 
         ]
     ]);
 }
+
+
 
 
             // code generate follow up code dengan format FUP-20260121-0001-XXXXXX (6 digit urutan + 6 digit random)

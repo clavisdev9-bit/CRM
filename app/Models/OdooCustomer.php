@@ -30,19 +30,41 @@ class OdooCustomer extends Model
         return $this->hasMany(OdooCustomerPurchaseItem::class, 'odoo_customer_id', 'odoo_partner_id');
     }
 
-    public function scopeSearch(Builder $query, ?string $search): Builder
-    {
-        if (!$search) {
-            return $query;
-        }
+    // public function scopeSearch(Builder $query, ?string $search): Builder
+    // {
+    //     if (!$search) {
+    //         return $query;
+    //     }
 
-        return $query->where(function (Builder $q) use ($search) {
-            $q->where('name', 'like', "%{$search}%")
-              ->orWhere('email', 'like', "%{$search}%")
-              ->orWhere('phone', 'like', "%{$search}%")
-              ->orWhere('address', 'like', "%{$search}%");
-        });
+    //     return $query->where(function (Builder $q) use ($search) {
+    //         $q->where('name', 'like', "%{$search}%")
+    //           ->orWhere('email', 'like', "%{$search}%")
+    //           ->orWhere('phone', 'like', "%{$search}%")
+    //           ->orWhere('address', 'like', "%{$search}%");
+    //     });
+    // }
+
+    public function scopeSearch(Builder $query, ?string $search): Builder
+{
+    if (!$search) {
+        return $query;
     }
+
+    $words = preg_split('/\s+/', trim($search));
+
+    return $query->where(function (Builder $q) use ($words) {
+        foreach ($words as $word) {
+            $word = mb_strtolower($word);
+            $q->where(function (Builder $sub) use ($word) {
+                $sub->whereRaw('LOWER(name) LIKE ?', ["%{$word}%"])
+                    ->orWhereRaw('LOWER(email) LIKE ?', ["%{$word}%"])
+                    ->orWhereRaw('LOWER(phone) LIKE ?', ["%{$word}%"])
+                    ->orWhereRaw('LOWER(mobile) LIKE ?', ["%{$word}%"])
+                    ->orWhereRaw('LOWER(address) LIKE ?', ["%{$word}%"]);
+            });
+        }
+    });
+}
 
     public function scopeFilterPurchased(Builder $query, ?string $filter): Builder
     {

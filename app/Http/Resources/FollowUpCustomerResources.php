@@ -19,6 +19,8 @@ class FollowUpCustomerResources extends JsonResource
             'subject'         => $this->subject,
             'notes'           => $this->notes,
 
+            'no_reference'            => $this->no_reference,
+
             /* ===== STATUS ===== */
             'status'          => $this->status,
             'computed_status' => $this->computed_status,
