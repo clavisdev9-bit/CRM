@@ -23,6 +23,8 @@ class IndustrySeeder extends Seeder
             ['name' => 'Sugar'],
             ['name' => 'Textile'],
             ['name' => 'Food & Beverage'],
+            ['name' => 'Plantation'],
+            ['name' => 'Fertilizer'],
             ['name' => 'Construction'],
             ['name' => 'Automotive'],
             ['name' => 'Agriculture & Agribusiness'],

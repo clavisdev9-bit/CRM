@@ -24,6 +24,7 @@ class MsFollowUp extends Model
             'follow_up_type',
             'subject',
             'notes',
+            'no_reference',
             'follow_up_code',
             'follow_up_at',
             'status',

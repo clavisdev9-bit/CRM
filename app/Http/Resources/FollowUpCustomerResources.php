@@ -14,6 +14,7 @@ class FollowUpCustomerResources extends JsonResource
             'id'              => $this->id,
             'customer_id'     => $this->customer_id,
             'branch_id'       => $this->branch_id,
+            // 'follow_up_code'  => $this->follow_up_code,
             'follow_up_code'  => $this->follow_up_code,
             'follow_up_type'  => $this->follow_up_type,
             'subject'         => $this->subject,
