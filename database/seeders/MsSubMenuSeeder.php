@@ -662,8 +662,8 @@ class MsSubMenuSeeder extends Seeder
                 'id_menu' => 2,
                 'url' => '/customer-population',
                 'icon' => 'nav-icon fas fa-map-location-dot',
-                'title' => 'Customer Population',
-                'noted' => 'Customer Population Page',
+                'title' => 'Customer-Product Population',
+                'noted' => 'Customer-Product Population Page',
                 'is_active' => true,
                 'parent_id' => null,
             ]);

@@ -12,7 +12,9 @@ class SubmitFollowUpResultRequest extends FormRequest
             'status' => 'nullable|in:PENDING,DONE,CANCELED',
             'result' => 'required|in:success,need_followup,reschedule,no_meet,dealing,closed,cancelled',
             'notes' => 'nullable|string',
-            'next_follow_up_at' => 'nullable|date'
+            'next_follow_up_at' => 'nullable|date',
+            'no_reference' => 'nullable|string|max:100',
+            'follow_up_type' => 'nullable|string|max:100',
         ];
     }
 

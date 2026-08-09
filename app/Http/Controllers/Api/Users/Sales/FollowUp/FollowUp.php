@@ -854,51 +854,101 @@ public function showFollowUp($id)
         | dipakai FE (codeDisplay) untuk header badge di modal Detail.
         |--------------------------------------------------------------------------
         */
+        // $followUp = DB::table('follow_ups as fu')
+        //     ->select([
+        //         'fu.id',
+        //         'fu.follow_up_code',
+        //         'fu.lead_id',
+        //         'fu.customer_id',
+        //         'fu.branch_id',
+        //         'fu.visit_id',        
+        //         'fu.follow_up_type',
+        //         'fu.subject',
+        //         'fu.notes',
+        //         'fu.follow_up_at',
+        //         'fu.status',
+        //         'fu.result',
+        //         'fu.completed_at',
+        //         'fu.closed_at',
+        //         'fu.closed_reason',
+        //         'fu.created_at',
+        //         'fu.updated_at',
+ 
+        //         // Lead
+        //         'l.company_name as lead_company_name',
+        //         'l.contact_name as lead_contact_name',
+        //         'l.lead_status',
+ 
+        //         // Customer
+        //         'c.company_name as customer_company_name',
+        //         'c.contact_name as customer_contact_name',
+        //         'c.customer_status',
+ 
+        //         // Sales
+        //         'sales.fullname as sales_name',
+ 
+        //         // Visit reference (BARU)
+        //         'v.no_reference',
+        //         'v.visit_code',
+        //     ])
+        //     ->leftJoin('leads as l', 'l.id', '=', 'fu.lead_id')
+        //     ->leftJoin('customers as c', 'c.id', '=', 'fu.customer_id')
+        //     ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'fu.created_by')
+        //     ->leftJoin('visits as v', 'v.id', '=', 'fu.visit_id')
+        //     ->where('fu.id', $id)
+        //     ->where('fu.created_by', $user->id_user)
+        //     ->whereNull('fu.deleted_at')
+        //     ->first();
         $followUp = DB::table('follow_ups as fu')
-            ->select([
-                'fu.id',
-                'fu.follow_up_code',
-                'fu.lead_id',
-                'fu.customer_id',
-                'fu.branch_id',
-                'fu.visit_id',        
-                'fu.follow_up_type',
-                'fu.subject',
-                'fu.notes',
-                'fu.follow_up_at',
-                'fu.status',
-                'fu.result',
-                'fu.completed_at',
-                'fu.closed_at',
-                'fu.closed_reason',
-                'fu.created_at',
-                'fu.updated_at',
- 
-                // Lead
-                'l.company_name as lead_company_name',
-                'l.contact_name as lead_contact_name',
-                'l.lead_status',
- 
-                // Customer
-                'c.company_name as customer_company_name',
-                'c.contact_name as customer_contact_name',
-                'c.customer_status',
- 
-                // Sales
-                'sales.fullname as sales_name',
- 
-                // Visit reference (BARU)
-                'v.no_reference',
-                'v.visit_code',
-            ])
-            ->leftJoin('leads as l', 'l.id', '=', 'fu.lead_id')
-            ->leftJoin('customers as c', 'c.id', '=', 'fu.customer_id')
-            ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'fu.created_by')
-            ->leftJoin('visits as v', 'v.id', '=', 'fu.visit_id')
-            ->where('fu.id', $id)
-            ->where('fu.created_by', $user->id_user)
-            ->whereNull('fu.deleted_at')
-            ->first();
+    ->select([
+        'fu.id',
+        'fu.follow_up_code',
+        'fu.lead_id',
+        'fu.customer_id',
+        'fu.branch_id',
+        'fu.visit_id',        
+        'fu.follow_up_type',
+        'fu.subject',
+        'fu.notes',
+        'fu.follow_up_at',
+        'fu.status',
+        'fu.result',
+        'fu.completed_at',
+        'fu.closed_at',
+        'fu.closed_reason',
+        'fu.created_at',
+        'fu.updated_at',
+
+        // Lead
+        'l.company_name as lead_company_name',
+        'l.contact_name as lead_contact_name',
+        'l.lead_status',
+
+        // Customer
+        'c.company_name as customer_company_name',
+        'c.contact_name as customer_contact_name',
+        'c.customer_status',
+
+        // Sales
+        'sales.fullname as sales_name',
+
+        // Reference resolution: visit_id ADA -> dari visits, kalau tidak -> dari fu sendiri
+        DB::raw("
+            CASE
+                WHEN fu.visit_id IS NOT NULL THEN v.no_reference
+                ELSE fu.no_reference
+            END as no_reference
+        "),
+        'v.visit_code',
+    ])
+    ->leftJoin('leads as l', 'l.id', '=', 'fu.lead_id')
+    ->leftJoin('customers as c', 'c.id', '=', 'fu.customer_id')
+    ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'fu.created_by')
+    ->leftJoin('visits as v', 'v.id', '=', 'fu.visit_id')
+    ->where('fu.id', $id)
+    ->where('fu.created_by', $user->id_user)
+    ->whereNull('fu.deleted_at')
+    ->first();
  
         if (!$followUp) {
             return ApiResponse::error(
@@ -2159,6 +2209,187 @@ public function createDirectFollowUpFromLead(Request $request, $leadId)
     //     }
     // }
 
+//     protected function handleResultDecision($followUp, $request)
+// {
+//     switch ($request->result) {
+
+//         case 'need_followup':
+
+//             $this->finishFollowUp($followUp, $request->result);
+
+//             $this->recordActivity(
+//                 $followUp,
+//                 'NEED_FOLLOW_UP',
+//                 // 'Need Another Follow Up',
+//                 'Perlu Follow Up Lagi',
+//                 // 'Customer requires further follow up',
+//                 'Customer memerlukan follow up kembali.',
+//                 $request->next_follow_up_at
+//             );
+
+//             $this->createNextFollowUp(
+//                 $followUp,
+//                 $request->next_follow_up_at
+//             );
+
+//         break;
+
+//         case 'reschedule':
+
+//             $this->finishFollowUp($followUp, $request->result);
+
+//             $this->recordActivity(
+//                 $followUp,
+//                 'RESCHEDULED',
+//                 'Follow Up Rescheduled',
+//                 'Rescheduled by sales',
+//                 $request->next_follow_up_at
+//             );
+
+//             $this->createNextFollowUp(
+//                 $followUp,
+//                 $request->next_follow_up_at
+//             );
+
+//         break;
+
+//         case 'success':
+
+//             $this->finishFollowUp($followUp, $request->result);
+
+//             $this->recordActivity(
+//                 $followUp,
+//                 'SUCCESS',
+//                 'Follow Up Diselesaikan',
+//                 $request->notes ?? 'Aktivitas selesai.'
+//             );
+
+//         break;
+
+//         case 'closed':
+
+//             $this->finishFollowUp($followUp, $request->result);
+
+//             $this->recordActivity(
+//                 $followUp,
+//                 'DEAL_CLOSED',
+//                 'Deal Closed Successfully',
+//                 'Customer converted to deal'
+//             );
+
+//             $this->closeAllOpenFollowUps($followUp);
+
+//             $this->markCustomerWon($followUp);
+
+//         break;
+
+//         case 'cancelled':
+
+//             $this->finishFollowUp(
+//                 $followUp,
+//                 $request->result,
+//                 'CANCELLED'
+//             );
+
+//             $this->recordActivity(
+//                 $followUp,
+//                 'OPPORTUNITY_LOST',
+//                 'Opportunity Lost',
+//                 $request->notes
+//             );
+
+//             $this->cancelAllOpenFollowUps($followUp);
+
+//         break;
+
+//         case 'no_meet':
+
+//             $this->recordActivity(
+//                 $followUp,
+//                 'NO_MEET',
+//                 'Tidak Berhasil Bertemu Customer',
+//                 $request->notes ?? 'Customer tidak dapat ditemui / dihubungi'
+//             );
+
+//             if ($request->next_follow_up_at) {
+
+//                 $this->finishFollowUp($followUp, $request->result);
+
+//                 $this->createNextFollowUp(
+//                     $followUp,
+//                     $request->next_follow_up_at
+//                 );
+
+//             }
+
+//         break;
+
+//         case 'dealing':
+
+//             $this->recordActivity(
+//                 $followUp,
+//                 'DEALING',
+//                 'Masuk Tahap Negosiasi',
+//                 $request->notes ?? 'Sedang proses negosiasi'
+//             );
+
+//             if ($request->next_follow_up_at) {
+
+//                 $this->finishFollowUp($followUp, $request->result);
+
+//                 $this->createNextFollowUp(
+//                     $followUp,
+//                     $request->next_follow_up_at
+//                 );
+
+//             }
+
+//         break;
+//     }
+// }
+
+
+
+
+    // protected function createNextFollowUp($followUp, $date, $noReference = null)
+    // {
+    //     $newFollowUp = MsFollowUp::create([
+    //         'follow_up_code' => $this->generateFollowUpCode(),
+    //         'customer_id'    => $followUp->customer_id,
+    //         'branch_id'      => $followUp->branch_id,
+    //         'lead_id'        => $followUp->lead_id,
+    //         'notes'          => $followUp->notes,
+    //         'follow_up_at'   => $date,
+    //         // 'subject'        => 'Auto Follow Up',
+    //         'subject'        => 'Follow Up Customer',
+    //         'status'         => 'PENDING',
+    //         'created_by'     => auth()->id(),
+    //         'follow_up_type' => 'WHATSAPP',
+    //         'no_reference'   => $noReference,
+    //     ]);
+
+    //     // Log di follow up lama
+    //     $this->recordActivity(
+    //         $followUp,
+    //         'NEXT_FOLLOW_UP_CREATED',
+    //         // 'Next Follow Up Scheduled',
+    //         'Follow Up Berikutnya Dijadwalkan',
+    //         // 'System created next follow up',
+    //         'Sistem Membuat Jadwal untuk follow up berikutnya.',
+    //         $date
+    //     );
+
+    //     // Log di follow up baru
+    //     $this->recordActivity(
+    //         $newFollowUp,
+    //         'FOLLOW_UP_CREATED',
+    //         'Follow Up Baru Telah Dibuat',
+    //         'Dibuat secara otomatis',
+    //         $date
+    //     );
+    // }
+
+
     protected function handleResultDecision($followUp, $request)
 {
     switch ($request->result) {
@@ -2170,16 +2401,16 @@ public function createDirectFollowUpFromLead(Request $request, $leadId)
             $this->recordActivity(
                 $followUp,
                 'NEED_FOLLOW_UP',
-                // 'Need Another Follow Up',
                 'Perlu Follow Up Lagi',
-                // 'Customer requires further follow up',
                 'Customer memerlukan follow up kembali.',
                 $request->next_follow_up_at
             );
 
             $this->createNextFollowUp(
                 $followUp,
-                $request->next_follow_up_at
+                $request->next_follow_up_at,
+                $request->no_reference,
+                $request->follow_up_type,
             );
 
         break;
@@ -2198,7 +2429,9 @@ public function createDirectFollowUpFromLead(Request $request, $leadId)
 
             $this->createNextFollowUp(
                 $followUp,
-                $request->next_follow_up_at
+                $request->next_follow_up_at,
+                $request->no_reference,
+                $request->follow_up_type,
             );
 
         break;
@@ -2267,7 +2500,9 @@ public function createDirectFollowUpFromLead(Request $request, $leadId)
 
                 $this->createNextFollowUp(
                     $followUp,
-                    $request->next_follow_up_at
+                    $request->next_follow_up_at,
+                    $request->no_reference,
+                    $request->follow_up_type,
                 );
 
             }
@@ -2289,7 +2524,9 @@ public function createDirectFollowUpFromLead(Request $request, $leadId)
 
                 $this->createNextFollowUp(
                     $followUp,
-                    $request->next_follow_up_at
+                    $request->next_follow_up_at,
+                    $request->no_reference,
+                    $request->follow_up_type,
                 );
 
             }
@@ -2298,43 +2535,48 @@ public function createDirectFollowUpFromLead(Request $request, $leadId)
     }
 }
 
+/**
+ * Membuat follow up lanjutan (customer).
+ *
+ * @param  MsFollowUp   $followUp     Follow up lama yang baru saja diselesaikan
+ * @param  string|null  $date         Tanggal follow up berikutnya
+ * @param  string|null  $noReference  No. Referensi (opsional, diinput manual oleh sales)
+ */
+protected function createNextFollowUp($followUp, $date, $noReference = null,  $followUpType = null)
+{
+    $newFollowUp = MsFollowUp::create([
+        'follow_up_code' => $this->generateFollowUpCode(),
+        'customer_id'    => $followUp->customer_id,
+        'branch_id'      => $followUp->branch_id,
+        'lead_id'        => $followUp->lead_id,
+        'notes'          => $followUp->notes,
+        'follow_up_at'   => $date,
+        'subject'        => 'Follow Up Customer',
+        'status'         => 'PENDING',
+        'created_by'     => auth()->id(),
+        // 'follow_up_type' => 'WHATSAPP',
+        'follow_up_type' => $followUpType ?? 'WHATSAPP', 
+        'no_reference'   => $noReference,
+    ]);
 
-    protected function createNextFollowUp($followUp, $date)
-    {
-        $newFollowUp = MsFollowUp::create([
-            'follow_up_code' => $this->generateFollowUpCode(),
-            'customer_id'    => $followUp->customer_id,
-            'branch_id'      => $followUp->branch_id,
-            'lead_id'        => $followUp->lead_id,
-            'notes'          => $followUp->notes,
-            'follow_up_at'   => $date,
-            // 'subject'        => 'Auto Follow Up',
-            'subject'        => 'Follow Up Customer',
-            'status'         => 'PENDING',
-            'created_by'     => auth()->id(),
-            'follow_up_type' => 'WHATSAPP'
-        ]);
+    // Log di follow up lama
+    $this->recordActivity(
+        $followUp,
+        'NEXT_FOLLOW_UP_CREATED',
+        'Follow Up Berikutnya Dijadwalkan',
+        'Sistem Membuat Jadwal untuk follow up berikutnya.',
+        $date
+    );
 
-        // Log di follow up lama
-        $this->recordActivity(
-            $followUp,
-            'NEXT_FOLLOW_UP_CREATED',
-            // 'Next Follow Up Scheduled',
-            'Follow Up Berikutnya Dijadwalkan',
-            // 'System created next follow up',
-            'Sistem Membuat Jadwal untuk follow up berikutnya.',
-            $date
-        );
-
-        // Log di follow up baru
-        $this->recordActivity(
-            $newFollowUp,
-            'FOLLOW_UP_CREATED',
-            'Follow Up Baru Telah Dibuat',
-            'Dibuat secara otomatis',
-            $date
-        );
-    }
+    // Log di follow up baru
+    $this->recordActivity(
+        $newFollowUp,
+        'FOLLOW_UP_CREATED',
+        'Follow Up Baru Telah Dibuat',
+        'Dibuat secara otomatis',
+        $date
+    );
+}
 
     protected function closeAllOpenFollowUps($followUp)
     {
