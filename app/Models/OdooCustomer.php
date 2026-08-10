@@ -30,41 +30,44 @@ class OdooCustomer extends Model
         return $this->hasMany(OdooCustomerPurchaseItem::class, 'odoo_customer_id', 'odoo_partner_id');
     }
 
-    // public function scopeSearch(Builder $query, ?string $search): Builder
-    // {
-    //     if (!$search) {
-    //         return $query;
-    //     }
-
-    //     return $query->where(function (Builder $q) use ($search) {
-    //         $q->where('name', 'like', "%{$search}%")
-    //           ->orWhere('email', 'like', "%{$search}%")
-    //           ->orWhere('phone', 'like', "%{$search}%")
-    //           ->orWhere('address', 'like', "%{$search}%");
-    //     });
-    // }
-
-    public function scopeSearch(Builder $query, ?string $search): Builder
-{
-    if (!$search) {
-        return $query;
+    public function assignment()
+    {
+        return $this->hasOne(CustomerSalesAssignmentOdoo::class, 'odoo_customer_id', 'odoo_partner_id');
     }
 
-    $words = preg_split('/\s+/', trim($search));
-
-    return $query->where(function (Builder $q) use ($words) {
-        foreach ($words as $word) {
-            $word = mb_strtolower($word);
-            $q->where(function (Builder $sub) use ($word) {
-                $sub->whereRaw('LOWER(name) LIKE ?', ["%{$word}%"])
-                    ->orWhereRaw('LOWER(email) LIKE ?', ["%{$word}%"])
-                    ->orWhereRaw('LOWER(phone) LIKE ?', ["%{$word}%"])
-                    ->orWhereRaw('LOWER(mobile) LIKE ?', ["%{$word}%"])
-                    ->orWhereRaw('LOWER(address) LIKE ?', ["%{$word}%"]);
-            });
-        }
-    });
+    public function sales()
+{
+    return $this->hasOneThrough(
+        MsUsers::class,
+        CustomerSalesAssignmentOdoo::class,
+        'odoo_customer_id',
+        'id_user',
+        'odoo_partner_id',
+        'sales_id'
+    );
 }
+
+    public function scopeSearch(Builder $query, ?string $search): Builder
+    {
+        if (!$search) {
+            return $query;
+        }
+
+        $words = preg_split('/\s+/', trim($search));
+
+        return $query->where(function (Builder $q) use ($words) {
+            foreach ($words as $word) {
+                $word = mb_strtolower($word);
+                $q->where(function (Builder $sub) use ($word) {
+                    $sub->whereRaw('LOWER(name) LIKE ?', ["%{$word}%"])
+                        ->orWhereRaw('LOWER(email) LIKE ?', ["%{$word}%"])
+                        ->orWhereRaw('LOWER(phone) LIKE ?', ["%{$word}%"])
+                        ->orWhereRaw('LOWER(mobile) LIKE ?', ["%{$word}%"])
+                        ->orWhereRaw('LOWER(address) LIKE ?', ["%{$word}%"]);
+                });
+            }
+        });
+    }
 
     public function scopeFilterPurchased(Builder $query, ?string $filter): Builder
     {
@@ -80,8 +83,20 @@ class OdooCustomer extends Model
         $sortBy  = $sortBy ?? 'name';
         $sortDir = $sortDir ?? 'asc';
 
-       return $query
+        return $query
             ->orderByDesc('has_purchased')
             ->orderBy($sortBy, $sortDir);
+    }
+
+    // Tambahan tahap ini: filter customer berdasarkan sales yang pegang
+    public function scopeFilterBySales(Builder $query, ?int $salesId): Builder
+    {
+        if (!$salesId) {
+            return $query;
+        }
+
+        return $query->whereHas('assignment', function (Builder $q) use ($salesId) {
+            $q->where('sales_id', $salesId);
+        });
     }
 }

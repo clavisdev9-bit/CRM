@@ -245,18 +245,26 @@ Route::prefix('manager-reassign-sales')->group(function () {
 
 
 
-// route terbaru untuk population cust
+// route terbaru untuk population cust list sell
 Route::prefix('customers')->group(function () {
     Route::get('/population/summary', [OdooSync::class, 'customerPopulationSummary']);
     Route::get('/population', [OdooSync::class, 'customerPopulation']);
     Route::get('/{id}/purchase-detail', [OdooSync::class, 'customerPurchaseDetail']);
-});
 
-// route terbaru untuk population cust (sync)
-Route::prefix('odoo')->group(function () {
-    Route::post('/sync-customers', [OdooSync::class, 'syncCustomers']);
-    Route::post('/sync-customer-purchases', [OdooSync::class, 'syncCustomerPurchases']);
-});
+     //assign/reassign sales untuk see customer 
+    Route::post('/assign-sales', [OdooSync::class, 'assignCustomerSales']);
+    Route::post('/unassign-sales', [OdooSync::class, 'unassignCustomerSales']);
+    Route::get('/sales-assignments', [OdooSync::class, 'listCustomerSalesAssignments']);
+
+       Route::get('/sales-list', [OdooSync::class, 'salesList']);
+    });
+    // route terbaru untuk population cust (sync)
+    Route::prefix('odoo')->group(function () {
+        Route::post('/sync-customers', [OdooSync::class, 'syncCustomers']);
+        Route::post('/sync-customer-purchases', [OdooSync::class, 'syncCustomerPurchases']);
+    });
+
+
 
 
 });

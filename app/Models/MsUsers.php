@@ -161,4 +161,12 @@ public function scopeSort($query, $sortBy, $sortDir)
     return $query->orderBy($sortBy ?? 'created_at', $sortDir ?? 'asc');
 }
 
+
+public function assignedCustomers()
+{
+    return $this->hasMany(CustomerSalesAssignmentOdoo::class, 'sales_id', 'id_user');
+}
+
+
+
 }

@@ -21,10 +21,6 @@ class OdooCustomerResource extends JsonResource
             'total_transaksi' => $this->total_transaksi,
             'created_at'      => $this->created_at,
             'updated_at'      => $this->updated_at,
-
-            // BARU: info sales yang pegang customer ini
-            'sales_id'      => $this->whenLoaded('assignment', fn () => $this->assignment?->sales_id),
-            'assigned_name' => $this->whenLoaded('assignment', fn () => $this->assignment?->salesUser?->fullname),
         ];
     }
 }

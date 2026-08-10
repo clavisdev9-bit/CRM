@@ -651,7 +651,7 @@ class MsSubMenuSeeder extends Seeder
             $insert([
                 'id_menu' => 2,
                 'url' => '/customer-history',
-                'icon' => 'nav-icon fas fa-map-location-dot',
+                'icon' => 'nav-icon fas fa-money-bill-transfer',
                 'title' => 'Customer History',
                 'noted' => 'Customer History Page',
                 'is_active' => true,
