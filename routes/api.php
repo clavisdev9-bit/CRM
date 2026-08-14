@@ -20,6 +20,7 @@ use App\Http\Controllers\Api\Manager\Approval\ApprovalCustomerController;
 use App\Http\Controllers\Api\Manager\Approval\ApprovalCustomerBranchController;
 use App\Http\Controllers\Api\Manager\Reassign\SalesReassign;
 use App\Http\Controllers\Api\Odoo\OdooSync;
+use App\Http\Controllers\Api\Users\Sales\Costumers\CustomersProductPopulation;
 use Illuminate\Support\Facades\Http;
 
 
@@ -235,13 +236,24 @@ Route::prefix('customer-branch-approval')->group(function () {
 
 
 
+Route::prefix('product-populations')->group(function () {
+    Route::get('/', [CustomersProductPopulation::class, 'index']);
+    Route::get('/counts', [CustomersProductPopulation::class, 'counts']);
+    Route::get('/unassigned', [CustomersProductPopulation::class, 'unassigned']);
+    Route::post('/assign', [CustomersProductPopulation::class, 'assign']);
+    Route::get('/{id}', [CustomersProductPopulation::class, 'show']);
+    Route::post('/', [CustomersProductPopulation::class, 'store']);
+    Route::put('/{id}', [CustomersProductPopulation::class, 'update']);
+    Route::delete('/{id}', [CustomersProductPopulation::class, 'destroy']);
+});
+
+
 Route::prefix('manager-reassign-sales')->group(function () {
     Route::get('/', [SalesReassign::class, 'index']);
     Route::get('/sales', [SalesReassign::class, 'sales']);
     Route::put('/customer/{id}', [SalesReassign::class, 'reassignCustomer']);
     Route::put('/branch/{id}', [SalesReassign::class, 'reassignBranch']);
 });
-
 
 
 
@@ -263,10 +275,6 @@ Route::prefix('customers')->group(function () {
         Route::post('/sync-customers', [OdooSync::class, 'syncCustomers']);
         Route::post('/sync-customer-purchases', [OdooSync::class, 'syncCustomerPurchases']);
     });
-
-
-
-
 });
 
 

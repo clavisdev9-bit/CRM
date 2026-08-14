@@ -43,7 +43,7 @@ class Master extends Controller
         'user:id_user,fullname,username,email,image,is_active,divisi_id,group_id',
         'user.division:id,name_division',
         'user.groups:id_group,name_group',
-        'office:id,office_name',  // ← TAMBAHKAN INI
+        'office:id,office_name',  
     ])
     ->onlyDeleted($onlyDeleted)
     ->search($search)
