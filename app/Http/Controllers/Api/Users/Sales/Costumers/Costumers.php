@@ -1502,7 +1502,7 @@ public function searchCompany(Request $request)
             ])
             ->whereNull('c.deleted_at')
             ->where('c.approval_status', 'approved')
-            ->where('c.company_name', 'ILIKE', "%{$search}%")
+            ->where('c.company_name', 'ILIKE', "{$search}%")
             ->orderBy('c.company_name')
             ->limit(10)
             ->get();

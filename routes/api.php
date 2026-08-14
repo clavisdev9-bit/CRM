@@ -33,11 +33,16 @@ Route::middleware(['jwt.auth'])->group(function () {
     
 Route::get('/get-profile', [SignAuth::class, 'profile'])->name('api.get.profile');
 Route::post('/signOut', [SignAuth::class, 'signOut'])->name('api.sign.out');
+Route::post('/update-profile', [SignAuth::class, 'updateProfile'])->name('api.update.profile');
+Route::put('/update-password', [SignAuth::class, 'updatePassword'])->name('api.update.password');
 
 
 Route::get('/sidebar-access/{role_id}', [Sidebar::class, 'getMenusByRole'])->name('api.sidebar.access');
 Route::get('/sidebar-access-submenu', [Sidebar::class, 'getSubmenu'])->name('api.sidebar.access.submenu');
 Route::get('/permission-button', [Sidebar::class, 'getUserPermissions'])->name('api.permission.button');
+
+Route::get('/sessions', [SignAuth::class, 'sessions']);
+Route::delete('/sessions/{id}', [SignAuth::class, 'revokeSession']);
 
 
 // api administrator role management 

@@ -471,7 +471,7 @@ public function searchCompanyName(Request $request) {
         'search' => 'required|string|min:1|max:255',
     ]);
 
-    $keyword = '%' . strtolower(trim($request->query('search'))) . '%';
+    $keyword = strtolower(trim($request->query('search'))) . '%';
 
     $customers = DB::table('customers')
         ->select(
