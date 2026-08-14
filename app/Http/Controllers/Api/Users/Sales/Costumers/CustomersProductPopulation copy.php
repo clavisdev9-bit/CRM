@@ -469,19 +469,17 @@ class CustomersProductPopulation extends Controller
     }
 
     /**
-     * Cek role user yang login. Skema role di project ini pakai
-     * `role_id` di user (bukan string), dengan role_id = 2 untuk
-     * Sales. Jadi "privileged" di sini = bukan Sales (role_id !== 2),
-     * mencakup Administrator/Manager/role lain yang mungkin dibuat
-     * ke depannya. Kalau nanti ada role tambahan yang JUGA harus
-     * diblok dari fitur ini, ganti jadi whitelist eksplisit
-     * (whereIn role_id [id_admin, id_manager]) alih-alih blacklist ini.
+     * Cek role user yang login. Sesuaikan pengambilan role di
+     * bawah ini (`auth()->user()->role`) dengan implementasi
+     * role/permission asli di project (misal lewat relasi ke
+     * ms_roles, atau kolom role_name) — ditulis longgar dulu
+     * supaya mudah disambungkan ke sistem role yang sebenarnya.
      */
     private function ensurePrivileged()
     {
-        $roleId = auth()->user()->role_id ?? null;
+        $role = strtolower(auth()->user()->role ?? '');
 
-        if ($roleId === null || (int) $roleId === 2) {
+        if (! in_array($role, ['admin', 'administrator', 'manager'])) {
             return ApiResponse::error('Unauthorized. Fitur ini khusus admin/manager.', [], 403);
         }
 
