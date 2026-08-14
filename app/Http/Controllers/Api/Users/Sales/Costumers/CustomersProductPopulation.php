@@ -225,6 +225,11 @@ class CustomersProductPopulation extends Controller
      * "melengkapi" data yang tadinya masuk tab incomplete —
      * begitu customer & PIC-nya sudah ketahuan, tinggal
      * PUT ke endpoint ini dengan customer_id & user_id terisi.
+     * Kalau lewat edit ini customer_id & user_id sama-sama
+     * keisi, ikut sinkron ke tabel `customers` juga (sama
+     * seperti jalur bulk assign()) lewat syncCustomerOwnership(),
+     * jadi efeknya konsisten mau lewat modal Assign Sales atau
+     * lewat edit satuan.
      * ======================================================
      */
     public function update(CustomersProductPopulationValidationRequest $request, $id)
@@ -252,6 +257,20 @@ class CustomersProductPopulation extends Controller
                     'user_id'                    => $this->toPgArray($data['user_id'] ?? []),
                     'updated_at'                 => now(),
                 ]);
+
+                // customer_id & user_id sama-sama terisi lewat form edit ini
+                // (biasanya pas admin/manager melengkapi data yang tadinya
+                // ada di tab "Data Belum Lengkap") -> ikut sinkron ke
+                // customers. Kalau PIC yang dipilih lebih dari satu, yang
+                // dipakai buat "pemilik" customer-nya cuma yang pertama
+                // (sejalan sama assign() yang memang cuma nerima 1 sales
+                // tujuan per assignment).
+                if (! empty($data['customer_id']) && ! empty($data['user_id'])) {
+                    $this->syncCustomerOwnership(
+                        [$data['customer_id']],
+                        (int) $data['user_id'][0]
+                    );
+                }
             });
 
             return $this->respondWithRow($id, 'Success Update Product Population');
@@ -360,6 +379,21 @@ class CustomersProductPopulation extends Controller
      * Khusus admin/manager. Dipanggil dari modal
      * "Assign Sales" setelah admin/manager centang beberapa
      * baris + pilih sales tujuan.
+     * ------------------------------------------------------
+     * Selain nge-set pp.user_id, baris ini SEKALIGUS sinkron
+     * ke tabel `customers` (lewat pp.customer_id) supaya
+     * customer-nya otomatis:
+     *   - jadi milik sales tujuan (customers.id_user)
+     *   - created_by-nya ikut pindah ke sales tujuan
+     *   - approval_status ikut ke-set jadi "approved"
+     * Cuma customer_id yang IKUT ke-assign (lolos guard di
+     * bawah) yang disinkron — bukan seluruh $ids mentah,
+     * supaya konsisten sama guard "masih kosong PIC" di pp.
+     * Sinkron ke customers ini sendiri cuma jalan kalau
+     * customers.id_user masih NULL (belum ada pemilik sama
+     * sekali) ATAU approval_status-nya masih "pending" —
+     * customer yang udah punya id_user DAN sudah "approved"
+     * dibiarkan, nggak ditimpa.
      * ======================================================
      */
     public function assign(CustomersProductPopulationAssignRequest $request)
@@ -373,19 +407,39 @@ class CustomersProductPopulation extends Controller
             $targetId = $data['user_id'];
 
             $updated = DB::transaction(function () use ($ids, $targetId) {
-                return DB::table('product_populations')
-                    ->whereIn('id', $ids)
-                    // guard: hanya update baris yang MASIH kosong PIC-nya,
-                    // supaya request yang telat/basi tidak menimpa assignment
-                    // yang barusan dibuat request lain.
-                    ->where(function ($q) {
-                        $q->whereNull('user_id')
-                            ->orWhereRaw('cardinality(user_id) = 0');
-                    })
-                    ->update([
-                        'user_id'    => $this->toPgArray([$targetId]),
-                        'updated_at' => now(),
-                    ]);
+
+                // helper builder query dengan guard yang sama, dipanggil 2x
+                // (sekali buat ambil customer_id yang bakal kena, sekali
+                // buat eksekusi update-nya) — supaya "lihat data" dan
+                // "update data" konsisten pakai kondisi yang sama.
+                $guardedQuery = function () use ($ids) {
+                    return DB::table('product_populations')
+                        ->whereIn('id', $ids)
+                        // guard: hanya update baris yang MASIH kosong PIC-nya,
+                        // supaya request yang telat/basi tidak menimpa
+                        // assignment yang barusan dibuat request lain.
+                        ->where(function ($q) {
+                            $q->whereNull('user_id')
+                                ->orWhereRaw('cardinality(user_id) = 0');
+                        });
+                };
+
+                // customer_id yang product population-nya BENERAN ke-assign
+                // (lolos guard), dipakai buat sinkronisasi ke tabel customers.
+                $affectedCustomerIds = $guardedQuery()
+                    ->whereNotNull('customer_id')
+                    ->pluck('customer_id')
+                    ->unique()
+                    ->values();
+
+                $updatedCount = $guardedQuery()->update([
+                    'user_id'    => $this->toPgArray([$targetId]),
+                    'updated_at' => now(),
+                ]);
+
+                $this->syncCustomerOwnership($affectedCustomerIds, $targetId);
+
+                return $updatedCount;
             });
 
             return ApiResponse::success(
@@ -409,6 +463,44 @@ class CustomersProductPopulation extends Controller
      * HELPERS
      * ======================================================
      */
+
+    /**
+     * Sinkron kepemilikan customer ke sales tujuan + auto-approve.
+     * Dipakai bareng oleh assign() (bulk, dari modal Assign Sales)
+     * dan update() (lengkapi data satuan lewat form edit) supaya
+     * efeknya konsisten di kedua jalur:
+     *   - customers.id_user & created_by ikut pindah ke sales tujuan
+     *   - approval_status ikut ke-set "approved"
+     *
+     * Guard: cuma jalan kalau customer-nya id_user masih NULL
+     * (kasus kayak PT Adaro yang semua masih null), ATAU
+     * approval_status-nya masih "pending" (meskipun created_by
+     * kebetulan udah keisi). Customer yang udah punya id_user DAN
+     * sudah "approved" dibiarkan, nggak ditimpa — supaya assign PIC
+     * di product population nggak diam-diam ngerebut customer yang
+     * sudah settle di sales/approval lain.
+     */
+    private function syncCustomerOwnership($customerIds, int $targetUserId): void
+    {
+        $customerIds = collect($customerIds)->filter()->unique()->values();
+
+        if ($customerIds->isEmpty()) {
+            return;
+        }
+
+        DB::table('customers')
+            ->whereIn('id', $customerIds)
+            ->where(function ($q) {
+                $q->whereNull('id_user')
+                    ->orWhere('approval_status', 'pending');
+            })
+            ->update([
+                'id_user'         => $targetUserId,
+                'created_by'      => $targetUserId,
+                'approval_status' => 'approved',
+                'updated_at'      => now(),
+            ]);
+    }
 
     /**
      * Select dasar yang dipakai index()/show()/respondWithRow(),
