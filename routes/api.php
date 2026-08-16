@@ -21,6 +21,9 @@ use App\Http\Controllers\Api\Manager\Approval\ApprovalCustomerBranchController;
 use App\Http\Controllers\Api\Manager\Reassign\SalesReassign;
 use App\Http\Controllers\Api\Odoo\OdooSync;
 use App\Http\Controllers\Api\Users\Sales\Costumers\CustomersProductPopulation;
+use App\Http\Controllers\Api\Manager\ReportNew\SalesActivityDashboardController;
+use App\Http\Controllers\Api\Manager\VisitTarget\VisitTargetController;
+use App\Http\Controllers\Api\Users\Sales\VisitTargets\SalesVisitTargetController;
 use Illuminate\Support\Facades\Http;
 
 
@@ -239,6 +242,27 @@ Route::prefix('customer-branch-approval')->group(function () {
     Route::put('/{id}/reject', [ApprovalCustomerBranchController::class, 'reject']);
 });
 
+
+// route untuk report sales activity (manager)
+Route::prefix('manager/sales-activity')->group(function () {
+    Route::get('summary', [SalesActivityDashboardController::class, 'summary']);
+    Route::get('activities', [SalesActivityDashboardController::class, 'activities']);
+    Route::get('activities/{type}/{id}', [SalesActivityDashboardController::class, 'activityDetail']);
+});
+
+
+// route untuk target visit (manager)
+Route::prefix('manager/visit-targets')->group(function () {
+       Route::get('/support/customers', [VisitTargetController::class, 'supportCustomers']); // taruh di atas /{id}
+       Route::get('/', [VisitTargetController::class, 'index']);
+       Route::get('/{id}', [VisitTargetController::class, 'show']);
+       Route::post('/', [VisitTargetController::class, 'store']);
+       Route::put('/{id}', [VisitTargetController::class, 'update']);
+       Route::delete('/{id}', [VisitTargetController::class, 'destroy']);
+   });
+
+// route untuk target visit (sales)
+Route::get('sales/visit-targets', [SalesVisitTargetController::class, 'myTargets']);
 
 
 Route::prefix('product-populations')->group(function () {
