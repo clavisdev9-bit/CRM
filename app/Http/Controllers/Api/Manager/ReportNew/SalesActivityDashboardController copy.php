@@ -177,7 +177,6 @@ class SalesActivityDashboardController extends Controller
             [$startDate, $endDate] = $this->resolveDateRange($validated);
 
             $type    = $validated['type'] ?? 'all';
-            $status  = $validated['status'] ?? 'all';
             $search  = $validated['search'] ?? null;
             $perPage = $validated['per_page'] ?? 10;
             $sortBy  = $validated['sort_by'] ?? 'time';
@@ -188,10 +187,6 @@ class SalesActivityDashboardController extends Controller
             $results = DB::query()
                 ->fromSub($union, 'activity')
                 ->when($type !== 'all', fn ($q) => $q->where('activity_type', $type))
-                // filter status (PENDING/DONE/CANCELLED/CLOSED) — dipakai buat
-                // nampilin follow up/direct yang statusnya Selesai/Closed, yang
-                // sebelumnya cuma ketutup filter Tipe & ga ada cara buat difilter.
-                ->when($status !== 'all', fn ($q) => $q->where('status', $status))
                 ->orderBy($sortBy === 'name' ? 'sales_name' : 'sort_time', $sortDir)
                 ->paginate($perPage);
 
@@ -487,15 +482,6 @@ class SalesActivityDashboardController extends Controller
             ->select([
                 DB::raw("'visit' as activity_type"),
                 'v.id',
-                // ── NO REF (revisi) ── SEMPAT SALAH ASUMSI pakai visit_code
-                // (kode otomatis sistem, format VIS-YYYYMM-XXXXX). Setelah
-                // dicek migration-nya, "No Ref" yang dimaksud itu kolom
-                // no_reference -- nomor referensi ERP yang diinput MANUAL
-                // sama sales pas check-out, BEDA dari visit_code. Fallback ke
-                // visit_code kalau no_reference belum diisi (biar tetap ada
-                // identifier ditampilin), sama kayak pola chip "#..." di
-                // halaman Follow Up Management punya sales.
-                DB::raw('COALESCE(v.no_reference, v.visit_code) as ref_code'),
                 'v.sales_id',
                 'sales.fullname as sales_name',
                 DB::raw("COALESCE(cb.branch_name, c.company_name, l.company_name) as target_name"),
@@ -508,13 +494,6 @@ class SalesActivityDashboardController extends Controller
                     WHEN v.check_out_at IS NOT NULL THEN CONCAT('Selesai — hasil: ', COALESCE(v.customer_response, '-'))
                     ELSE 'Belum check-in'
                 END as note"),
-                // ── FILTER STATUS (baru) ──
-                // Visit tidak punya kolom status sendiri seperti follow_ups
-                // (PENDING/DONE/CANCELLED/CLOSED), jadi diturunkan dari
-                // check_out_at supaya vocabulary-nya konsisten & bisa
-                // di-filter bareng dengan follow_ups di dropdown yang sama:
-                // sudah check-out -> DONE, selain itu -> PENDING.
-                DB::raw("CASE WHEN v.check_out_at IS NOT NULL THEN 'DONE' ELSE 'PENDING' END as status"),
             ])
             ->leftJoin('ms_users as sales', 'sales.id_user', '=', 'v.sales_id')
             ->leftJoin('customer_branches as cb', 'cb.id', '=', 'v.branch_id')
@@ -527,11 +506,6 @@ class SalesActivityDashboardController extends Controller
             ->select([
                 DB::raw("CASE WHEN fu.follow_up_type = 'VISIT' THEN 'followup' ELSE 'direct' END as activity_type"),
                 'fu.id',
-                // ── NO REF (revisi) ── lihat catatan di visitQuery di atas.
-                // no_reference follow_ups ditambahin lewat migration terpisah
-                // (ALTER TABLE, after follow_up_code) -- nullable, jadi tetap
-                // fallback ke follow_up_code kalau belum diisi.
-                DB::raw('COALESCE(fu.no_reference, fu.follow_up_code) as ref_code'),
                 DB::raw('COALESCE(fu.assigned_to, fu.created_by) as sales_id'),
                 DB::raw('COALESCE(assigned_sales.fullname, creator_sales.fullname) as sales_name'),
                 // follow_ups wajib salah satu dari lead_id/customer_id (chk_followups_owner),
@@ -545,10 +519,6 @@ class SalesActivityDashboardController extends Controller
                 DB::raw("TO_CHAR(fu.created_at, 'HH24:MI') as activity_time"),
                 DB::raw('fu.created_at as sort_time'),
                 DB::raw('COALESCE(fu.subject, fu.notes) as note'),
-                // ── FILTER STATUS (baru) ── nilai asli dari follow_ups.status
-                // (PENDING/DONE/CANCELLED/CLOSED), sama vocabulary-nya dengan
-                // yang sudah dipakai di modal Detail Aktivitas (getStatusLabel).
-                'fu.status',
             ])
             // dua kali join ms_users (assigned_to & created_by) lalu COALESCE hasilnya —
             // supaya tidak perlu join pakai expression COALESCE() langsung di kondisi ON.
@@ -635,10 +605,6 @@ class SalesActivityDashboardController extends Controller
         return DB::table('visits as v')
             ->select([
                 'v.id',
-                'v.visit_code',
-                // no_reference: nomor ERP manual dari sales (beda dari visit_code
-                // yang auto-generate sistem) — lihat catatan di buildActivitiesUnion().
-                'v.no_reference',
                 'v.sales_id',
                 'sales.fullname as sales_name',
                 DB::raw("COALESCE(cb.branch_name, c.company_name, l.company_name) as target_name"),
@@ -688,8 +654,6 @@ class SalesActivityDashboardController extends Controller
             ->select([
                 'fu.id',
                 'fu.follow_up_code',
-                // no_reference: nomor ERP manual — lihat catatan di buildActivitiesUnion().
-                'fu.no_reference',
                 DB::raw('COALESCE(fu.assigned_to, fu.created_by) as sales_id'),
                 DB::raw('COALESCE(assigned_sales.fullname, creator_sales.fullname) as sales_name'),
                 // sama seperti buildActivitiesUnion: wajib ikutkan leads karena

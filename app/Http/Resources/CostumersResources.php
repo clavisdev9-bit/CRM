@@ -84,7 +84,18 @@ class CostumersResources extends JsonResource
                     'approved_at' => !empty($branch['approved_at'])
                         ? Carbon::parse($branch['approved_at'])->format('Y-m-d H:i:s')
                         : null,
+
+                    // ── TRIGGER FOLLOW UP (per branch, sudah dihitung di controller) ──
+                    'followup_due' => (bool) ($branch['followup_due'] ?? false),
+                    'followup_due_date' => $branch['followup_due_date'] ?? null,
+                    'followup_overdue' => (bool) ($branch['followup_overdue'] ?? false),
                 ],
+
+                // ── TRIGGER FOLLOW UP (level card, dipakai frontend buat border merah/badge) ──
+                // Sudah digabung di controller (customer-level + branch-level yang relevan).
+                'followup_due' => (bool) ($this->resource->followup_due ?? false),
+                'followup_due_date' => $this->resource->followup_due_date ?? null,
+                'followup_overdue' => (bool) ($this->resource->followup_overdue ?? false),
 
                 'created_at' => !empty($this->resource->created_at ?? null)
                     ? Carbon::parse($this->resource->created_at)->format('Y-m-d H:i:s')
@@ -153,6 +164,13 @@ class CostumersResources extends JsonResource
             'branch_count' => (int) ($this->resource->branch_count ?? 0),
 
             'branches' => $branches,
+
+            // ── TRIGGER FOLLOW UP (level card, dipakai frontend buat border merah/badge) ──
+            // Sudah digabung di controller (customer-level + SEMUA branch, karena
+            // owner customer melihat semua branch). Deteksi berbasis tanggal saja.
+            'followup_due' => (bool) ($this->resource->followup_due ?? false),
+            'followup_due_date' => $this->resource->followup_due_date ?? null,
+            'followup_overdue' => (bool) ($this->resource->followup_overdue ?? false),
 
             'converted_at' => !empty($this->resource->converted_at ?? null)
                 ? Carbon::parse($this->resource->converted_at)->format('Y-m-d H:i:s')

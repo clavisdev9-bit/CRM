@@ -24,6 +24,7 @@ use App\Http\Controllers\Api\Users\Sales\Costumers\CustomersProductPopulation;
 use App\Http\Controllers\Api\Manager\ReportNew\SalesActivityDashboardController;
 use App\Http\Controllers\Api\Manager\VisitTarget\VisitTargetController;
 use App\Http\Controllers\Api\Users\Sales\VisitTargets\SalesVisitTargetController;
+use App\Http\Controllers\Api\Odoo\ProductController;
 use Illuminate\Support\Facades\Http;
 
 
@@ -259,6 +260,7 @@ Route::prefix('manager/visit-targets')->group(function () {
        Route::post('/', [VisitTargetController::class, 'store']);
        Route::put('/{id}', [VisitTargetController::class, 'update']);
        Route::delete('/{id}', [VisitTargetController::class, 'destroy']);
+       Route::post('/duplicate-next-month', [VisitTargetController::class, 'duplicateToNextMonth']);
    });
 
 // route untuk target visit (sales)
@@ -284,6 +286,11 @@ Route::prefix('manager-reassign-sales')->group(function () {
     Route::put('/branch/{id}', [SalesReassign::class, 'reassignBranch']);
 });
 
+// product routes, untuk GET /products (list product) dan POST /products/sync (sync manual dari Odoo)
+Route::prefix('products')->group(function () {
+    Route::get('/', [ProductController::class, 'index']);
+    Route::post('/sync', [ProductController::class, 'sync']);
+});
 
 
 // route terbaru untuk population cust list sell
@@ -297,8 +304,10 @@ Route::prefix('customers')->group(function () {
     Route::post('/unassign-sales', [OdooSync::class, 'unassignCustomerSales']);
     Route::get('/sales-assignments', [OdooSync::class, 'listCustomerSalesAssignments']);
 
-       Route::get('/sales-list', [OdooSync::class, 'salesList']);
+    Route::get('/sales-list', [OdooSync::class, 'salesList']);
     });
+
+
     // route terbaru untuk population cust (sync)
     Route::prefix('odoo')->group(function () {
         Route::post('/sync-customers', [OdooSync::class, 'syncCustomers']);

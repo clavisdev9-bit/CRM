@@ -21,6 +21,7 @@ class SalesActivityResource extends JsonResource
         return [
             'activity_type' => $this->activity_type,
             'id'            => $this->id,
+            'ref_code'      => $this->ref_code,
             'sales_id'      => $this->sales_id,
             'sales_name'    => $this->sales_name,
             'target_name'   => $this->target_name,
@@ -28,6 +29,7 @@ class SalesActivityResource extends JsonResource
             'activity_date' => $this->activity_date,
             'activity_time' => $this->activity_time,
             'note'          => $this->note,
+            'status'        => $this->status,
         ];
     }
 }

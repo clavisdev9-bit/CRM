@@ -7,6 +7,7 @@ use App\Helpers\ApiResponse;
 use App\Http\Requests\VisitTargetValidationIndex;
 use App\Http\Requests\VisitTargetValidationStore;
 use App\Http\Requests\VisitTargetValidationUpdate;
+use App\Http\Requests\VisitTargetValidationDuplicate;
 use App\Http\Resources\VisitTargetResource;
 use App\Http\Resources\VisitTargetResourceCollection;
 use App\Traits\BuildsVisitTargetQuery;
@@ -257,6 +258,105 @@ class VisitTargetController extends Controller
 
         } catch (\Throwable $e) {
             return ApiResponse::error('Failed to update visit target', [
+                'exception' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * POST /manager/visit-targets/duplicate-next-month
+     * -----------------------------------------------------------------------
+     * Duplikat semua target visit dari SATU bulan sumber (`period_month` di
+     * body request, biasanya bulan yang lagi ditampilkan manager di halaman)
+     * ke bulan BERIKUTNYA (source + 1 bulan, dihitung otomatis oleh server --
+     * bukan dipilih bebas oleh manager, sesuai nama fiturnya).
+     *
+     * - target_count & notes disalin apa adanya dari target sumbernya; manager
+     *   tetap bisa edit lagi belakangan lewat modal Edit yang sudah ada.
+     * - Progress target hasil duplikat MULAI DARI 0 di bulan barunya -- sama
+     *   seperti bikin target manual biasa, karena cutoff `achieved_count`
+     *   dihitung dari `created_at` record target yang baru ini (lihat
+     *   BuildsVisitTargetQuery::baseVisitTargetQuery()), bukan ikut cutoff
+     *   target sumbernya.
+     * - target_code baru di-generate ulang (bukan reuse code lama).
+     * - Kombinasi sales+customer/branch yang bulan TUJUANNYA sudah pernah
+     *   dibuatkan target (manual, atau dari duplikat sebelumnya) DI-SKIP, bukan
+     *   bikin error -- jadi tombol ini aman diklik berkali-kali (idempoten),
+     *   misal manager nggak sengaja klik dobel atau sudah keburu bikin
+     *   sebagian target manual duluan buat bulan depan.
+     */
+    public function duplicateToNextMonth(VisitTargetValidationDuplicate $request)
+    {
+        if (! $this->isManager()) {
+            return ApiResponse::error('Unauthorized. Halaman ini khusus Manager.', [], 403);
+        }
+
+        try {
+            $validated      = $request->validated();
+            $managerId      = auth()->user()->id_user;
+            $sourceMonth    = Carbon::parse($validated['period_month'])->startOfMonth();
+            $sourceMonthStr = $sourceMonth->toDateString();
+            $targetMonth    = $sourceMonth->copy()->addMonthNoOverflow()->startOfMonth()->toDateString();
+
+            $sourceTargets = DB::table('visit_targets')
+                ->whereNull('deleted_at')
+                ->where('period_month', $sourceMonthStr)
+                ->get();
+
+            if ($sourceTargets->isEmpty()) {
+                return ApiResponse::error('Tidak ada target visit di bulan sumber untuk diduplikat.', [], 422);
+            }
+
+            $created = 0;
+            $skipped = 0;
+
+            DB::beginTransaction();
+
+            foreach ($sourceTargets as $target) {
+                $duplicate = DB::table('visit_targets')
+                    ->whereNull('deleted_at')
+                    ->where('sales_id', $target->sales_id)
+                    ->where('period_month', $targetMonth)
+                    ->when($target->customer_id, fn ($q) => $q->where('customer_id', $target->customer_id))
+                    ->when($target->branch_id, fn ($q) => $q->where('branch_id', $target->branch_id))
+                    ->exists();
+
+                if ($duplicate) {
+                    $skipped++;
+                    continue;
+                }
+
+                DB::table('visit_targets')->insert([
+                    'target_code'  => $this->generateTargetCode(),
+                    'sales_id'     => $target->sales_id,
+                    'customer_id'  => $target->customer_id,
+                    'branch_id'    => $target->branch_id,
+                    'target_count' => $target->target_count,
+                    'period_month' => $targetMonth,
+                    'created_by'   => $managerId,
+                    'notes'        => $target->notes,
+                    'created_at'   => now(),
+                    'updated_at'   => now(),
+                ]);
+                $created++;
+            }
+
+            DB::commit();
+
+            $message = "Berhasil duplikat {$created} target ke bulan berikutnya"
+                . ($skipped > 0 ? ", {$skipped} dilewati karena sudah ada target di bulan tujuan." : '.');
+
+            return ApiResponse::success([
+                'source_month' => $sourceMonthStr,
+                'target_month' => $targetMonth,
+                'created'      => $created,
+                'skipped'      => $skipped,
+                'total'        => $sourceTargets->count(),
+            ], $message);
+
+        } catch (\Throwable $e) {
+            DB::rollBack();
+            return ApiResponse::error('Failed to duplicate visit targets', [
                 'exception' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }

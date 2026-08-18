@@ -31,6 +31,7 @@ class SalesActivityValidationIndex extends FormRequest
             'preset'     => 'nullable|in:today,yesterday,last7,last_week,last30,last_month',
 
             'type'       => 'nullable|in:all,visit,followup,direct',
+            'status'     => 'nullable|in:all,PENDING,DONE,CANCELLED,CLOSED',
             'search'     => 'nullable|string|max:100',
             'per_page'   => 'nullable|integer|min:5|max:100',
             'sort_by'    => 'nullable|in:time,name',
