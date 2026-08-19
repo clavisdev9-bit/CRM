@@ -26,6 +26,7 @@ use App\Http\Controllers\Api\Manager\VisitTarget\VisitTargetController;
 use App\Http\Controllers\Api\Users\Sales\VisitTargets\SalesVisitTargetController;
 use App\Http\Controllers\Api\Odoo\ProductController;
 use App\Http\Controllers\Api\External\PopulationProductCustumers;
+use App\Http\Controllers\Api\Manager\SalesTarget\SalesTargetController;
 use Illuminate\Support\Facades\Http;
 
 
@@ -250,6 +251,28 @@ Route::prefix('manager/sales-activity')->group(function () {
     Route::get('summary', [SalesActivityDashboardController::class, 'summary']);
     Route::get('activities', [SalesActivityDashboardController::class, 'activities']);
     Route::get('activities/{type}/{id}', [SalesActivityDashboardController::class, 'activityDetail']);
+});
+
+
+// target sales angka penjualan (manager)
+// Route::prefix('sales-targets')->group(function () {
+//     Route::get('/summary', [SalesTargetController::class, 'summary']);
+//     Route::get('/options/sales', [SalesTargetController::class, 'salesOptions']);
+//     Route::get('/options/customers', [SalesTargetController::class, 'customerOptions']);
+//     Route::get('/', [SalesTargetController::class, 'index']);
+//     Route::post('/', [SalesTargetController::class, 'store']);
+//     Route::put('/{id}', [SalesTargetController::class, 'update']);
+//     Route::delete('/{id}', [SalesTargetController::class, 'destroy']);
+// });
+Route::prefix('sales-targets')->group(function () {
+    Route::get('/summary', [SalesTargetController::class, 'summary']);
+    Route::get('/options/sales', [SalesTargetController::class, 'salesOptions']);
+    Route::get('/options/customers', [SalesTargetController::class, 'customerOptions']);
+    Route::get('/{id}/detail', [SalesTargetController::class, 'detail']);
+    Route::get('/', [SalesTargetController::class, 'index']);
+    Route::post('/', [SalesTargetController::class, 'store']);
+    Route::put('/{id}', [SalesTargetController::class, 'update']);
+    Route::delete('/{id}', [SalesTargetController::class, 'destroy']);
 });
 
 
