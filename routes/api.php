@@ -25,6 +25,7 @@ use App\Http\Controllers\Api\Manager\ReportNew\SalesActivityDashboardController;
 use App\Http\Controllers\Api\Manager\VisitTarget\VisitTargetController;
 use App\Http\Controllers\Api\Users\Sales\VisitTargets\SalesVisitTargetController;
 use App\Http\Controllers\Api\Odoo\ProductController;
+use App\Http\Controllers\Api\External\PopulationProductCustumers;
 use Illuminate\Support\Facades\Http;
 
 
@@ -324,6 +325,8 @@ Route::get('/data-visits-leads-map', [Visits::class, 'getVisitTargetMap'])->name
 // untuk data visit all data 
 Route::get('/data-visits-all-data', [Visits::class, 'getVisitAllData'])->name('api.data.visits.all');
 
+// untuk popoukation product custumers external
+Route::get('/data-population-product-customers', [PopulationProductCustumers::class, 'index'])->name('api.data.population.product.customers');
 
 
 Route::middleware(['jwt.auth'])->group(function () {
