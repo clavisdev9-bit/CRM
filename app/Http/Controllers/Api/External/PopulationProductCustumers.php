@@ -66,50 +66,52 @@ class PopulationProductCustumers extends Controller
      * panggilan) biar tetap aman.
      * ======================================================
      */
-    public function index(Request $request)
-    {
-        try {
-            $search = $request->query('search');
+   public function index(Request $request)
+{
+    try {
+        $search = $request->query('search');
 
-            $allowedSort = ['pp.created_at', 'pp.tag_no', 'pp.pump_serial_no', 'pp.qty', 'customer_name'];
+        $allowedSort = ['pp.created_at', 'pp.tag_no', 'pp.pump_serial_no', 'pp.qty', 'customer_name'];
 
-            $sortBy = $request->query('sort_by', 'pp.created_at');
-            $sortBy = in_array($sortBy, $allowedSort) ? $sortBy : 'pp.created_at';
+        $sortBy = $request->query('sort_by', 'pp.created_at');
+        $sortBy = in_array($sortBy, $allowedSort) ? $sortBy : 'pp.created_at';
 
-            $sortDir = strtolower($request->query('sort_dir', 'desc'));
-            $sortDir = in_array($sortDir, ['asc', 'desc']) ? $sortDir : 'desc';
+        $sortDir = strtolower($request->query('sort_dir', 'desc'));
+        $sortDir = in_array($sortDir, ['asc', 'desc']) ? $sortDir : 'desc';
 
-            $query = $this->baseSelect()
-                ->leftJoin('customers as c', 'c.id', '=', 'pp.customer_id');
+        $query = $this->baseSelect()
+            ->leftJoin('customers as c', 'c.id', '=', 'pp.customer_id');
 
-            if ($search) {
-                $query->where(function ($q) use ($search) {
-                    $q->where('pp.pump_serial_no', 'ILIKE', "%{$search}%")
-                        ->orWhere('pp.tag_no', 'ILIKE', "%{$search}%")
-                        ->orWhere('pp.product_model', 'ILIKE', "%{$search}%")
-                        ->orWhere('pp.product_category', 'ILIKE', "%{$search}%")
-                        ->orWhere('c.company_name', 'ILIKE', "%{$search}%")
-                        ->orWhere('c.customer_code', 'ILIKE', "%{$search}%");
-                });
-            }
-
-            $rows = $query->orderBy($sortBy, $sortDir)->get();
-
-            return ApiResponse::success(
-                ProductPopulationExternalResource::collection($rows),
-                $rows->isEmpty() ? 'Data product population not found' : 'Success'
-            );
-
-        } catch (\Illuminate\Database\QueryException $e) {
-            return ApiResponse::error('Failed to fetch product population (query error)', [
-                'exception' => config('app.debug') ? $e->getMessage() : null
-            ], 422);
-        } catch (\Exception $e) {
-            return ApiResponse::error('An error occurred while fetching product population.', [
-                'exception' => config('app.debug') ? $e->getMessage() : null
-            ], 500);
+        if ($search) {
+            $query->where(function ($q) use ($search) {
+                $q->where('pp.pump_serial_no', 'ILIKE', "%{$search}%")
+                    ->orWhere('pp.tag_no', 'ILIKE', "%{$search}%")
+                    ->orWhere('pp.product_model', 'ILIKE', "%{$search}%")
+                    ->orWhere('pp.product_category', 'ILIKE', "%{$search}%")
+                    ->orWhere('c.company_name', 'ILIKE', "%{$search}%")
+                    ->orWhere('c.customer_code', 'ILIKE', "%{$search}%");
+            });
         }
+
+        $rows = $query->orderBy($sortBy, $sortDir)->get();
+
+        return response()->json([
+            'success' => true,
+            'message' => $rows->isEmpty() ? 'Data product population not found' : 'Success',
+            'total' => $rows->count(),
+            'data' => ProductPopulationExternalResource::collection($rows),
+        ]);
+
+    } catch (\Illuminate\Database\QueryException $e) {
+        return ApiResponse::error('Failed to fetch product population (query error)', [
+            'exception' => config('app.debug') ? $e->getMessage() : null
+        ], 422);
+    } catch (\Exception $e) {
+        return ApiResponse::error('An error occurred while fetching product population.', [
+            'exception' => config('app.debug') ? $e->getMessage() : null
+        ], 500);
     }
+}
 
     /**
      * ======================================================
