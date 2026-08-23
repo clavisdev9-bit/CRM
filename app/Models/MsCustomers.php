@@ -66,6 +66,15 @@ class MsCustomers extends Model
         'notes',
 
         // =====================================
+        // GEOLOCATION (auto-fill dari forward-geocoding Address --
+        // lihat Location::search() -- dipakai juga buat matching
+        // radius Visit Check-In di phase 2)
+        // =====================================
+        'latitude',
+        'longitude',
+        'radius_meter',
+
+        // =====================================
         // ACTIVITY
         // =====================================
         'converted_at',
@@ -74,6 +83,9 @@ class MsCustomers extends Model
     protected $casts = [
         'converted_at' => 'datetime',
         'approved_at'  => 'datetime',
+        'latitude'     => 'decimal:7',
+        'longitude'    => 'decimal:7',
+        'radius_meter' => 'integer',
     ];
 
     protected $attributes = [
@@ -81,6 +93,7 @@ class MsCustomers extends Model
         'visibility_type' => 'PRIVATE',
         'approval_status' => 'pending',
         'approval_revision' => 0,
+        'radius_meter' => 100,
     ];
 
     /*

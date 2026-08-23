@@ -68,6 +68,15 @@ class CostumersResources extends JsonResource
                     'address' => $branch['address'] ?? null,
                     'city' => $branch['city'] ?? null,
 
+                    // ── GEOLOKASI CABANG (Phase 3) -- dipakai frontend buat
+                    // prefill form Edit Branch & buat nge-cek apakah cabang
+                    // ini sudah punya titik lokasi sebelum ngaktifin tombol
+                    // "Visit" (lihat hasCoordinates-style check di
+                    // CustomersManagement.vue) ──
+                    'latitude' => isset($branch['latitude']) ? (float) $branch['latitude'] : null,
+                    'longitude' => isset($branch['longitude']) ? (float) $branch['longitude'] : null,
+                    'radius_meter' => isset($branch['radius_meter']) ? (int) $branch['radius_meter'] : null,
+
                     'status' => $branch['status'] ?? null,
                     'approval_status' => $branch['approval_status'] ?? null,
                      'approval_note' => $branch['approval_note'] ?? null,
@@ -129,6 +138,13 @@ class CostumersResources extends JsonResource
             'contacts' => $contacts,
 
             'address' => $this->resource->address ?? null,
+
+            // ── GEOLOKASI (dipakai buat prefill field Latitude/Longitude/Radius
+            //    di form Edit Customer, dan buat kebutuhan phase 2 nanti -- matching
+            //    lokasi GPS sales vs lokasi customer ini pas Visit Check-In) ──
+            'latitude' => isset($this->resource->latitude) ? (float) $this->resource->latitude : null,
+            'longitude' => isset($this->resource->longitude) ? (float) $this->resource->longitude : null,
+            'radius_meter' => isset($this->resource->radius_meter) ? (int) $this->resource->radius_meter : null,
 
             'customer_status' => $this->resource->customer_status ?? null,
 

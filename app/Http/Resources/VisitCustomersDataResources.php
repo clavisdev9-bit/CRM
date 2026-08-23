@@ -38,6 +38,19 @@ class VisitCustomersDataResources extends JsonResource
             'notes' => $this->notes,
 
             // =========================
+            // GEOLOKASI (Phase 1/3) -- dipakai frontend buat nge-cek apakah
+            // target ini (customer head office ATAU branch) udah punya
+            // titik lokasi sendiri sebelum ngaktifin tombol "Visit Now"
+            // (lihat hasCoordinates() di SalesVisitData.vue). Query-nya
+            // sudah nyertain c.latitude/c.longitude/c.radius_meter (head
+            // office) & b.latitude/b.longitude/b.radius_meter (branch) di
+            // Visits::VisitCustomers() -- di sini tinggal di-passthrough.
+            // =========================
+            'latitude'     => $this->latitude !== null ? (float) $this->latitude : null,
+            'longitude'    => $this->longitude !== null ? (float) $this->longitude : null,
+            'radius_meter' => $this->radius_meter !== null ? (int) $this->radius_meter : null,
+
+            // =========================
             // TARGET TYPE (customer / branch)
             // =========================
             'target_type' => $this->target_type ?? 'customer',

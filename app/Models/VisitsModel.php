@@ -20,7 +20,7 @@ class VisitsModel extends Model
     'lead_id',
     'no_reference',
     'customer_id',
-    'branch_id',       
+    'branch_id',
     'sales_id',
     'visit_at',
     'check_in_at',
@@ -39,6 +39,14 @@ class VisitsModel extends Model
     'complaint_detail',
     'has_potential_order',
     'potential_order_detail',
+
+    // ── PHASE 2: VALIDASI RADIUS CHECK-IN ──
+    // Hasil pengecekan jarak GPS sales vs lokasi customer (latitude/
+    // longitude/radius_meter di tabel customers, Phase 1) pas Check-In --
+    // lihat Visits::checkInVisitCustomer() & Visits::calculateDistanceMeters().
+    'is_outside_radius',
+    'distance_meter',
+    'radius_confirm_reason',
 ];
 
     /**
@@ -49,6 +57,8 @@ class VisitsModel extends Model
         'visit_at' => 'datetime',
         'check_in_at' => 'datetime',
         'check_out_at' => 'datetime',
+        'is_outside_radius' => 'boolean',
+        'distance_meter' => 'decimal:2',
     ];
      //opsional
     public function scopeOnlyDeleted(Builder $query, bool $only = false): Builder

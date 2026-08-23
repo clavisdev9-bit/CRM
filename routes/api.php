@@ -27,6 +27,7 @@ use App\Http\Controllers\Api\Users\Sales\VisitTargets\SalesVisitTargetController
 use App\Http\Controllers\Api\Odoo\ProductController;
 use App\Http\Controllers\Api\External\PopulationProductCustumers;
 use App\Http\Controllers\Api\Manager\SalesTarget\SalesTargetController;
+use App\Http\Controllers\Api\Users\Sales\Plan\SalesVisitPlanController;
 use Illuminate\Support\Facades\Http;
 
 
@@ -253,17 +254,16 @@ Route::prefix('manager/sales-activity')->group(function () {
     Route::get('activities/{type}/{id}', [SalesActivityDashboardController::class, 'activityDetail']);
 });
 
+Route::prefix('sales/visit-plans')->group(function () {
+    Route::get('/', [SalesVisitPlanController::class, 'index']);
+    Route::get('/select/customers', [SalesVisitPlanController::class, 'customerSelect']);
+    Route::post('/', [SalesVisitPlanController::class, 'store']);
+    Route::put('/{id}', [SalesVisitPlanController::class, 'update']);
+    Route::delete('/{id}', [SalesVisitPlanController::class, 'destroy']);
+});
+
 
 // target sales angka penjualan (manager)
-// Route::prefix('sales-targets')->group(function () {
-//     Route::get('/summary', [SalesTargetController::class, 'summary']);
-//     Route::get('/options/sales', [SalesTargetController::class, 'salesOptions']);
-//     Route::get('/options/customers', [SalesTargetController::class, 'customerOptions']);
-//     Route::get('/', [SalesTargetController::class, 'index']);
-//     Route::post('/', [SalesTargetController::class, 'store']);
-//     Route::put('/{id}', [SalesTargetController::class, 'update']);
-//     Route::delete('/{id}', [SalesTargetController::class, 'destroy']);
-// });
 Route::prefix('sales-targets')->group(function () {
     Route::get('/summary', [SalesTargetController::class, 'summary']);
     Route::get('/options/sales', [SalesTargetController::class, 'salesOptions']);
@@ -300,6 +300,7 @@ Route::prefix('product-populations')->group(function () {
     Route::post('/', [CustomersProductPopulation::class, 'store']);
     Route::put('/{id}', [CustomersProductPopulation::class, 'update']);
     Route::delete('/{id}', [CustomersProductPopulation::class, 'destroy']);
+    Route::get('/select/customers', [CustomersProductPopulation::class, 'customerSelect']);
 });
 
 
@@ -343,6 +344,10 @@ Route::prefix('customers')->group(function () {
 
 // UNTUK GEO LOCATION
 Route::get('/reverse-geocode', [Location::class, 'reverse']);
+
+// ini untuk geocode (bukan reverse) -- beda endpoint (bukan /reverse) dan beda struktur field yang dibaca dari response-nya.
+Route::get('/geocode', [Location::class, 'search']);
+
 // untuk data map external
 Route::get('/data-visits-leads-map', [Visits::class, 'getVisitTargetMap'])->name('api.data.visits.map');
 // untuk data visit all data 

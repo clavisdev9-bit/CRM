@@ -47,6 +47,16 @@ class CustomersProductPopulation extends Controller
             $perPage = $validated['per_page'] ?? 10;
             $view    = $validated['view'] ?? 'all';
 
+            // Sales (role_id 2) cuma boleh liat data miliknya sendiri --
+            // tab "Semua Data" (semua customer, bukan cuma yang dia pegang)
+            // dan "Data Belum Lengkap" disembunyikan total dari Sales di
+            // frontend, dan di sini DIPAKSA balik ke 'mine' juga supaya
+            // Sales nggak bisa ngakalin dengan ngirim ?view=all/incomplete
+            // langsung ke endpoint ini.
+            if ((int) (auth()->user()->role_id ?? 0) === 2) {
+                $view = 'mine';
+            }
+
             $allowedSort = ['pp.created_at', 'pp.tag_no', 'pp.pump_serial_no', 'pp.qty', 'customer_name'];
             $sortBy = in_array($validated['sort_by'] ?? null, $allowedSort)
                 ? $validated['sort_by']
@@ -74,6 +84,17 @@ class CustomersProductPopulation extends Controller
                         $q->whereNull('pp.user_id')
                             ->orWhereRaw('cardinality(pp.user_id) = 0');
                     });
+            }
+
+            /**
+             * ---------------- FILTER PER COMPANY (dropdown baru) ----------------
+             * Beda dari SEARCH (yang cocokin banyak kolom sekaligus lewat teks
+             * bebas) -- ini exact match ke 1 customer_id spesifik, dipilih
+             * lewat dropdown company di frontend (isinya dari endpoint
+             * customerSelect() di bawah).
+             */
+            if (!empty($validated['customer_id'])) {
+                $query->where('pp.customer_id', $validated['customer_id']);
             }
 
             /**
@@ -453,6 +474,59 @@ class CustomersProductPopulation extends Controller
             ], 422);
         } catch (\Exception $e) {
             return ApiResponse::error('An error occurred while assigning sales.', [
+                'exception' => config('app.debug') ? $e->getMessage() : null
+            ], 500);
+        }
+    }
+
+    /**
+     * ======================================================
+     * SELECT: CUSTOMER PER-COMPANY (dropdown filter baru di frontend)
+     * ------------------------------------------------------
+     * Ngambil daftar company DISTINCT yang punya minimal 1 baris
+     * product_population, di-scope PERSIS sama seperti view aktif di
+     * index()/counts() (all/mine/incomplete) -- supaya isi dropdown-nya
+     * selalu konsisten sama data yang lagi ditampilkan tabel. Sengaja
+     * dibikin endpoint kecil terpisah (bukan numpang di index() yang
+     * udah di-paginate) karena dropdown butuh SEMUA company sekaligus,
+     * bukan cuma yang kebetulan ada di 1 halaman aktif.
+     * ======================================================
+     */
+    public function customerSelect(Request $request)
+    {
+        try {
+            $view   = $request->query('view', 'all');
+            $userId = auth()->user()->id_user;
+
+            // Sama seperti guard di index() -- Sales dipaksa 'mine' apapun
+            // parameter view yang dikirim, biar dropdown company nggak
+            // bocorin daftar SEMUA customer ke Sales lewat endpoint ini.
+            if ((int) (auth()->user()->role_id ?? 0) === 2) {
+                $view = 'mine';
+            }
+
+            // Tab "Data Belum Lengkap" definisinya customer_id NULL --
+            // nggak akan pernah ada company buat di-dropdown-in di tab ini,
+            // jadi langsung balikin list kosong tanpa query sia-sia.
+            if ($view === 'incomplete') {
+                return ApiResponse::success([], 'Success');
+            }
+
+            $query = DB::table('product_populations as pp')
+                ->join('customers as c', 'c.id', '=', 'pp.customer_id')
+                ->select('c.id', 'c.company_name')
+                ->distinct();
+
+            if ($view === 'mine') {
+                $query->whereRaw('? = ANY(pp.user_id)', [$userId]);
+            }
+
+            $rows = $query->orderBy('c.company_name')->get();
+
+            return ApiResponse::success($rows, 'Success');
+
+        } catch (\Throwable $e) {
+            return ApiResponse::error('Failed to fetch customer select', [
                 'exception' => config('app.debug') ? $e->getMessage() : null
             ], 500);
         }

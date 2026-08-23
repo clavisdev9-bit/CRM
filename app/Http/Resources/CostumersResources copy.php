@@ -12,11 +12,6 @@ class CostumersResources extends JsonResource
     {
         $displayType = $this->resource->display_type ?? 'customer';
 
-        // ── FIX: akses lewat $this->resource (property asli), bukan
-        // $this->branches (magic getter JsonResource) — supaya null
-        // coalescing (??) benar-benar aman untuk baris hasil query
-        // builder (stdClass) yang tidak menyertakan kolom 'branches'
-        // sama sekali, seperti pada endpoint customerSubmission().
         $rawBranches = $this->resource->branches ?? null;
 
         $branches = collect(
@@ -24,6 +19,25 @@ class CostumersResources extends JsonResource
                 ? json_decode($rawBranches, true)
                 : ($rawBranches ?? [])
         )->values();
+
+        // ── CONTACTS ──
+        // Bisa berupa Collection (dari showCostumers/store/update yang
+        // saya tambahkan) atau tidak ada sama sekali (dari query list
+        // lama yang belum di-join). Fallback ke collect kosong.
+        $rawContacts = $this->resource->contacts ?? collect();
+
+        $contacts = collect($rawContacts)->map(function ($contact) {
+            $contact = (array) $contact;
+
+            return [
+                'id'         => $contact['id'] ?? null,
+                'name'       => $contact['name'] ?? null,
+                'position'   => $contact['position'] ?? null,
+                'email'      => $contact['email'] ?? null,
+                'phone'      => $contact['phone'] ?? null,
+                'is_primary' => (bool) ($contact['is_primary'] ?? false),
+            ];
+        })->values();
 
         /**
          * ==========================================================
@@ -38,40 +52,50 @@ class CostumersResources extends JsonResource
 
                 'display_type' => 'branch',
 
-                // Parent Customer
                 'customer' => [
                     'id' => $this->resource->id ?? null,
                     'customer_code' => $this->resource->customer_code ?? null,
                     'company_name' => $this->resource->company_name ?? null,
                 ],
 
-              
-
                 'branch' => [
-                            'id' => $branch['id'] ?? null,
-                            'branch_code' => $branch['branch_code'] ?? null,
-                            'branch_name' => $branch['branch_name'] ?? null,
-                            'contact_name' => $branch['contact_name'] ?? null,
-                            'email' => $branch['email'] ?? null,
-                            'phone' => $branch['phone'] ?? null,
-                            'address' => $branch['address'] ?? null,
-                            'city' => $branch['city'] ?? null,
+                    'id' => $branch['id'] ?? null,
+                    'branch_code' => $branch['branch_code'] ?? null,
+                    'branch_name' => $branch['branch_name'] ?? null,
+                    'contact_name' => $branch['contact_name'] ?? null,
+                    'email' => $branch['email'] ?? null,
+                    'phone' => $branch['phone'] ?? null,
+                    'address' => $branch['address'] ?? null,
+                    'city' => $branch['city'] ?? null,
 
-                            'status' => $branch['status'] ?? null,
-                            'approval_status' => $branch['approval_status'] ?? null,
+                    'status' => $branch['status'] ?? null,
+                    'approval_status' => $branch['approval_status'] ?? null,
+                     'approval_note' => $branch['approval_note'] ?? null,
+                    'approval_revision' => $branch['approval_revision'] ?? null,
 
-                            'assigned_to' => $branch['assigned_to'] ?? null,
-                            'assigned_name' => $branch['assigned_name'] ?? null,
+                    'assigned_to' => $branch['assigned_to'] ?? null,
+                    'assigned_name' => $branch['assigned_name'] ?? null,
 
-                            'created_by' => $branch['created_by'] ?? null,
-                            'owner_name' => $branch['owner_name'] ?? null,
+                    'created_by' => $branch['created_by'] ?? null,
+                    'owner_name' => $branch['owner_name'] ?? null,
 
-                            'approved_by' => $branch['approved_by'] ?? null,
+                    'approved_by' => $branch['approved_by'] ?? null,
 
-                            'approved_at' => !empty($branch['approved_at'])
-                                ? Carbon::parse($branch['approved_at'])->format('Y-m-d H:i:s')
-                                : null,
-                        ],
+                    'approved_at' => !empty($branch['approved_at'])
+                        ? Carbon::parse($branch['approved_at'])->format('Y-m-d H:i:s')
+                        : null,
+
+                    // ── TRIGGER FOLLOW UP (per branch, sudah dihitung di controller) ──
+                    'followup_due' => (bool) ($branch['followup_due'] ?? false),
+                    'followup_due_date' => $branch['followup_due_date'] ?? null,
+                    'followup_overdue' => (bool) ($branch['followup_overdue'] ?? false),
+                ],
+
+                // ── TRIGGER FOLLOW UP (level card, dipakai frontend buat border merah/badge) ──
+                // Sudah digabung di controller (customer-level + branch-level yang relevan).
+                'followup_due' => (bool) ($this->resource->followup_due ?? false),
+                'followup_due_date' => $this->resource->followup_due_date ?? null,
+                'followup_overdue' => (bool) ($this->resource->followup_overdue ?? false),
 
                 'created_at' => !empty($this->resource->created_at ?? null)
                     ? Carbon::parse($this->resource->created_at)->format('Y-m-d H:i:s')
@@ -95,9 +119,15 @@ class CostumersResources extends JsonResource
             'id' => $this->resource->id ?? null,
             'customer_code' => $this->resource->customer_code ?? null,
             'company_name' => $this->resource->company_name ?? null,
+
+            // tetap dipertahankan untuk backward compat (sinkron dari kontak primary)
             'contact_name' => $this->resource->contact_name ?? null,
             'email' => $this->resource->email ?? null,
             'phone' => $this->resource->phone ?? null,
+
+            // ── kontak lengkap (baru) ──
+            'contacts' => $contacts,
+
             'address' => $this->resource->address ?? null,
 
             'customer_status' => $this->resource->customer_status ?? null,
@@ -131,10 +161,16 @@ class CostumersResources extends JsonResource
             'created_by' => $this->resource->created_by ?? null,
             'owner_name' => $this->resource->owner_name ?? null,
 
-
             'branch_count' => (int) ($this->resource->branch_count ?? 0),
 
             'branches' => $branches,
+
+            // ── TRIGGER FOLLOW UP (level card, dipakai frontend buat border merah/badge) ──
+            // Sudah digabung di controller (customer-level + SEMUA branch, karena
+            // owner customer melihat semua branch). Deteksi berbasis tanggal saja.
+            'followup_due' => (bool) ($this->resource->followup_due ?? false),
+            'followup_due_date' => $this->resource->followup_due_date ?? null,
+            'followup_overdue' => (bool) ($this->resource->followup_overdue ?? false),
 
             'converted_at' => !empty($this->resource->converted_at ?? null)
                 ? Carbon::parse($this->resource->converted_at)->format('Y-m-d H:i:s')

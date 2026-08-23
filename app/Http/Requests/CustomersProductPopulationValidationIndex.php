@@ -21,6 +21,10 @@ class CustomersProductPopulationValidationIndex extends FormRequest
             'per_page' => 'nullable|integer|min:1|max:100',
             'sort_by'  => 'nullable|string',
             'sort_dir' => 'nullable|string|in:asc,desc',
+
+            // dropdown filter "per company" baru di frontend -- kalau
+            // keisi, index() cuma nampilin baris punya customer ini aja.
+            'customer_id' => 'nullable|integer|exists:customers,id',
         ];
     }
 }

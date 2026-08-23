@@ -83,6 +83,10 @@ class Costumers extends Controller
                         'address', cb.address,
                         'city', cb.city,
 
+                        'latitude', cb.latitude,
+                        'longitude', cb.longitude,
+                        'radius_meter', cb.radius_meter,
+
                         'assigned_to', COALESCE(cb.assigned_to, cb.created_by),
                         'assigned_name', COALESCE(sales.fullname, owner.fullname),
 
@@ -165,6 +169,15 @@ class Costumers extends Controller
                 'c.email',
                 'c.phone',
                 'c.address',
+
+                // ── GEOLOKASI (Phase 1/3) -- dipakai frontend buat prefill
+                // form Edit Customer & buat nge-cek apakah customer ini
+                // sudah punya titik lokasi sebelum ngaktifin tombol "Visit"
+                // di CustomersManagement.vue ──
+                'c.latitude',
+                'c.longitude',
+                'c.radius_meter',
+
                 'c.lead_id',
                 'c.lead_category_id',
                 'c.industry_id',
@@ -679,6 +692,12 @@ class Costumers extends Controller
                     'visibility_type'  => $data['visibility_type'] ?? 'PRIVATE',
                     'notes'            => $data['notes'] ?? null,
                     'address'          => $data['address'] ?? null,
+
+                    // ── GEOLOKASI (auto-fill dari forward-geocoding Address, lihat Location::search()) ──
+                    'latitude'         => $data['latitude'] ?? null,
+                    'longitude'        => $data['longitude'] ?? null,
+                    'radius_meter'     => $data['radius_meter'] ?? 100,
+
                     'converted_at'     => now(),
                     'created_at'       => now(),
                     'updated_at'       => now(),
@@ -795,6 +814,12 @@ class Costumers extends Controller
                     'customer_status'  => $data['customer_status'] ?? 'Active',
                     'notes'            => $data['notes'] ?? null,
                     'address'          => $data['address'] ?? null,
+
+                    // ── GEOLOKASI (auto-fill dari forward-geocoding Address, lihat Location::search()) ──
+                    'latitude'         => $data['latitude'] ?? null,
+                    'longitude'        => $data['longitude'] ?? null,
+                    'radius_meter'     => $data['radius_meter'] ?? 100,
+
                     'updated_at'       => now(),
                 ]);
 
@@ -1183,6 +1208,12 @@ class Costumers extends Controller
                 'cb.status',
                 'cb.address',
                 'cb.city',
+
+                // ── GEOLOKASI CABANG ──
+                'cb.latitude',
+                'cb.longitude',
+                'cb.radius_meter',
+
                 'cb.contact_name',
                 'cb.email',
                 'cb.phone',
@@ -1299,6 +1330,11 @@ class Costumers extends Controller
                     'address'      => 'nullable|string',
                     'notes'        => 'nullable|string',
 
+                    // ── GEOLOKASI CABANG (samain konsepnya dengan customer head company) ──
+                    'latitude'     => 'nullable|numeric|between:-90,90',
+                    'longitude'    => 'nullable|numeric|between:-180,180',
+                    'radius_meter' => 'nullable|integer|min:10|max:5000',
+
                     'contacts'                  => 'required|array|min:1',
                     'contacts.*.id'             => 'nullable|integer|exists:branch_contacts,id',
                     'contacts.*.name'           => 'required|string|max:100',
@@ -1354,6 +1390,11 @@ class Costumers extends Controller
                     'status'         => 'Active',
                     'address'        => $data['address'] ?? null,
                     'city'           => $data['city'] ?? null,
+
+                    // ── GEOLOKASI CABANG ──
+                    'latitude'       => $data['latitude'] ?? null,
+                    'longitude'      => $data['longitude'] ?? null,
+                    'radius_meter'   => $data['radius_meter'] ?? 100,
 
                     // sinkron dari kontak primary (backward compat)
                     'contact_name'   => $primary['name'],
@@ -1480,6 +1521,11 @@ class Costumers extends Controller
                     'address'      => 'nullable|string',
                     'notes'        => 'nullable|string',
 
+                    // ── GEOLOKASI CABANG (samain konsepnya dengan customer head company) ──
+                    'latitude'     => 'nullable|numeric|between:-90,90',
+                    'longitude'    => 'nullable|numeric|between:-180,180',
+                    'radius_meter' => 'nullable|integer|min:10|max:5000',
+
                     'contacts'                  => 'required|array|min:1',
                     'contacts.*.id'             => 'nullable|integer|exists:branch_contacts,id',
                     'contacts.*.name'           => 'required|string|max:100',
@@ -1538,6 +1584,11 @@ class Costumers extends Controller
                         'branch_name'  => $data['branch_name'],
                         'city'         => $data['city'] ?? null,
                         'address'      => $data['address'] ?? null,
+
+                        // ── GEOLOKASI CABANG ──
+                        'latitude'     => $data['latitude'] ?? null,
+                        'longitude'    => $data['longitude'] ?? null,
+                        'radius_meter' => $data['radius_meter'] ?? 100,
 
                         // sinkron dari kontak primary (backward compat)
                         'contact_name' => $primary['name'],

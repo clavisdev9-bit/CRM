@@ -24,6 +24,13 @@ class CostumersValidationRequest extends FormRequest
             'address'           => 'required|string',
             'customer_status'   => 'required|string',
 
+            // ── GEOLOKASI (auto-fill dari forward-geocoding Address, lihat
+            //    Location::search() -- disiapkan sekalian buat matching radius
+            //    Visit Check-In di phase 2, tapi belum dipakai di phase 1 ini) ──
+            'latitude'          => 'nullable|numeric|between:-90,90',
+            'longitude'         => 'nullable|numeric|between:-180,180',
+            'radius_meter'      => 'nullable|integer|min:10|max:5000',
+
             // ── CONTACTS (bisa banyak) ──
             'contacts'                  => 'required|array|min:1',
             'contacts.*.id'             => 'nullable|integer|exists:customer_contacts,id',
@@ -54,6 +61,14 @@ class CostumersValidationRequest extends FormRequest
             'notes.string'               => 'Notes must be a string.',
             'address.string'             => 'Address must be a string.',
             'customer_status.string'     => 'Customer status must be a string.',
+
+            'latitude.numeric'           => 'Latitude harus berupa angka.',
+            'latitude.between'           => 'Latitude harus di antara -90 dan 90.',
+            'longitude.numeric'          => 'Longitude harus berupa angka.',
+            'longitude.between'          => 'Longitude harus di antara -180 dan 180.',
+            'radius_meter.integer'       => 'Radius harus berupa angka bulat.',
+            'radius_meter.min'           => 'Radius minimal 10 meter.',
+            'radius_meter.max'           => 'Radius maksimal 5000 meter.',
 
             'contacts.required'          => 'Minimal 1 kontak harus diisi.',
             'contacts.array'             => 'Format kontak tidak valid.',
