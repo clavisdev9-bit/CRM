@@ -22,6 +22,7 @@ use App\Http\Controllers\Api\Manager\Reassign\SalesReassign;
 use App\Http\Controllers\Api\Odoo\OdooSync;
 use App\Http\Controllers\Api\Users\Sales\Costumers\CustomersProductPopulation;
 use App\Http\Controllers\Api\Manager\ReportNew\SalesActivityDashboardController;
+use App\Http\Controllers\Api\Manager\ReportNew\ReportProductBySalesController;
 use App\Http\Controllers\Api\Manager\VisitTarget\VisitTargetController;
 use App\Http\Controllers\Api\Users\Sales\VisitTargets\SalesVisitTargetController;
 use App\Http\Controllers\Api\Odoo\ProductController;
@@ -273,6 +274,8 @@ Route::prefix('sales-targets')->group(function () {
     Route::post('/', [SalesTargetController::class, 'store']);
     Route::put('/{id}', [SalesTargetController::class, 'update']);
     Route::delete('/{id}', [SalesTargetController::class, 'destroy']);
+    Route::get('/options/products', [SalesTargetController::class, 'productOptions']);
+    Route::get('/options/categories', [SalesTargetController::class, 'categoryOptions']);
 });
 
 
@@ -315,6 +318,12 @@ Route::prefix('manager-reassign-sales')->group(function () {
 Route::prefix('products')->group(function () {
     Route::get('/', [ProductController::class, 'index']);
     Route::post('/sync', [ProductController::class, 'sync']);
+});
+
+Route::prefix('report-product-by-sales')->group(function () {
+    Route::get('/', [ReportProductBySalesController::class, 'index']);
+    Route::get('/summary', [ReportProductBySalesController::class, 'summary']);
+    Route::get('/{salesId}/{odooProductId}/detail', [ReportProductBySalesController::class, 'detail']);
 });
 
 

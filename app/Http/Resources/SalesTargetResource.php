@@ -16,6 +16,14 @@ use Illuminate\Http\Resources\Json\JsonResource;
  * sebelum masuk Resource ini (contoh: $target->achieved_amount = ...).
  * Kalau achieved_amount belum ditempel (misal Resource ini dipakai di tempat
  * lain yang belum sempat ngitung), default-nya 0 -- BUKAN null/error.
+ *
+ * target_type: 'total' | 'customer' | 'brand' | 'category' -- dihitung dari
+ * kolom dimensi mana yang keisi (odoo_customer_id / odoo_product_id /
+ * categ_id, cuma boleh salah satu -- dijaga di SalesTargetValidationStore +
+ * CHECK constraint chk_sales_targets_single_dimension). Dipakai frontend
+ * buat nentuin badge/label & field mana yang ditampilin. is_total_target
+ * TETAP dipertahankan (dipakai kode lama) -- sekarang artinya "bukan salah
+ * satu dari customer/brand/category".
  */
 class SalesTargetResource extends JsonResource
 {
@@ -27,6 +35,15 @@ class SalesTargetResource extends JsonResource
             ? round(($achievedAmount / $targetAmount) * 100, 2)
             : 0;
 
+        $targetType = 'total';
+        if (!is_null($this->odoo_customer_id)) {
+            $targetType = 'customer';
+        } elseif (!is_null($this->odoo_product_id)) {
+            $targetType = 'brand';
+        } elseif (!is_null($this->categ_id)) {
+            $targetType = 'category';
+        }
+
         return [
             'id'               => $this->id,
 
@@ -35,9 +52,17 @@ class SalesTargetResource extends JsonResource
 
             'period_year'      => $this->period_year,
 
+            'target_type'      => $targetType,
+            'is_total_target'  => $targetType === 'total',
+
             'odoo_customer_id' => $this->odoo_customer_id,
             'customer_name'    => $this->whenLoaded('odooCustomer', fn () => $this->odooCustomer?->name, null),
-            'is_total_target'  => is_null($this->odoo_customer_id),
+
+            'odoo_product_id'  => $this->odoo_product_id,
+            'product_name'     => $this->whenLoaded('odooProduct', fn () => $this->odooProduct?->name, null),
+
+            'categ_id'         => $this->categ_id,
+            'categ_name'       => $this->categ_name,
 
             'target_amount'       => $targetAmount,
             'achieved_amount'     => $achievedAmount,

@@ -13,6 +13,7 @@ use App\Models\CustomerSalesAssignmentOdoo;
 use App\Models\OdooCustomerPurchaseItem;
 use App\Models\MsUsers;
 use App\Models\OdooCustomer;
+use App\Models\OdooProduct;
 use Illuminate\Http\Request;
 
 /**
@@ -51,6 +52,18 @@ use Illuminate\Http\Request;
  * OdooProduct <-> odoo_products). Kalau model asli kamu namanya beda
  * (misal cuma "CustomerPurchaseItem" kayak alias yang dipakai di
  * OdooSync.php), tinggal disesuaikan use statement-nya di atas.
+ *
+ * UPDATE -- breakdown BRAND & KATEGORI: selain TOTAL & per-CUSTOMER, target
+ * sekarang bisa juga dipecah per BRAND (odoo_product_id -- "Brand" di sini
+ * artinya PRODUCT Odoo itu sendiri, bukan field terpisah) dan per KATEGORI
+ * (categ_id/categ_name, didenormalisasi dari odoo_products.categ_id/
+ * categ_name). 1 baris cuma boleh isi SALAH SATU dari 3 dimensi itu (atau
+ * kosong semua = TOTAL) -- dijaga di SalesTargetValidationStore plus CHECK
+ * constraint di level DB. Perhitungan achieved_amount buat Brand/Kategori
+ * TETAP lewat jalur yang sama (customer-customer assignment sales lewat
+ * CustomerSalesAssignmentOdoo), cuma ditambah filter ke odoo_product_id
+ * (Brand) atau ke semua odoo_product_id yang categ_id-nya cocok (Kategori)
+ * -- lihat computeAchievedAmount() di bawah.
  * ============================================================================
  */
 class SalesTargetController extends Controller
@@ -69,6 +82,7 @@ class SalesTargetController extends Controller
             $query = SalesTarget::with([
                 'salesUser:id_user,fullname',
                 'odooCustomer:odoo_partner_id,name',
+                'odooProduct:odoo_product_id,name',
                 'creator:id_user,fullname',
             ]);
 
@@ -83,13 +97,16 @@ class SalesTargetController extends Controller
             $periodYear = $validated['period_year'] ?? now()->year;
             $query->where('period_year', $periodYear);
 
-            // Search by nama sales ATAU nama customer -- dua-duanya relasi,
-            // jadi pakai whereHas (bukan kolom langsung di sales_targets).
+            // Search by nama sales / nama customer / nama brand (product) /
+            // nama kategori -- semuanya relasi kecuali categ_name (kolom
+            // langsung di sales_targets), jadi campuran whereHas + where.
             if (!empty($validated['search'])) {
                 $search = $validated['search'];
                 $query->where(function ($q) use ($search) {
                     $q->whereHas('salesUser', fn ($sq) => $sq->where('fullname', 'ILIKE', "%{$search}%"))
-                        ->orWhereHas('odooCustomer', fn ($sq) => $sq->where('name', 'ILIKE', "%{$search}%"));
+                        ->orWhereHas('odooCustomer', fn ($sq) => $sq->where('name', 'ILIKE', "%{$search}%"))
+                        ->orWhereHas('odooProduct', fn ($sq) => $sq->where('name', 'ILIKE', "%{$search}%"))
+                        ->orWhere('categ_name', 'ILIKE', "%{$search}%");
                 });
             }
 
@@ -98,7 +115,15 @@ class SalesTargetController extends Controller
             $results = $query
                 ->orderByDesc('period_year')
                 ->orderBy('sales_id')
-                ->orderByRaw('odoo_customer_id IS NULL DESC') // target total duluan, baru per-customer
+                // urutan tampil: TOTAL, per Customer, per Brand, per Kategori
+                ->orderByRaw("
+                    CASE
+                        WHEN odoo_customer_id IS NULL AND odoo_product_id IS NULL AND categ_id IS NULL THEN 0
+                        WHEN odoo_customer_id IS NOT NULL THEN 1
+                        WHEN odoo_product_id IS NOT NULL THEN 2
+                        ELSE 3
+                    END
+                ")
                 ->paginate($perPage);
 
             // achieved_amount dihitung dinamis per baris (ga ada di DB)
@@ -106,7 +131,9 @@ class SalesTargetController extends Controller
                 $target->achieved_amount = $this->computeAchievedAmount(
                     $target->sales_id,
                     $target->period_year,
-                    $target->odoo_customer_id
+                    $target->odoo_customer_id,
+                    $target->odoo_product_id,
+                    $target->categ_id
                 );
                 return $target;
             });
@@ -131,7 +158,15 @@ class SalesTargetController extends Controller
      * - Target PER-CUSTOMER (odoo_customer_id diisi): nampilin daftar
      *   TRANSAKSI customer itu di tahun target-nya (mirip modal "Customer
      *   Purchase Detail" yang udah ada di halaman Customer History).
-     * - Target TOTAL (odoo_customer_id NULL): nampilin breakdown PER
+     * - Target PER-BRAND (odoo_product_id diisi): nampilin daftar TRANSAKSI
+     *   product itu, dari customer-customer yang di-assign ke sales ini
+     *   (mirip target per-customer, cuma filter-nya per product + nampilin
+     *   nama customer di tiap baris transaksi, soalnya 1 brand bisa dibeli
+     *   banyak customer).
+     * - Target PER-KATEGORI (categ_id diisi): nampilin breakdown PER
+     *   PRODUCT di dalam kategori itu (gabungan semua brand yang categ_id-
+     *   nya cocok), dari customer-customer yang di-assign ke sales ini.
+     * - Target TOTAL (semua dimensi NULL): nampilin breakdown PER
      *   CUSTOMER -- semua customer yang di-assign ke sales itu, masing-
      *   masing sama jumlah tercapainya di tahun ini (biar manager tau
      *   customer mana yang paling nyumbang ke angka total-nya).
@@ -141,8 +176,11 @@ class SalesTargetController extends Controller
         try {
             $user = $request->user();
 
-            $target = SalesTarget::with(['salesUser:id_user,fullname', 'odooCustomer:odoo_partner_id,name'])
-                ->find($id);
+            $target = SalesTarget::with([
+                'salesUser:id_user,fullname',
+                'odooCustomer:odoo_partner_id,name',
+                'odooProduct:odoo_product_id,name',
+            ])->find($id);
 
             if (!$target) {
                 return ApiResponse::error('Sales target not found.', [], 404);
@@ -176,10 +214,75 @@ class SalesTargetController extends Controller
                 ], 'Success');
             }
 
-            // ── TARGET TOTAL: breakdown per customer assignment sales ini ──
             $assignedCustomerIds = CustomerSalesAssignmentOdoo::where('sales_id', $target->sales_id)
                 ->pluck('odoo_customer_id');
 
+            // ── TARGET PER-BRAND: daftar transaksi product itu, dari
+            //    customer-customer yang di-assign ke sales ini ──
+            if (!empty($target->odoo_product_id)) {
+                $transactions = OdooCustomerPurchaseItem::whereIn('odoo_customer_id', $assignedCustomerIds)
+                    ->where('odoo_product_id', $target->odoo_product_id)
+                    ->whereYear('order_date', $target->period_year)
+                    ->orderByDesc('order_date')
+                    ->get(['order_name', 'order_date', 'odoo_customer_id', 'product_name', 'product_code', 'qty', 'price_unit']);
+
+                $customerNames = OdooCustomer::whereIn('odoo_partner_id', $transactions->pluck('odoo_customer_id')->unique())
+                    ->pluck('name', 'odoo_partner_id');
+
+                $target->achieved_amount = (float) $transactions->sum(fn ($t) => $t->qty * $t->price_unit);
+
+                return ApiResponse::success([
+                    'type'         => 'brand',
+                    'target'       => new SalesTargetResource($target),
+                    'transactions' => $transactions->map(fn ($t) => [
+                        'order_name'    => $t->order_name,
+                        'order_date'    => optional($t->order_date)->format('Y-m-d'),
+                        'customer_name' => $customerNames->get($t->odoo_customer_id) ?? ('#' . $t->odoo_customer_id),
+                        'product_name'  => $t->product_name,
+                        'product_code'  => $t->product_code,
+                        'qty'           => (float) $t->qty,
+                        'price_unit'    => (float) $t->price_unit,
+                        'subtotal'      => (float) $t->qty * (float) $t->price_unit,
+                    ])->values(),
+                ], 'Success');
+            }
+
+            // ── TARGET PER-KATEGORI: breakdown per product di kategori itu ──
+            if (!empty($target->categ_id)) {
+                $productIds = OdooProduct::where('categ_id', $target->categ_id)->pluck('odoo_product_id');
+
+                if ($productIds->isEmpty() || $assignedCustomerIds->isEmpty()) {
+                    $target->achieved_amount = 0.0;
+                    return ApiResponse::success([
+                        'type'     => 'category',
+                        'target'   => new SalesTargetResource($target),
+                        'products' => [],
+                    ], 'Success');
+                }
+
+                $sums = OdooCustomerPurchaseItem::whereIn('odoo_customer_id', $assignedCustomerIds)
+                    ->whereIn('odoo_product_id', $productIds)
+                    ->whereYear('order_date', $target->period_year)
+                    ->selectRaw('odoo_product_id, product_name, COUNT(*) as transaction_count, COALESCE(SUM(qty * price_unit), 0) as achieved_amount')
+                    ->groupBy('odoo_product_id', 'product_name')
+                    ->orderByDesc('achieved_amount')
+                    ->get();
+
+                $target->achieved_amount = (float) $sums->sum('achieved_amount');
+
+                return ApiResponse::success([
+                    'type'     => 'category',
+                    'target'   => new SalesTargetResource($target),
+                    'products' => $sums->map(fn ($s) => [
+                        'odoo_product_id'   => $s->odoo_product_id,
+                        'product_name'      => $s->product_name ?? ('#' . $s->odoo_product_id),
+                        'transaction_count' => (int) $s->transaction_count,
+                        'achieved_amount'   => (float) $s->achieved_amount,
+                    ])->values(),
+                ], 'Success');
+            }
+
+            // ── TARGET TOTAL: breakdown per customer assignment sales ini ──
             if ($assignedCustomerIds->isEmpty()) {
                 $target->achieved_amount = 0.0;
                 return ApiResponse::success([
@@ -227,8 +330,9 @@ class SalesTargetController extends Controller
     /**
      * GET /sales-targets/summary?period_year=2026
      * Rekap per sales: total target VS total tercapai (dipakai buat
-     * dashboard/progress bar). Cuma hitung target TOTAL (odoo_customer_id
-     * NULL) per sales, biar ga dobel-hitung sama target per-customer-nya.
+     * dashboard/progress bar). Cuma hitung target TOTAL (semua kolom
+     * dimensi NULL) per sales, biar ga dobel-hitung sama target per-
+     * customer/brand/kategori-nya.
      */
     public function summary(Request $request)
     {
@@ -237,6 +341,8 @@ class SalesTargetController extends Controller
             $periodYear = (int) ($request->query('period_year') ?? now()->year);
 
             $query = SalesTarget::whereNull('odoo_customer_id')
+                ->whereNull('odoo_product_id')
+                ->whereNull('categ_id')
                 ->where('period_year', $periodYear)
                 ->with('salesUser:id_user,fullname');
 
@@ -385,6 +491,84 @@ class SalesTargetController extends Controller
     }
 
     /**
+     * GET /sales-targets/options/products?search=...
+     * Dropdown-search "Brand" (= Product Odoo) di form Tambah/Edit Target.
+     *
+     * BEDA sama customerOptions(): TIDAK di-scope ke sales_id. Product ga
+     * "dimiliki" sales tertentu (beda konsep sama assignment customer) --
+     * computeAchievedAmount() buat target per-brand ngitung dari SEMUA
+     * transaksi customer yang di-assign ke sales itu untuk product
+     * tersebut, jadi list product-nya global buat semua product aktif.
+     */
+    public function productOptions(Request $request)
+    {
+        try {
+            $search = $request->query('search');
+
+            $query = OdooProduct::where('active', true);
+
+            if (!empty($search)) {
+                $query->where(function ($q) use ($search) {
+                    $q->where('name', 'ILIKE', "%{$search}%")
+                        ->orWhere('default_code', 'ILIKE', "%{$search}%");
+                });
+            }
+
+            $products = $query->orderBy('name')->limit(50)->get(['odoo_product_id', 'name', 'default_code']);
+
+            return ApiResponse::success(
+                $products->map(fn ($p) => [
+                    'value' => $p->odoo_product_id,
+                    'label' => $p->default_code ? "{$p->name} ({$p->default_code})" : $p->name,
+                ])->values(),
+                'Success'
+            );
+
+        } catch (\Throwable $e) {
+            return ApiResponse::error('Failed to load product (brand) options', [
+                'exception' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
+     * GET /sales-targets/options/categories?search=...
+     * Dropdown-search "Kategori" di form Tambah/Edit Target -- daftar
+     * categ_id/categ_name UNIK dari odoo_products (bukan tabel kategori
+     * terpisah, soalnya memang belum ada -- categ_id/categ_name di sini
+     * cuma denormalisasi dari Odoo lewat SyncOdooProducts).
+     */
+    public function categoryOptions(Request $request)
+    {
+        try {
+            $search = $request->query('search');
+
+            $query = OdooProduct::whereNotNull('categ_id')->whereNotNull('categ_name');
+
+            if (!empty($search)) {
+                $query->where('categ_name', 'ILIKE', "%{$search}%");
+            }
+
+            $categories = $query
+                ->select('categ_id', 'categ_name')
+                ->distinct()
+                ->orderBy('categ_name')
+                ->limit(50)
+                ->get();
+
+            return ApiResponse::success(
+                $categories->map(fn ($c) => ['value' => $c->categ_id, 'label' => $c->categ_name])->values(),
+                'Success'
+            );
+
+        } catch (\Throwable $e) {
+            return ApiResponse::error('Failed to load category options', [
+                'exception' => config('app.debug') ? $e->getMessage() : null,
+            ], 500);
+        }
+    }
+
+    /**
      * POST /sales-targets -- Admin/Manager only.
      */
     public function store(SalesTargetValidationStore $request)
@@ -396,21 +580,32 @@ class SalesTargetController extends Controller
         try {
             $data = $request->validated();
 
-            if ($this->targetAlreadyExists($data['sales_id'], $data['period_year'], $data['odoo_customer_id'] ?? null)) {
-                return ApiResponse::error(
-                    empty($data['odoo_customer_id'])
-                        ? 'Target total sales ini untuk tahun tersebut sudah ada.'
-                        : 'Target untuk customer ini di tahun tersebut sudah ada.',
-                    [],
-                    422
-                );
+            if ($this->targetAlreadyExists(
+                $data['sales_id'],
+                $data['period_year'],
+                $data['odoo_customer_id'] ?? null,
+                $data['odoo_product_id'] ?? null,
+                $data['categ_id'] ?? null
+            )) {
+                return ApiResponse::error($this->duplicateTargetMessage($data), [], 422);
             }
 
             $data['created_by'] = $request->user()->id_user;
 
             $target = SalesTarget::create($data);
-            $target->load(['salesUser:id_user,fullname', 'odooCustomer:odoo_partner_id,name', 'creator:id_user,fullname']);
-            $target->achieved_amount = $this->computeAchievedAmount($target->sales_id, $target->period_year, $target->odoo_customer_id);
+            $target->load([
+                'salesUser:id_user,fullname',
+                'odooCustomer:odoo_partner_id,name',
+                'odooProduct:odoo_product_id,name',
+                'creator:id_user,fullname',
+            ]);
+            $target->achieved_amount = $this->computeAchievedAmount(
+                $target->sales_id,
+                $target->period_year,
+                $target->odoo_customer_id,
+                $target->odoo_product_id,
+                $target->categ_id
+            );
 
             return ApiResponse::success(new SalesTargetResource($target), 'Target penjualan berhasil dibuat.');
 
@@ -438,13 +633,31 @@ class SalesTargetController extends Controller
 
             $data = $request->validated();
 
-            if ($this->targetAlreadyExists($data['sales_id'], $data['period_year'], $data['odoo_customer_id'] ?? null, $target->id)) {
-                return ApiResponse::error('Kombinasi sales + tahun + customer ini sudah dipakai target lain.', [], 422);
+            if ($this->targetAlreadyExists(
+                $data['sales_id'],
+                $data['period_year'],
+                $data['odoo_customer_id'] ?? null,
+                $data['odoo_product_id'] ?? null,
+                $data['categ_id'] ?? null,
+                $target->id
+            )) {
+                return ApiResponse::error('Kombinasi sales + tahun + dimensi target ini sudah dipakai target lain.', [], 422);
             }
 
             $target->update($data);
-            $target->load(['salesUser:id_user,fullname', 'odooCustomer:odoo_partner_id,name', 'creator:id_user,fullname']);
-            $target->achieved_amount = $this->computeAchievedAmount($target->sales_id, $target->period_year, $target->odoo_customer_id);
+            $target->load([
+                'salesUser:id_user,fullname',
+                'odooCustomer:odoo_partner_id,name',
+                'odooProduct:odoo_product_id,name',
+                'creator:id_user,fullname',
+            ]);
+            $target->achieved_amount = $this->computeAchievedAmount(
+                $target->sales_id,
+                $target->period_year,
+                $target->odoo_customer_id,
+                $target->odoo_product_id,
+                $target->categ_id
+            );
 
             return ApiResponse::success(new SalesTargetResource($target), 'Target penjualan berhasil diupdate.');
 
@@ -483,14 +696,21 @@ class SalesTargetController extends Controller
 
     /**
      * Hitung realisasi (achieved_amount) buat 1 sales, di 1 tahun, opsional
-     * dibatasi ke 1 customer Odoo tertentu. Dihitung dari
-     * odoo_customer_purchase_items, di-scope lewat customer-customer yang
-     * di-assign ke sales itu (CustomerSalesAssignmentOdoo) -- BUKAN dari
-     * kolom sales_id di purchase item, karena tabel itu emang ga punya
-     * kolom itu (sales attribution-nya emang lewat assignment terpisah).
+     * dibatasi ke 1 dimensi tertentu (customer, ATAU brand/product, ATAU
+     * kategori -- cuma salah satu yang boleh diisi, sesuai aturan target).
+     * Dihitung dari odoo_customer_purchase_items, di-scope lewat customer-
+     * customer yang di-assign ke sales itu (CustomerSalesAssignmentOdoo) --
+     * BUKAN dari kolom sales_id di purchase item, karena tabel itu emang ga
+     * punya kolom itu (sales attribution-nya emang lewat assignment
+     * terpisah).
      */
-    private function computeAchievedAmount(int $salesId, int $periodYear, ?int $odooCustomerId = null): float
-    {
+    private function computeAchievedAmount(
+        int $salesId,
+        int $periodYear,
+        ?int $odooCustomerId = null,
+        ?int $odooProductId = null,
+        ?int $categId = null
+    ): float {
         $assignedCustomerIds = CustomerSalesAssignmentOdoo::where('sales_id', $salesId)
             ->pluck('odoo_customer_id');
 
@@ -503,6 +723,16 @@ class SalesTargetController extends Controller
 
         if (!empty($odooCustomerId)) {
             $query->where('odoo_customer_id', $odooCustomerId);
+        } elseif (!empty($odooProductId)) {
+            // BRAND: cuma hitung transaksi product ini.
+            $query->where('odoo_product_id', $odooProductId);
+        } elseif (!empty($categId)) {
+            // KATEGORI: cuma hitung transaksi product-product yang
+            // categ_id-nya cocok (dicari dulu id-nya, konsisten sama gaya
+            // query builder yang sudah dipakai di controller ini, bukan
+            // JOIN SQL langsung).
+            $productIds = OdooProduct::where('categ_id', $categId)->pluck('odoo_product_id');
+            $query->whereIn('odoo_product_id', $productIds->isEmpty() ? [0] : $productIds);
         }
 
         return (float) $query->selectRaw('COALESCE(SUM(qty * price_unit), 0) as total')->value('total');
@@ -511,18 +741,31 @@ class SalesTargetController extends Controller
     /**
      * Cek duplikat target sebelum insert/update -- ini validasi tambahan di
      * level aplikasi (biar error message-nya jelas), yang sebenarnya sudah
-     * dijamin juga di level DB lewat 2 partial unique index di migration
-     * (sales_targets_total_unique / sales_targets_per_customer_unique).
+     * dijamin juga di level DB lewat 4 partial unique index di migration
+     * (sales_targets_total_unique / sales_targets_per_customer_unique /
+     * sales_targets_per_brand_unique / sales_targets_per_category_unique).
      */
-    private function targetAlreadyExists(int $salesId, int $periodYear, ?int $odooCustomerId, ?int $exceptId = null): bool
-    {
+    private function targetAlreadyExists(
+        int $salesId,
+        int $periodYear,
+        ?int $odooCustomerId,
+        ?int $odooProductId = null,
+        ?int $categId = null,
+        ?int $exceptId = null
+    ): bool {
         $query = SalesTarget::where('sales_id', $salesId)
             ->where('period_year', $periodYear);
 
-        if (empty($odooCustomerId)) {
-            $query->whereNull('odoo_customer_id');
-        } else {
+        if (!empty($odooCustomerId)) {
             $query->where('odoo_customer_id', $odooCustomerId);
+        } elseif (!empty($odooProductId)) {
+            $query->where('odoo_product_id', $odooProductId);
+        } elseif (!empty($categId)) {
+            $query->where('categ_id', $categId);
+        } else {
+            $query->whereNull('odoo_customer_id')
+                ->whereNull('odoo_product_id')
+                ->whereNull('categ_id');
         }
 
         if ($exceptId) {
@@ -530,6 +773,24 @@ class SalesTargetController extends Controller
         }
 
         return $query->exists();
+    }
+
+    /**
+     * Pesan error duplikat yang disesuaikan sama dimensi target-nya --
+     * dipanggil dari store() sebelum insert.
+     */
+    private function duplicateTargetMessage(array $data): string
+    {
+        if (!empty($data['odoo_customer_id'])) {
+            return 'Target untuk customer ini di tahun tersebut sudah ada.';
+        }
+        if (!empty($data['odoo_product_id'])) {
+            return 'Target untuk brand (product) ini di tahun tersebut sudah ada.';
+        }
+        if (!empty($data['categ_id'])) {
+            return 'Target untuk kategori ini di tahun tersebut sudah ada.';
+        }
+        return 'Target total sales ini untuk tahun tersebut sudah ada.';
     }
 
     /**

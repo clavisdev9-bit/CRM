@@ -15,6 +15,9 @@ class SalesTarget extends Model
         'sales_id',
         'period_year',
         'odoo_customer_id',
+        'odoo_product_id',
+        'categ_id',
+        'categ_name',
         'target_amount',
         'notes',
         'created_by',
@@ -39,4 +42,16 @@ class SalesTarget extends Model
     {
         return $this->belongsTo(OdooCustomer::class, 'odoo_customer_id', 'odoo_partner_id');
     }
+
+    // relasi ke product Odoo (kalau target ini level per-BRAND -- di project
+    // ini "Brand" = product itu sendiri, bukan field terpisah di Odoo).
+    public function odooProduct()
+    {
+        return $this->belongsTo(OdooProduct::class, 'odoo_product_id', 'odoo_product_id');
+    }
+
+    // TIDAK ada relasi khusus buat "kategori" -- categ_id/categ_name di
+    // tabel ini didenormalisasi langsung (bukan join ke odoo_products),
+    // soalnya categ_id bukan primary/unique key di odoo_products (1
+    // kategori dipunyai banyak product).
 }
