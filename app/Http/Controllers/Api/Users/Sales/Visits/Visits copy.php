@@ -1067,6 +1067,15 @@ class Visits extends Controller
                 'c.visibility_type',
                 'c.notes',
                 'c.address',
+
+                // ── GEOLOKASI (Phase 1/3) — dipakai frontend buat nge-cek
+                // apakah target ini udah punya titik lokasi sebelum
+                // ngaktifin tombol "Visit Now" (lihat hasCoordinates() di
+                // SalesVisitData.vue) ──
+                'c.latitude',
+                'c.longitude',
+                'c.radius_meter',
+
                 'c.converted_at',
                 'c.created_at',
                 'c.updated_at',
@@ -1166,6 +1175,15 @@ class Visits extends Controller
                 DB::raw("'PRIVATE' as visibility_type"),
                 'b.notes',
                 'b.address',
+
+                // ── GEOLOKASI CABANG (Phase 3) — kolomnya sudah ada sejak
+                // migration add_geolocation_to_customer_branches_table,
+                // urutan & tipe HARUS sinkron sama customerQuery di atas
+                // karena dua-duanya digabung pakai unionAll() ──
+                'b.latitude',
+                'b.longitude',
+                'b.radius_meter',
+
                 DB::raw('NULL::timestamp as converted_at'),
                 'b.created_at',
                 'b.updated_at',
@@ -1651,18 +1669,88 @@ class Visits extends Controller
             ->where('visit_status', 'ONGOING')
             ->firstOrFail();
 
+        // ── PHASE 3: CEK KOORDINAT & RADIUS (SEBELUM upload foto/nyimpen apapun) ──
+        // Konsepnya DISAMAIN antara HEAD COMPANY customer (branch_id null)
+        // dan CABANG (branch_id terisi) -- dua-duanya sekarang WAJIB punya
+        // titik lokasi sendiri (latitude/longitude/radius_meter), dan
+        // dua-duanya divalidasi jaraknya dengan cara yang sama persis.
+        if ($visit->branch_id) {
+            $location = DB::table('customer_branches')
+                ->where('id', $visit->branch_id)
+                ->select('latitude', 'longitude', 'radius_meter')
+                ->first();
+            $targetLabel = 'cabang';
+        } else {
+            $location = DB::table('customers')
+                ->where('id', $visit->customer_id)
+                ->select('latitude', 'longitude', 'radius_meter')
+                ->first();
+            $targetLabel = 'customer';
+        }
+
+        // ── WAJIB PUNYA KOORDINAT ──
+        // Belum punya lat/lng keisi (alamat belum jelas / belum di-geocode /
+        // belum diisi manual) -- BLOK check-in total, sales harus minta
+        // Manager/Admin lengkapi dulu titik lokasinya di Customer Master
+        // sebelum bisa check-in ke sini.
+        if (!$location || $location->latitude === null || $location->longitude === null) {
+            return response()->json([
+                'success'              => false,
+                'missing_coordinates'  => true,
+                'message'              => ($visit->branch_id ? 'Cabang customer ini' : 'Customer ini')
+                    . ' belum punya titik lokasi (Latitude/Longitude). '
+                    . 'Lengkapi dulu data lokasinya di Customer Master sebelum bisa Check In.',
+            ], 422); // 422 -- data belum lengkap, beda sama 500 (error)
+        }
+
+        $radiusMeter = $location->radius_meter ?? 100;
+
+        $distanceMeter = $this->calculateDistanceMeters(
+            (float) $request->latitude,
+            (float) $request->longitude,
+            (float) $location->latitude,
+            (float) $location->longitude
+        );
+
+        $isOutsideRadius = $distanceMeter > $radiusMeter;
+
+        // ── DI LUAR RADIUS = TOLAK TOTAL, GAK ADA KONFIRMASI ──
+        // Beda dari versi sebelumnya (masih bisa "confirm tetap checkin"
+        // kalau di luar radius) -- sekarang GPS sales WAJIB berada di dalam
+        // radius yang diizinkan buat bisa check-in, gak ada jalan pintas
+        // lewat konfirmasi manual lagi.
+        if ($isOutsideRadius) {
+            return response()->json([
+                'success'         => false,
+                'outside_radius'  => true,
+                'distance_meter'  => round($distanceMeter, 1),
+                'radius_meter'    => (int) $radiusMeter,
+                'message'         => 'Check-in ditolak: lokasi Anda berada '
+                    . round($distanceMeter) . ' meter dari lokasi ' . $targetLabel . ' '
+                    . '(radius yang diizinkan: ' . $radiusMeter . ' meter). '
+                    . 'Pastikan Anda berada di lokasi yang benar sebelum check-in.',
+            ], 422); // 422 -- hard block, bukan lagi 409 "butuh konfirmasi"
+        }
+
         DB::beginTransaction();
         try {
             // upload photo
             $path = $request->file('photo')->store('visits/checkin', 'public');
 
             $visit->update([
-                'check_in_at'  => now(),
-                'latitude'     => $request->latitude,
-                'longitude'    => $request->longitude,
-                'gps_snapshot' => $request->gps_snapshot,
-                'photo'        => $path,
-                'visit_status' => 'CHECKED_IN',
+                'check_in_at'            => now(),
+                'latitude'               => $request->latitude,
+                'longitude'              => $request->longitude,
+                'gps_snapshot'           => $request->gps_snapshot,
+                'photo'                  => $path,
+                'visit_status'           => 'CHECKED_IN',
+
+                // ── PHASE 2/3 ──
+                // is_outside_radius akan selalu FALSE di titik ini karena
+                // kasus TRUE sudah di-block & return duluan di atas -- tetap
+                // disimpan biar histori/laporan Manager konsisten formatnya.
+                'is_outside_radius'      => $isOutsideRadius,
+                'distance_meter'         => round($distanceMeter, 2),
             ]);
 
             DB::commit();
@@ -1678,6 +1766,27 @@ class Visits extends Controller
                 'message' => $e->getMessage()
             ], 500);
         }
+    }
+
+    /**
+     * Hitung jarak antara 2 titik koordinat (meter) pakai formula Haversine
+     * -- standar buat jarak "garis lurus" di permukaan bumi, cukup akurat
+     * buat kebutuhan radius check-in (bukan jarak jalan/rute).
+     */
+    private function calculateDistanceMeters(float $lat1, float $lon1, float $lat2, float $lon2): float
+    {
+        $earthRadiusMeters = 6371000;
+
+        $latDelta = deg2rad($lat2 - $lat1);
+        $lonDelta = deg2rad($lon2 - $lon1);
+
+        $a = sin($latDelta / 2) * sin($latDelta / 2)
+            + cos(deg2rad($lat1)) * cos(deg2rad($lat2))
+            * sin($lonDelta / 2) * sin($lonDelta / 2);
+
+        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+
+        return $earthRadiusMeters * $c;
     }
 
     public function checkOutCustomer(Request $request, $visitId)

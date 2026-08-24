@@ -7,6 +7,25 @@ use Illuminate\Http\Resources\Json\JsonResource;
 
 class VisitsResources extends JsonResource
 {
+    /**
+     * PostgreSQL kadang mengembalikan kolom boolean sebagai string "t"/"f"
+     * (bukan true/false asli) kalau datanya diambil lewat DB::table() biasa
+     * (query builder, bukan Eloquent yang sudah di-cast). Kalau dibiarkan,
+     * string "f" tetap "truthy" di JS/Vue, jadi badge "Lokasi Tidak Sesuai"
+     * bisa salah muncul untuk visit yang sebenarnya lokasinya sudah sesuai.
+     * Helper ini menormalkan ke boolean PHP asli sebelum dikirim ke frontend.
+     */
+    private function toBool($value): bool
+    {
+        if (is_bool($value)) {
+            return $value;
+        }
+        if ($value === null) {
+            return false;
+        }
+        return in_array(strtolower((string) $value), ['1', 't', 'true', 'yes'], true);
+    }
+
     public function toArray(Request $request): array
     {
         return [
@@ -53,6 +72,17 @@ class VisitsResources extends JsonResource
             'latitude'     => $this->latitude,
             'longitude'    => $this->longitude,
             'gps_snapshot' => $this->gps_snapshot,
+
+            // ── NOTE RADIUS CHECK-IN (baru) ──
+            // Dipakai frontend (SalesVisitData.vue, tampilan Card & Table)
+            // buat nampilin badge "Lokasi Tidak Sesuai" kalau sales
+            // check-in di luar radius customer/cabang yang terdaftar.
+            // Sebelumnya field ini SUDAH di-select di query getVisitLead()
+            // (Visits.php), tapi belum diteruskan di sini -- makanya cuma
+            // muncul di Detail Modal (yang ambil data mentah, bukan lewat
+            // Resource ini) dan tidak muncul di Card/Table.
+            'is_outside_radius' => $this->toBool($this->is_outside_radius ?? false),
+            'distance_meter'    => $this->distance_meter ?? null,
 
             // Visit detail
             'photo'       => $this->photo,

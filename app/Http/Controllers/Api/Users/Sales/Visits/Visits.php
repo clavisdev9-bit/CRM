@@ -716,6 +716,14 @@ class Visits extends Controller
                 'v.visit_result',
                 'v.visit_status',
                 'v.customer_response',
+
+                // ── NOTE RADIUS CHECK-IN (Phase 2/3 UPDATE) ──
+                // Dipakai frontend (SalesVisitData.vue) buat nampilin badge
+                // "Lokasi Tidak Sesuai" di list/table/card kalau sales
+                // check-in di luar radius customer/cabang yang terdaftar.
+                'v.is_outside_radius',
+                'v.distance_meter',
+
                 'v.created_by',
                 'v.created_at',
                 'v.updated_at',
@@ -864,6 +872,14 @@ class Visits extends Controller
                 'v.complaint_detail',
                 'v.has_potential_order',
                 'v.potential_order_detail',
+
+                // ── NOTE RADIUS CHECK-IN (Phase 2/3 UPDATE) ──
+                // Dipakai modal Detail Visit buat nampilin status
+                // "Sesuai" / "Tidak Sesuai (X meter)" + alasan (kalau ada).
+                'v.is_outside_radius',
+                'v.distance_meter',
+                'v.radius_confirm_reason',
+
                 'v.created_at',
                 'v.updated_at',
             ])
@@ -884,6 +900,18 @@ class Visits extends Controller
                 'message' => 'Detail visit tidak ditemukan'
             ], 404);
         }
+
+        // ── NORMALISASI BOOLEAN (Phase 2/3 UPDATE) ──
+        // Hasil DB::table()->first() itu objek mentah dari PDO -- kolom
+        // boolean Postgres kadang balik sebagai string "t"/"f" (bukan
+        // true/false asli). Kalau dibiarkan, string "f" tetap "truthy" di
+        // JS, jadi badge "Lokasi Tidak Sesuai" di modal Detail bisa salah
+        // muncul untuk visit yang sebenarnya lokasinya sudah sesuai.
+        $visit->is_outside_radius = in_array(
+            strtolower((string) ($visit->is_outside_radius ?? '')),
+            ['1', 't', 'true', 'yes'],
+            true
+        );
 
         return response()->json([
             'message' => 'Success',
@@ -1660,6 +1688,12 @@ class Visits extends Controller
                 'mimes:jpg,jpeg,png',
                 'max:4096' // 4MB
             ],
+
+            // ── OPSIONAL: alasan sales tetap check-in walau lokasinya
+            // di luar radius. Kolom radius_confirm_reason sudah ada dari
+            // migration add_radius_check_to_visits_table, sekarang dipakai
+            // lagi. Boleh tidak dikirim sama sekali (tetap NULL). ──
+            'radius_confirm_reason' => ['nullable', 'string', 'max:1000'],
         ]);
 
         $userId = auth()->user()->id_user;
@@ -1703,7 +1737,7 @@ class Visits extends Controller
             ], 422); // 422 -- data belum lengkap, beda sama 500 (error)
         }
 
-        $radiusMeter = $location->radius_meter ?? 100;
+        $radiusMeter = $location->radius_meter ?? 350;
 
         $distanceMeter = $this->calculateDistanceMeters(
             (float) $request->latitude,
@@ -1714,23 +1748,26 @@ class Visits extends Controller
 
         $isOutsideRadius = $distanceMeter > $radiusMeter;
 
-        // ── DI LUAR RADIUS = TOLAK TOTAL, GAK ADA KONFIRMASI ──
-        // Beda dari versi sebelumnya (masih bisa "confirm tetap checkin"
-        // kalau di luar radius) -- sekarang GPS sales WAJIB berada di dalam
-        // radius yang diizinkan buat bisa check-in, gak ada jalan pintas
-        // lewat konfirmasi manual lagi.
-        if ($isOutsideRadius) {
-            return response()->json([
-                'success'         => false,
-                'outside_radius'  => true,
-                'distance_meter'  => round($distanceMeter, 1),
-                'radius_meter'    => (int) $radiusMeter,
-                'message'         => 'Check-in ditolak: lokasi Anda berada '
-                    . round($distanceMeter) . ' meter dari lokasi ' . $targetLabel . ' '
-                    . '(radius yang diizinkan: ' . $radiusMeter . ' meter). '
-                    . 'Pastikan Anda berada di lokasi yang benar sebelum check-in.',
-            ], 422); // 422 -- hard block, bukan lagi 409 "butuh konfirmasi"
-        }
+        // ── PERUBAHAN: DI LUAR RADIUS TIDAK LAGI DI-TOLAK TOTAL ──
+        // Versi sebelumnya: kalau $isOutsideRadius true, langsung return
+        // 422 dan check-in GAGAL disimpan (hard block, tanpa konfirmasi).
+        //
+        // Versi sekarang (sesuai permintaan terbaru): sales TETAP BISA
+        // check-in walau lokasinya di luar radius yang diizinkan. Tidak ada
+        // lagi block/reject di sini -- proses lanjut ke penyimpanan seperti
+        // biasa, HANYA saja:
+        //   1. Kolom is_outside_radius di visit ini akan diisi TRUE (dulu
+        //      selalu FALSE karena kasus TRUE sudah keburu di-block di atas).
+        //   2. radius_confirm_reason (opsional, dikirim sales kalau mau
+        //      kasih alasan) ikut disimpan.
+        //   3. Response sukses ini membawa flag `outside_radius` + jarak +
+        //      pesan peringatan, supaya FRONTEND bisa menampilkan alert
+        //      "lokasi tidak sesuai" ke sales -- baik ditampilkan setelah
+        //      check-in berhasil, atau dipakai frontend buat pop-up
+        //      konfirmasi sebelum submit (tergantung alur di form Vue-nya).
+        // Dengan begini Manager/laporan nanti bisa lihat mana saja check-in
+        // yang lokasinya tidak sesuai lewat kolom is_outside_radius ini.
+        $radiusConfirmReason = $request->input('radius_confirm_reason');
 
         DB::beginTransaction();
         try {
@@ -1745,19 +1782,29 @@ class Visits extends Controller
                 'photo'                  => $path,
                 'visit_status'           => 'CHECKED_IN',
 
-                // ── PHASE 2/3 ──
-                // is_outside_radius akan selalu FALSE di titik ini karena
-                // kasus TRUE sudah di-block & return duluan di atas -- tetap
-                // disimpan biar histori/laporan Manager konsisten formatnya.
+                // ── PHASE 2/3 (UPDATE) ──
+                // is_outside_radius sekarang BISA TRUE -- ini yang jadi
+                // "tanda" buat Manager/laporan bahwa lokasi check-in sales
+                // ini tidak sesuai lokasi customer/cabang yang terdaftar.
                 'is_outside_radius'      => $isOutsideRadius,
                 'distance_meter'         => round($distanceMeter, 2),
+                'radius_confirm_reason'  => $isOutsideRadius ? $radiusConfirmReason : null,
             ]);
 
             DB::commit();
 
             return response()->json([
-                'success' => true,
-                'data' => $visit
+                'success'         => true,
+                'outside_radius'  => $isOutsideRadius,
+                'distance_meter'  => round($distanceMeter, 1),
+                'radius_meter'    => (int) $radiusMeter,
+                'message'         => $isOutsideRadius
+                    ? 'Check-in berhasil disimpan. Namun lokasi Anda berada '
+                        . round($distanceMeter) . ' meter dari lokasi ' . $targetLabel . ' '
+                        . '(radius yang diizinkan: ' . $radiusMeter . ' meter). '
+                        . 'Check-in ini akan ditandai sebagai "lokasi tidak sesuai".'
+                    : 'Check-in berhasil disimpan.',
+                'data' => $visit,
             ]);
         } catch (\Throwable $e) {
             DB::rollBack();
