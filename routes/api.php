@@ -29,6 +29,7 @@ use App\Http\Controllers\Api\Odoo\ProductController;
 use App\Http\Controllers\Api\External\PopulationProductCustumers;
 use App\Http\Controllers\Api\Manager\SalesTarget\SalesTargetController;
 use App\Http\Controllers\Api\Users\Sales\Plan\SalesVisitPlanController;
+use App\Http\Controllers\Api\Users\Expense\ExpenseController;
 use Illuminate\Support\Facades\Http;
 
 
@@ -261,6 +262,25 @@ Route::prefix('sales/visit-plans')->group(function () {
     Route::post('/', [SalesVisitPlanController::class, 'store']);
     Route::put('/{id}', [SalesVisitPlanController::class, 'update']);
     Route::delete('/{id}', [SalesVisitPlanController::class, 'destroy']);
+});
+
+
+Route::prefix('expenses')->group(function () {
+    // Route statis (summary, options) WAJIB didaftarkan SEBELUM route
+    // {id} -- kalau tidak, Laravel akan salah tangkap "summary"/"options"
+    // sebagai nilai {id} pas request masuk ke GET expenses/{id}.
+    Route::get('summary', [ExpenseController::class, 'summary']);
+    Route::get('options/categories', [ExpenseController::class, 'categoryOptions']);
+    Route::get('options/customers', [ExpenseController::class, 'customerOptions']);
+ 
+    Route::get('/', [ExpenseController::class, 'index']);
+    Route::post('/', [ExpenseController::class, 'store']);
+ 
+    Route::get('{id}', [ExpenseController::class, 'show']);
+    Route::delete('{id}', [ExpenseController::class, 'destroy']);
+    Route::post('{id}/approve', [ExpenseController::class, 'approve']);
+    Route::post('{id}/reject', [ExpenseController::class, 'reject']);
+    Route::post('{id}/retry-push', [ExpenseController::class, 'retryPush']);
 });
 
 

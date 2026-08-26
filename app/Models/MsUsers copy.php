@@ -28,12 +28,6 @@ class MsUsers extends Model
         'email_verification_expires_at',
         'email_verified_at',
         'is_active',
-        // ── Cache auto-match Odoo employee (fitur Expenses) --
-        // diisi otomatis oleh ExpenseController::resolveOdooEmployeeId()
-        // pas expense pertama kali di-approve, supaya tidak perlu
-        // lookup ulang ke Odoo tiap kali push. ──
-        'odoo_employee_id',
-        'odoo_employee_name',
     ];
 
         public function employee()
@@ -112,7 +106,7 @@ public static function isDuplicate(array $data, $ignoreId = null): array
     return $errors;
 }
 
-
+     
 
     //cek apakah ada name  yang sama  untuk add
     public static function isUserExistsAdd($submenu)
@@ -129,7 +123,7 @@ public static function isDuplicate(array $data, $ignoreId = null): array
     }
 
 
-
+     
 
             public function scopeOnlyDeleted($query, bool $onlyDeleted = false)
         {

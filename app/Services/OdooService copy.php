@@ -107,30 +107,6 @@ class OdooService
         ]);
     }
 
-    /**
-     * Buat satu record baru di Odoo.
-     * Dipakai fitur Expenses buat push expense yang sudah di-approve
-     * sebagai record hr.expense baru.
-     *
-     * @param string $model  Nama model Odoo, misal 'hr.expense'
-     * @param array  $values Field-value yang mau disimpan, misal
-     *                       ['name' => 'Lunch meeting', 'employee_id' => 5, 'product_id' => 12, ...]
-     * @return int ID record yang baru dibuat di Odoo
-     */
-    public function create(string $model, array $values): int
-    {
-        $uid = $this->authenticate();
-
-        return $this->call('object', 'execute_kw', [
-            $this->db,
-            $uid,
-            $this->apiKey,
-            $model,
-            'create',
-            [$values],
-        ]);
-    }
-
 // start code untuk debug  mencari field di oddo ini berelasi ke controller
     public function fieldsGet(string $model)
     {
