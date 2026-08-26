@@ -30,6 +30,7 @@ use App\Http\Controllers\Api\External\PopulationProductCustumers;
 use App\Http\Controllers\Api\Manager\SalesTarget\SalesTargetController;
 use App\Http\Controllers\Api\Users\Sales\Plan\SalesVisitPlanController;
 use App\Http\Controllers\Api\Users\Expense\ExpenseController;
+use App\Http\Controllers\Api\Users\Quotation\QuotationController;
 use Illuminate\Support\Facades\Http;
 
 
@@ -281,6 +282,22 @@ Route::prefix('expenses')->group(function () {
     Route::post('{id}/approve', [ExpenseController::class, 'approve']);
     Route::post('{id}/reject', [ExpenseController::class, 'reject']);
     Route::post('{id}/retry-push', [ExpenseController::class, 'retryPush']);
+});
+
+
+Route::prefix('quotations')->group(function () {
+    Route::get('summary', [QuotationController::class, 'summary']);
+    Route::get('options/customers', [QuotationController::class, 'customerOptions']);
+    Route::get('options/products', [QuotationController::class, 'productOptions']);
+ 
+    Route::get('/', [QuotationController::class, 'index']);
+    Route::post('/', [QuotationController::class, 'store']);
+ 
+    Route::get('{id}', [QuotationController::class, 'show']);
+    Route::put('{id}', [QuotationController::class, 'update']);
+    Route::delete('{id}', [QuotationController::class, 'destroy']);
+    Route::get('{id}/pdf', [QuotationController::class, 'downloadPdf']);
+    Route::post('{id}/push-odoo', [QuotationController::class, 'pushToOdoo']);
 });
 
 

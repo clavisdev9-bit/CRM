@@ -37,14 +37,6 @@ class MsCustomers extends Model
         'phone',
 
         // =====================================
-        // CACHE AUTO-MATCH ODOO PARTNER (fitur Quotations) --
-        // diisi otomatis oleh QuotationController::resolveOdooPartnerId()
-        // pas quotation pertama kali di-push ke Odoo.
-        // =====================================
-        'odoo_partner_id',
-        'odoo_partner_name',
-
-        // =====================================
         // OWNER
         // =====================================
         'id_user',

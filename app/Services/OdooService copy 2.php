@@ -131,34 +131,6 @@ class OdooService
         ]);
     }
 
-    /**
-     * Update record yang SUDAH ADA di Odoo. Dipakai fitur Quotations --
-     * quotation boleh diedit bebas di CRM (tidak ada approval workflow
-     * kayak Expenses), jadi push ke Odoo bisa dipicu berkali-kali. Kalau
-     * quotation itu sudah pernah punya odoo_sale_order_id, push
-     * berikutnya WAJIB pakai write() (update record yang sama), BUKAN
-     * create() lagi -- supaya tidak numpuk record duplikat di Odoo tiap
-     * di-push ulang.
-     *
-     * @param string $model  Nama model Odoo, misal 'sale.order'
-     * @param int    $id     ID record Odoo yang mau diupdate
-     * @param array  $values Field-value yang mau diupdate
-     * @return bool
-     */
-    public function write(string $model, int $id, array $values): bool
-    {
-        $uid = $this->authenticate();
-
-        return $this->call('object', 'execute_kw', [
-            $this->db,
-            $uid,
-            $this->apiKey,
-            $model,
-            'write',
-            [[$id], $values],
-        ]);
-    }
-
 // start code untuk debug  mencari field di oddo ini berelasi ke controller
     public function fieldsGet(string $model)
     {
