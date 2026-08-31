@@ -26,8 +26,9 @@ class QuotationValidationUpdate extends FormRequest
             'customer_address'       => ['required', 'string'],
             'customer_pic_name'      => ['required', 'string', 'max:255'],
 
+            // Opsional -- lihat catatan yang sama di QuotationValidationStore.
             'quotation_no'   => [
-                'required', 'string', 'max:100',
+                'nullable', 'string', 'max:100',
                 Rule::unique('quotations', 'quotation_no')->ignore($quotationId),
             ],
             'customer_ref'   => ['required', 'string', 'max:255'],

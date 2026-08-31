@@ -25,7 +25,12 @@ class QuotationValidationStore extends FormRequest
             'customer_address'       => ['required', 'string'],
             'customer_pic_name'      => ['required', 'string', 'max:255'],
 
-            'quotation_no'   => ['required', 'string', 'max:100', 'unique:quotations,quotation_no'],
+            // Opsional -- nomor quotation biasanya baru terbit belakangan,
+            // sales boleh kosongin dulu pas awal buat. Tetap harus unik
+            // KALAU diisi (Laravel otomatis skip cek unique pas nilainya
+            // null, lihat kolom quotation_no yang sudah dibikin nullable
+            // di migration 2026_08_31_000000_make_quotation_no_nullable).
+            'quotation_no'   => ['nullable', 'string', 'max:100', 'unique:quotations,quotation_no'],
             'customer_ref'   => ['required', 'string', 'max:255'],
             'payment_terms'  => ['required', 'string', 'max:255'],
             'quotation_date' => ['required', 'date'],

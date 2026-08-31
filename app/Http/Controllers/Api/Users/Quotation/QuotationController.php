@@ -10,7 +10,6 @@ use App\Http\Requests\QuotationValidationUpdate;
 use App\Http\Resources\QuotationResource;
 use App\Http\Resources\QuotationResourceCollection;
 use App\Models\MsCustomers;
-use App\Models\MsUsers;
 use App\Models\OdooProduct;
 use App\Models\Quotation;
 use App\Models\QuotationItem;
@@ -46,24 +45,6 @@ use Illuminate\Support\Facades\Log;
  *     tersync 1:1 dengan ID Odoo asli (tinggal pakai odoo_product_id-nya
  *     langsung), asalkan baris itemnya memang dipilih dari katalog
  *     (bukan ketik manual).
- *
- *     Kalau exact-match nama TIDAK ketemu sama sekali (count = 0),
- *     partner-nya DIBUAT OTOMATIS di Odoo (res.partner) lalu ID-nya
- *     langsung di-cache ke customers.odoo_partner_id -- supaya push
- *     berikutnya tidak create ulang. Kalau exact-match ketemu LEBIH
- *     DARI 1 (ambigu), TIDAK auto-create (supaya tidak numpuk
- *     duplikat) -- tetap harus diisi manual lewat
- *     quotation:list-odoo-partners.
- *
- *   - Salesperson (sale.order.user_id): di-resolve dari
- *     ms_users.odoo_employee_id yang SUDAH ADA (dipakai fitur Expenses,
- *     mapping ke hr.employee) -- reuse mapping itu, TIDAK bikin kolom
- *     baru. hr.employee di Odoo punya field user_id yang menunjuk ke
- *     res.users (akun login) terkait, jadi tinggal 1x searchRead
- *     'hr.employee' buat ambil user_id-nya. Kalau sales belum punya
- *     odoo_employee_id, atau employee-nya belum terhubung ke akun user
- *     manapun di Odoo, field Salesperson dibiarkan KOSONG -- TIDAK
- *     menggagalkan push quotation (beda dengan partner_id yang wajib).
  *
  * PDF: pakai barryvdh/laravel-dompdf, render dari view resources/views/
  * pdf/quotation.blade.php.
@@ -406,18 +387,23 @@ class QuotationController extends Controller
     }
 
     /**
-     * quotation_no biasanya mengandung "/" (contoh: "22005/UN/CAP"), tapi
-     * karakter "/" dan "\" TIDAK BOLEH ada di nama file pada header
-     * Content-Disposition -- Symfony bakal lempar InvalidArgumentException
+     * Nama file PDF dasarnya pakai customer_ref (BUKAN quotation_no lagi --
+     * quotation_no sekarang opsional/sering masih kosong pas quotation baru
+     * dibuat, lihat migration make_quotation_no_nullable, jadi kurang cocok
+     * dipakai sebagai nama file). customer_ref WAJIB diisi (lihat
+     * QuotationValidationStore), jadi selalu ada isinya.
+     *
+     * Tetap disanitize dari "/" dan "\" (siapa tau customer_ref ada karakter
+     * itu juga) -- karakter itu TIDAK BOLEH ada di nama file pada header
+     * Content-Disposition, Symfony bakal lempar InvalidArgumentException
      * ("The filename and the fallback cannot contain the "/" and "\"
-     * characters.") kalau dibiarkan apa adanya. Makanya di-ganti ke "-"
-     * dulu sebelum dipakai sebagai nama file download.
+     * characters.") kalau dibiarkan apa adanya.
      */
     private function buildPdfFilename(Quotation $quotation): string
     {
-        $safeNo = str_replace(['/', '\\'], '-', $quotation->quotation_no);
+        $safeRef = str_replace(['/', '\\'], '-', $quotation->customer_ref);
 
-        return "Quotation-{$safeNo}.pdf";
+        return "Quotation-{$safeRef}.pdf";
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -426,7 +412,7 @@ class QuotationController extends Controller
     public function pushToOdoo($id)
     {
         $user      = auth()->user();
-        $quotation = Quotation::with(['customer', 'items.odooProduct', 'sales'])->find($id);
+        $quotation = Quotation::with(['customer', 'items.odooProduct'])->find($id);
 
         if (!$quotation) {
             return ApiResponse::error('Data quotation tidak ditemukan', 404);
@@ -464,18 +450,15 @@ class QuotationController extends Controller
     private function pushQuotationToOdoo(Quotation $quotation): void
     {
         try {
-            $quotation->loadMissing(['customer', 'items.odooProduct', 'sales']);
+            $quotation->loadMissing(['customer', 'items.odooProduct']);
 
             $partnerId = $this->resolveOdooPartnerId($quotation->customer);
             if (!$partnerId) {
                 throw new \Exception(
-                    "Gagal menentukan partner Odoo untuk \"{$quotation->customer->company_name}\". "
-                    . 'Kemungkinan ada lebih dari 1 partner dengan nama sama persis di Odoo (ambigu), atau gagal saat membuat partner baru secara otomatis. '
-                    . 'Silakan cek manual data Contact/Customer di Odoo (php artisan quotation:list-odoo-partners --search="..."), lalu isi kolom odoo_partner_id di customer ini.'
+                    "Tidak ditemukan partner Odoo dengan nama persis \"{$quotation->customer->company_name}\" (atau namanya ambigu/lebih dari 1 match). "
+                    . 'Silakan cek manual data Contact/Customer di Odoo, lalu isi kolom odoo_partner_id di customer ini.'
                 );
             }
-
-            $salespersonId = $this->resolveOdooSalespersonId($quotation->sales);
 
             $orderLines = [];
             foreach ($quotation->items as $item) {
@@ -548,10 +531,6 @@ class QuotationController extends Controller
                 $values['company_id'] = $companyId;
             }
 
-            if ($salespersonId) {
-                $values['user_id'] = $salespersonId;
-            }
-
             if ($quotation->odoo_sale_order_id) {
                 // Update record yang sudah ada -- [5,0,0] = unlink SEMUA
                 // order_line lama dulu, baru diisi ulang dari data
@@ -596,16 +575,6 @@ class QuotationController extends Controller
      * AUTO-MATCH BY NAME + CACHE -- resolve partner_id Odoo (res.partner)
      * buat 1 customer CRM. Cache-nya di customers.odoo_partner_id
      * (mirip ms_users.odoo_employee_id di fitur Expenses).
-     *
-     * Alur:
-     *   1. Sudah ada odoo_partner_id tercache -> langsung pakai itu.
-     *   2. Exact match nama ketemu TEPAT 1 -> auto-match, cache ID-nya.
-     *   3. Exact match nama ketemu LEBIH DARI 1 -> ambigu, JANGAN
-     *      auto-create (biar tidak numpuk duplikat) -- return null,
-     *      biarkan user pilih manual (isi odoo_partner_id sendiri lewat
-     *      SQL / command quotation:list-odoo-partners).
-     *   4. Exact match nama TIDAK ketemu sama sekali (count = 0) -> aman
-     *      untuk auto-create partner baru di Odoo, lalu cache ID-nya.
      */
     private function resolveOdooPartnerId(MsCustomers $customer): ?int
     {
@@ -620,96 +589,18 @@ class QuotationController extends Controller
             2
         );
 
-        if (count($matches) === 1) {
-            $partnerId   = (int) $matches[0]['id'];
-            $partnerName = $matches[0]['name'];
-
-            $customer->update([
-                'odoo_partner_id'   => $partnerId,
-                'odoo_partner_name' => $partnerName,
-            ]);
-
-            return $partnerId;
-        }
-
-        if (count($matches) > 1) {
-            // Ambigu -- lebih dari 1 partner Odoo dengan nama sama
-            // persis. Sengaja TIDAK auto-create supaya tidak menambah
-            // duplikat baru; harus dipilih manual.
+        if (count($matches) !== 1) {
             return null;
         }
 
-        // count($matches) === 0 -> nama customer ini memang belum ada
-        // sama sekali di Odoo, aman untuk dibuatkan partner baru.
-        return $this->createOdooPartner($customer);
-    }
+        $partnerId   = (int) $matches[0]['id'];
+        $partnerName = $matches[0]['name'];
 
-    /**
-     * Auto-create partner baru di Odoo (res.partner) untuk customer CRM
-     * yang namanya belum ada sama sekali di Odoo (exact-match count =
-     * 0). Dipanggil HANYA dari resolveOdooPartnerId() -- jangan dipanggil
-     * langsung dari tempat lain supaya alur ambigu-check di atas selalu
-     * dilewati dulu.
-     */
-    private function createOdooPartner(MsCustomers $customer): ?int
-    {
-        try {
-            $partnerId = $this->odooService->create('res.partner', [
-                'name'       => $customer->company_name,
-                'is_company' => true,
-                'street'     => $customer->address ?? null,
-            ]);
+        $customer->update([
+            'odoo_partner_id'   => $partnerId,
+            'odoo_partner_name' => $partnerName,
+        ]);
 
-            $customer->update([
-                'odoo_partner_id'   => $partnerId,
-                'odoo_partner_name' => $customer->company_name,
-            ]);
-
-            Log::info("Auto-created Odoo partner baru #{$partnerId} untuk customer #{$customer->id} ({$customer->company_name})");
-
-            return $partnerId;
-        } catch (\Throwable $e) {
-            Log::error('Gagal membuat partner Odoo baru untuk customer #' . $customer->id . ': ' . $e->getMessage());
-
-            return null;
-        }
-    }
-
-    /**
-     * Resolve res.users ID (buat field Salesperson/user_id di
-     * sale.order) dari sales pembuat quotation -- REUSE
-     * ms_users.odoo_employee_id yang sudah ada (dipetakan ke
-     * hr.employee, dipakai fitur Expenses), TIDAK bikin kolom/mapping
-     * baru.
-     *
-     * hr.employee di Odoo biasanya sudah punya field user_id yang
-     * menunjuk ke akun res.users (login) terkait -- jadi cukup 1x
-     * searchRead ke hr.employee buat ambil user_id-nya.
-     *
-     * Kalau sales belum punya odoo_employee_id (belum di-mapping lewat
-     * expense:list-odoo-employees), atau employee-nya di Odoo memang
-     * tidak terhubung ke akun user manapun, Salesperson dibiarkan
-     * KOSONG -- TIDAK menggagalkan push quotation (beda dengan
-     * partner_id yang wajib ada).
-     */
-    private function resolveOdooSalespersonId(?MsUsers $sales): ?int
-    {
-        if (!$sales || !$sales->odoo_employee_id) {
-            return null;
-        }
-
-        $employees = $this->odooService->searchRead(
-            'hr.employee',
-            [['id', '=', (int) $sales->odoo_employee_id]],
-            ['id', 'user_id'],
-            1
-        );
-
-        if (empty($employees) || empty($employees[0]['user_id'])) {
-            return null;
-        }
-
-        // Many2one field di Odoo balik sebagai array [id, display_name].
-        return (int) $employees[0]['user_id'][0];
+        return $partnerId;
     }
 }

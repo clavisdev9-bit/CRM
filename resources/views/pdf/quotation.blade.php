@@ -2,7 +2,7 @@
 <html>
 <head>
     <meta charset="utf-8">
-    <title>Quotation {{ $quotation->quotation_no }}</title>
+    <title>Quotation {{ $quotation->quotation_no ?: $quotation->id }}</title>
     <style>
         @page { margin: 28px 34px; }
         body { font-family: Helvetica, Arial, sans-serif; font-size: 11px; color: #1e293b; }
@@ -64,7 +64,7 @@
             </td>
             <td style="width: 40%;">
                 <div class="doc-title">QUOTATION</div>
-                <div class="doc-sub">No. {{ $quotation->quotation_no }}</div>
+                <div class="doc-sub">No Ref {{ $quotation->customer_ref ?: '-' }}</div>
             </td>
         </tr>
     </table>

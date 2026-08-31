@@ -34,14 +34,20 @@ class ExpenseValidationStore extends FormRequest
             // ExpenseController::store() kalau customer_id diisi).
             'customer_id'   => ['nullable', 'integer', 'exists:customers,id'],
             'location_name' => ['nullable', 'string', 'max:255'],
-            'attachment'   => ['nullable', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:4096'],
+            // Lampiran (foto struk/bill) DIWAJIBKAN -- sebelumnya nullable,
+            // diubah jadi required sebagai kontrol supaya sales tidak bisa
+            // ajukan expense tanpa bukti fisik (antisipasi klaim fiktif).
+            'attachment'   => ['required', 'file', 'mimes:jpg,jpeg,png,pdf', 'max:4096'],
         ];
     }
 
     public function messages(): array
     {
         return [
-            'category.exists' => 'Kategori tidak valid atau sudah tidak aktif. Silakan pilih dari daftar kategori yang tersedia.',
+            'category.exists'     => 'Kategori tidak valid atau sudah tidak aktif. Silakan pilih dari daftar kategori yang tersedia.',
+            'attachment.required' => 'Lampiran foto struk/bill wajib diisi sebagai bukti pengeluaran.',
+            'attachment.mimes'    => 'Lampiran harus berupa file JPG, JPEG, PNG, atau PDF.',
+            'attachment.max'      => 'Ukuran lampiran maksimal 4 MB.',
         ];
     }
 }
