@@ -121,6 +121,13 @@ Route::put('/employee-restore-management/{id}',[Master::class, 'restoreEmployee'
 Route::get('/employee-available-users',[Master::class, 'getAvailableUsers'])->name('api.employee.available.users');
 Route::get('/select-office-for-employee', [Master::class, 'selectOffice'])->name('api.select.api');
 
+// master cabang
+Route::get('/master-cabang', [Administrator::class, 'Cabang'])->name('api.master.cabang');
+Route::get('/master-cabang-show/{id}', [Administrator::class, 'showCabang'])->name('api.show.cabang.management');
+Route::post('/master-cabang-store', [Administrator::class, 'storeCabang'])->name('api.store.cabang.management');
+Route::put('/master-cabang-update/{id}', [Administrator::class, 'updateCabang'])->name('api.update.cabang.management');
+Route::delete('/master-cabang-delete/{id}', [Administrator::class, 'destroyCabang'])->name('api.delete.cabang.management');
+
 // api master product
 // Route::get('/master-product', [Master::class, 'Product'])->name('api.product.management');
 // Route::get('/products/debug-companies', [Master::class, 'debugCompanies']);

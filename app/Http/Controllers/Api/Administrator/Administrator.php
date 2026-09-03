@@ -55,7 +55,11 @@ use App\Http\Requests\AppSettingValidationIndex;
 use App\Http\Requests\AppSettingValidationRequest;
 use App\Http\Requests\AppSettingValidationUpdateRequest;
 
-
+use App\Models\MsCabang;
+use App\Http\Resources\CabangResources;
+use App\Http\Resources\CabangResourcesCollection;
+use App\Http\Requests\CabangValidationIndex;
+use App\Http\Requests\CabangValidationRequest;
 
 
 
@@ -70,7 +74,9 @@ class Administrator extends Controller
     protected $MsUsers;
     protected $MsAccessSubmenu;
     protected $AppSettingModel;
-    public function __construct(AppSettingModel $AppSettingModel, MsRole $MsRole, MsMenu $MsMenu, MsSubmenu $MsSubmenu, MsAccesMenu $MsAccesMenu, MsUsers $MsUsers, MsAccessSubmenu $MsAccessSubmenu) {
+
+    protected $MsCabang;
+    public function __construct(AppSettingModel $AppSettingModel, MsRole $MsRole, MsMenu $MsMenu, MsSubmenu $MsSubmenu, MsAccesMenu $MsAccesMenu, MsUsers $MsUsers, MsAccessSubmenu $MsAccessSubmenu, MsCabang $MsCabang) {
         $this->MsRole = $MsRole;
         $this->MsMenu = $MsMenu;
         $this->MsSubmenu = $MsSubmenu;
@@ -78,6 +84,7 @@ class Administrator extends Controller
         $this->MsUsers = $MsUsers;
         $this->MsAccessSubmenu = $MsAccessSubmenu;
         $this->AppSettingModel = $AppSettingModel;
+        $this->MsCabang = $MsCabang;
     }
 
       
@@ -1257,6 +1264,128 @@ class Administrator extends Controller
                     );
                 }
             }
+
+
+
+
+
+            // code for cabang
+
+            public function Cabang(CabangValidationIndex $request) 
+       {
+            $validated = $request->validated();
+            $search = $validated['search'] ?? null;
+            $perPage = is_numeric($validated['per_page'] ?? null) ? $validated['per_page'] : 10;
+            $sortBy = $validated['sort_by'] ?? 'created_at';
+            $sortDir = $validated['sort_dir'] ?? 'desc';
+            $onlyDeleted = $validated['only_deleted'] ?? false;
+
+            $query = $this->MsCabang
+                ->onlyDeleted($onlyDeleted)
+                ->search($search)
+                ->sort($sortBy, $sortDir);
+            $results = $query->paginate($perPage);
+            $message = $results->isEmpty() ? "Data yang Anda cari tidak ditemukan" : "Success";
+            return ApiResponse::paginate(new CabangResourcesCollection($results), $message);
+       }
+
+
+        public function showCabang(string $id)
+        {
+            $Cabang = $this->MsCabang->find($id);
+            if (!$Cabang) {
+                return ApiResponse::error('Cabang not found', [
+                    'id' => ['Data with that ID is not available']
+                ], 404);
+            }
+            return ApiResponse::success(new CabangResources($Cabang), 'Success, take the detailed Cabang', 200);
+        }
+
+
+
+        public function storeCabang(CabangValidationRequest $request)
+        {
+            $data = $request->validated();
+
+            try {
+        
+                $errors = MsCabang::isDuplicate($data); 
+                if (!empty($errors)) {
+                        return ApiResponse::error('Validation failed', $errors, 400);
+                    }
+
+                $Cabang = $this->MsCabang->create([
+                    'cabang'        => $data['cabang'],
+                    'alamat' => $data['alamat'] ?? null,
+                    'no_telp' => $data['no_telp'] ?? null,
+                ]);
+
+                return ApiResponse::success(new CabangResources($Cabang), 'Success Create New Cabang', 201);
+
+            } catch (\Illuminate\Database\QueryException $e) {
+                return ApiResponse::error('Failed to create cabang (query error)', [
+                    'exception' => config('app.debug') ? $e->getMessage() : null
+                ], 422);
+            } catch (\Exception $e) {
+                return ApiResponse::error('An error occurred while creating the cabang.', [
+                    'exception' => config('app.debug') ? $e->getMessage() : null
+                ], 500);
+            }
+        }
+
+
+        public function updateCabang(CabangValidationRequest $request, $id_cabang)
+        {
+            $data = $request->validated();
+
+            $Cabang = MsCabang::find($id_cabang);
+
+            if (!$Cabang) {
+                return ApiResponse::error(
+                    'Cabang with that ID was not found.',
+                    ['id_cabang' => ['Data not available.']],
+                    404
+                );
+            }
+
+            try {
+                $errors = MsCabang::isDuplicate($data, $id_cabang);
+                if (!empty($errors)) {
+                    return ApiResponse::error('Validation failed', $errors, 400);
+                }
+
+                $Cabang->update($data);
+                return ApiResponse::success(new CabangResources($Cabang), 'Success Update Cabang', 200);
+            } catch (\Illuminate\Database\QueryException $e) {
+                return ApiResponse::error('Failed to update Cabang (query error)', [
+                    'exception' => config('app.debug') ? $e->getMessage() : null
+                ], 422);
+            } catch (\Exception $e) {
+                return ApiResponse::error('Failed to update Cabang', [
+                    'exception' => config('app.debug') ? $e->getMessage() : 'Please try again later'
+                ], 500);
+            }
+        }
+
+
+
+         public function destroyCabang(string $id_cabang)
+        {
+            try {
+                $Cabang = $this->MsCabang->find($id_cabang);
+            if (!$Cabang) {
+                    return ApiResponse::error('Cabang with that ID was not found.', [
+                        'id' => ['Data not availiable.']
+                    ], 404);
+                }
+                $Cabang->delete();
+                return ApiResponse::success(new CabangResources($Cabang), 'Success Delete Cabang', 200);
+            } catch (\Exception $e) {
+                return ApiResponse::error('Failed to delete Cabang', [
+                    'exception' => config('app.debug') ? $e->getMessage() : null
+                ], 500);
+            }
+        }
 
 
 
