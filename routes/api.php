@@ -98,6 +98,14 @@ Route::get('/division-select', [Administrator::class, 'selectDivision'])->name('
 Route::get('/group-select', [Administrator::class, 'selectGroup'])->name('api.group.select');
 Route::get('/role-select', [Administrator::class, 'selectRole'])->name('api.role.select');
 
+// new route for user
+Route::get('/manager-select', [Administrator::class, 'selectManager']);
+Route::get('/cabang-select', [Administrator::class, 'selectCabang']);
+
+
+
+
+
 // access user to submenu 
 Route::get('/users/{id_user}/submenu-access', [Administrator::class, 'submenuAccess']);
 Route::put('/users/{id_user}/submenu-access/{id_submenu}',[Administrator::class, 'updateSubmenuAccess']);

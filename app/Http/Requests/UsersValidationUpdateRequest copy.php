@@ -54,7 +54,7 @@ class UsersValidationUpdateRequest extends FormRequest
                 'exists:ms_role,id_role',
             ],
 
-
+            
             'divisi_id' => [
                 'sometimes',
                 'integer',
@@ -65,30 +65,6 @@ class UsersValidationUpdateRequest extends FormRequest
                 'sometimes',
                 'integer',
                 'exists:group_companies,id_group',
-            ],
-
-            // ── Atasan (Master User hierarchy) ──
-            'manager_id' => [
-                'sometimes',
-                'nullable',
-                'integer',
-                'exists:ms_users,id_user',
-                function ($attribute, $value, $fail) use ($userId) {
-                    // User tidak boleh jadi atasan buat dirinya sendiri --
-                    // kalau dibiarkan, hierarki jadi muter (infinite loop)
-                    // pas ditarik rekursif.
-                    if ($value && $userId && (int) $value === (int) $userId) {
-                        $fail('User tidak boleh menjadi atasan untuk dirinya sendiri.');
-                    }
-                },
-            ],
-
-            // ── Cabang ──
-            'cabang_id' => [
-                'sometimes',
-                'nullable',
-                'integer',
-                'exists:ms_cabang,id_cabang',
             ],
 
             'is_active' => [
@@ -114,8 +90,6 @@ class UsersValidationUpdateRequest extends FormRequest
                 'role_id.exists'    => 'Selected role does not exist.',
                 'divisi_id.exists'  => 'Selected division does not exist.',
                 'group_id.exists'   => 'Selected group does not exist.',
-                'manager_id.exists' => 'Selected manager (atasan) does not exist.',
-                'cabang_id.exists'  => 'Selected cabang does not exist.',
                 'image.image'       => 'The file must be an image.',
                 'image.mimes'       => 'The image must be a file of type: jpg, jpeg, or png.',
             ];
@@ -135,18 +109,6 @@ class UsersValidationUpdateRequest extends FormRequest
 
         if ($this->has('email')) {
             $data['email'] = trim($this->email);
-        }
-
-        if ($this->has('manager_id')) {
-            $data['manager_id'] = ($this->manager_id !== null && $this->manager_id !== '')
-                ? (int) $this->manager_id
-                : null;
-        }
-
-        if ($this->has('cabang_id')) {
-            $data['cabang_id'] = ($this->cabang_id !== null && $this->cabang_id !== '')
-                ? (int) $this->cabang_id
-                : null;
         }
 
         $this->merge($data);

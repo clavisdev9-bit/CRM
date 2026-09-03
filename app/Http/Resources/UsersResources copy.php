@@ -30,18 +30,6 @@ class UsersResources extends JsonResource
                 'id_group' => $this->groups?->id_group,
                 'name_group'    => $this->groups?->name_group,
             ],
-            // ── Hierarki atasan/bawahan (Master User) ──
-            'manager_id' => $this->manager_id,
-            'manager'    => [
-                'id_user'  => $this->manager?->id_user,
-                'fullname' => $this->manager?->fullname,
-            ],
-            // ── Cabang ──
-            'cabang_id' => $this->cabang_id,
-            'cabang'    => [
-                'id_cabang' => $this->cabang?->id_cabang,
-                'cabang'    => $this->cabang?->cabang,
-            ],
             'username' => $this->username,
             'email'    => $this->email,
             'password' => $this->password,

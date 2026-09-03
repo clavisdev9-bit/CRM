@@ -87,10 +87,10 @@ class Administrator extends Controller
         $this->MsCabang = $MsCabang;
     }
 
-
+      
     // code role
     // get Data
-      public function Role(RoleValidationIndex $request)
+      public function Role(RoleValidationIndex $request) 
        {
             $validated = $request->validated();
             $search = $validated['search'] ?? null;
@@ -108,7 +108,7 @@ class Administrator extends Controller
             return ApiResponse::paginate(new RoleResourcesCollection($results), $message);
        }
 
-    //   show detail data
+    //   show detail data 
        public function showRole(string $id)
         {
             $Role = $this->MsRole->find($id);
@@ -126,8 +126,8 @@ class Administrator extends Controller
             $data = $request->validated();
 
             try {
-
-                $errors = MsRole::isDuplicate($data);
+        
+                $errors = MsRole::isDuplicate($data); 
                 if (!empty($errors)) {
                         return ApiResponse::error('Validation failed', $errors, 400);
                     }
@@ -151,7 +151,7 @@ class Administrator extends Controller
         }
 
 
-
+        
     public function updateRole(RoleValidationRequest $request, $id_role)
         {
             $data = $request->validated();
@@ -206,7 +206,7 @@ class Administrator extends Controller
 
 
         // code menu
-    public function Menu(MenuValidationIndex $request)
+    public function Menu(MenuValidationIndex $request) 
        {
             $validated = $request->validated();
             $search = $validated['search'] ?? null;
@@ -225,7 +225,7 @@ class Administrator extends Controller
         }
 
 
-         //   show detail data
+         //   show detail data 
        public function showMenu(string $id)
         {
             $Menu = $this->MsMenu->find($id);
@@ -243,8 +243,8 @@ class Administrator extends Controller
             $data = $request->validated();
 
             try {
-
-                $errors = MsMenu::isDuplicate($data);
+        
+                $errors = MsMenu::isDuplicate($data); 
                 if (!empty($errors)) {
                         return ApiResponse::error('Validation failed', $errors, 400);
                     }
@@ -355,7 +355,7 @@ class Administrator extends Controller
                 );
             }
 
-
+    
 
         public function showSubmenu(int $id)
         {
@@ -495,7 +495,7 @@ class Administrator extends Controller
                 }
             }
 
-
+           
 
         //  code access role - access menu
         /**
@@ -503,7 +503,7 @@ class Administrator extends Controller
          */
         public function AccessRoleToMenu($roleId, AccessMenuValidationIndex $request)
         {
-
+    
         $validated = $request->validated();
         $search  = $validated['search'] ?? null;
         $perPage = is_numeric($validated['per_page'] ?? null) ? $validated['per_page'] : 10;
@@ -596,11 +596,6 @@ class Administrator extends Controller
                     'role:id_role,role',
                     'division:id,name_division',
                     'groups:id_group,name_group',
-                    // ── manager & cabang -- di-eager load supaya UsersResources
-                    // tidak kena N+1 query pas akses $this->manager / $this->cabang
-                    // buat tiap baris di listing. ──
-                    'manager:id_user,fullname',
-                    'cabang:id_cabang,cabang',
                 ])
                 ->when($onlyDeleted, function ($q) {
                     $q->onlyTrashed();
@@ -736,7 +731,7 @@ class Administrator extends Controller
             $user->update($data);
 
         // //  WAJIB
-        $user->refresh()->load(['role', 'manager', 'cabang']);
+        $user->refresh()->load('role');
 
         return ApiResponse::success(
             new UsersResources($user),
@@ -809,7 +804,7 @@ class Administrator extends Controller
         {
             try {
                 $user = $this->MsUsers
-                    ->with(['role', 'manager', 'cabang'])
+                    ->with('role')
                     ->where('id_user', $id_user)
                     ->firstOrFail();
 
@@ -885,39 +880,6 @@ class Administrator extends Controller
                             ->select('id_group', 'name_group','is_active')
                             ->where('is_active', true)
                             ->orderBy('name_group', 'asc')
-                            ->get()
-                    );
-                }
-
-                // ── Dropdown pilih Atasan (Master User hierarchy) ──
-                // exclude_id (opsional, query param) dipakai pas form Edit User
-                // supaya user yang sedang di-edit tidak muncul jadi pilihan
-                // atasannya sendiri.
-                public function selectManager(Request $request)
-                {
-                    $excludeId = $request->query('exclude_id');
-
-                    $query = MsUsers::query()
-                        ->select('id_user', 'fullname')
-                        ->whereNull('deleted_at')
-                        ->where('is_active', true)
-                        ->orderBy('fullname', 'asc');
-
-                    if ($excludeId) {
-                        $query->where('id_user', '!=', $excludeId);
-                    }
-
-                    return response()->json($query->get());
-                }
-
-                // ── Dropdown pilih Cabang ──
-                public function selectCabang()
-                {
-                    return response()->json(
-                        DB::table('ms_cabang')
-                            ->select('id_cabang', 'cabang')
-                            ->whereNull('deleted_at')
-                            ->orderBy('cabang', 'asc')
                             ->get()
                     );
                 }
@@ -1029,7 +991,7 @@ class Administrator extends Controller
 
 
 // code setting application
-   public function SettingApp(AppSettingValidationIndex $request)
+   public function SettingApp(AppSettingValidationIndex $request) 
        {
             $validated = $request->validated();
             $search = $validated['search'] ?? null;
@@ -1070,7 +1032,7 @@ class Administrator extends Controller
         }
 
 
-       public function storeSetting(AppSettingValidationRequest $request)
+       public function storeSetting(AppSettingValidationRequest $request)  
        {
            $data = $request->validated();
 
@@ -1309,7 +1271,7 @@ class Administrator extends Controller
 
             // code for cabang
 
-            public function Cabang(CabangValidationIndex $request)
+            public function Cabang(CabangValidationIndex $request) 
        {
             $validated = $request->validated();
             $search = $validated['search'] ?? null;
@@ -1346,8 +1308,8 @@ class Administrator extends Controller
             $data = $request->validated();
 
             try {
-
-                $errors = MsCabang::isDuplicate($data);
+        
+                $errors = MsCabang::isDuplicate($data); 
                 if (!empty($errors)) {
                         return ApiResponse::error('Validation failed', $errors, 400);
                     }

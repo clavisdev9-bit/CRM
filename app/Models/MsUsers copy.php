@@ -23,11 +23,6 @@ class MsUsers extends Model
         'role_id',
         'divisi_id',
         'group_id',
-        // ── Hierarki atasan/bawahan (Master User) --
-        // self-relation ke ms_users.id_user sendiri. ──
-        'manager_id',
-        // ── Pengelompokan Sales Person per Cabang (laporan) ──
-        'cabang_id',
         'image',
         'email_verification_token',
         'email_verification_expires_at',
@@ -61,28 +56,6 @@ class MsUsers extends Model
       public function groups()
     {
         return $this->belongsTo(MsGroupCompany::class, 'group_id', 'id_group');
-    }
-
-    // ── HIERARKI ATASAN / BAWAHAN ──
-    // manager() = atasan langsung user ini (self-relation).
-    public function manager()
-    {
-        return $this->belongsTo(MsUsers::class, 'manager_id', 'id_user');
-    }
-
-    // subordinates() = semua bawahan LANGSUNG user ini (1 level saja).
-    // Buat ambil bawahan berjenjang (rekursif, semua level), pakai query
-    // WITH RECURSIVE terpisah (mis. di UserVisibilityService), bukan
-    // relasi Eloquent biasa -- lebih efisien buat tree yang dalam.
-    public function subordinates()
-    {
-        return $this->hasMany(MsUsers::class, 'manager_id', 'id_user');
-    }
-
-    // ── CABANG ──
-    public function cabang()
-    {
-        return $this->belongsTo(MsCabang::class, 'cabang_id', 'id_cabang');
     }
 
 // hanya untuk add

@@ -60,21 +60,6 @@ class UsersValidationRequest extends FormRequest
                 'exists:group_companies,id_group',
             ],
 
-            // ── Atasan (Master User hierarchy) -- opsional, user boleh
-            // belum punya atasan saat pertama dibuat. ──
-            'manager_id' => [
-                'nullable',
-                'integer',
-                'exists:ms_users,id_user',
-            ],
-
-            // ── Cabang -- opsional juga, boleh diisi belakangan. ──
-            'cabang_id' => [
-                'nullable',
-                'integer',
-                'exists:ms_cabang,id_cabang',
-            ],
-
             'is_active' => [
                 'required',
                 'boolean',
@@ -124,8 +109,6 @@ class UsersValidationRequest extends FormRequest
                 'divisi_id.exists'  => 'The selected division is invalid.',
                 'group_id.required' => 'Group must be selected.',
                 'group_id.exists'   => 'The selected group is invalid.',
-                'manager_id.exists' => 'The selected manager (atasan) is invalid.',
-                'cabang_id.exists'  => 'The selected cabang is invalid.',
                 'image.image'       => 'The uploaded file must be an image.',
                 'image.mimes'       => 'The image must be a file of type: jpg, jpeg, or png.',
             ];
@@ -143,8 +126,6 @@ class UsersValidationRequest extends FormRequest
         'role_id'   => $this->role_id   ? (int) $this->role_id   : null,
         'divisi_id' => $this->divisi_id ? (int) $this->divisi_id : null,
         'group_id'  => $this->group_id  ? (int) $this->group_id  : null,
-        'manager_id'=> $this->manager_id ? (int) $this->manager_id : null,
-        'cabang_id' => $this->cabang_id  ? (int) $this->cabang_id  : null,
     ]);
 }
 }
