@@ -101,7 +101,7 @@ Route::get('/role-select', [Administrator::class, 'selectRole'])->name('api.role
 // new route for user
 Route::get('/manager-select', [Administrator::class, 'selectManager']);
 Route::get('/cabang-select', [Administrator::class, 'selectCabang']);
-
+Route::get('/users-management/hierarchy/{id}', [Administrator::class, 'userHierarchy']);
 
 
 

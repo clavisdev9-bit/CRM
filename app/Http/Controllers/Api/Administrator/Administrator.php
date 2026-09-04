@@ -837,6 +837,68 @@ class Administrator extends Controller
         }
 
 
+        // ── MODAL HIRARKI USER ──
+        // Dipakai buat tombol "Lihat Hirarki" di tabel User Management:
+        // menampilkan atasan user ini, rekan setingkat (user lain yang
+        // atasannya sama persis), dan bawahan langsungnya (1 level saja,
+        // bukan rekursif -- cukup buat kebutuhan tampilan/modal).
+        public function userHierarchy($id_user)
+        {
+            try {
+                $user = $this->MsUsers
+                    ->with([
+                        'role', 'division', 'groups', 'cabang',
+                        'manager.role', 'manager.division', 'manager.groups', 'manager.cabang',
+                    ])
+                    ->where('id_user', $id_user)
+                    ->firstOrFail();
+
+                // Rekan setingkat: user lain dengan manager_id yang sama
+                // persis (termasuk sama-sama tidak punya atasan / null).
+                $peers = $this->MsUsers
+                    ->with(['role', 'division', 'groups', 'cabang'])
+                    ->where('id_user', '!=', $user->id_user)
+                    ->when(
+                        $user->manager_id,
+                        fn($q) => $q->where('manager_id', $user->manager_id),
+                        fn($q) => $q->whereNull('manager_id')
+                    )
+                    ->orderBy('fullname', 'asc')
+                    ->get();
+
+                // Bawahan langsung (1 level saja, bukan rekursif)
+                $subordinates = $this->MsUsers
+                    ->with(['role', 'division', 'groups', 'cabang'])
+                    ->where('manager_id', $user->id_user)
+                    ->orderBy('fullname', 'asc')
+                    ->get();
+
+                return ApiResponse::success([
+                    'user'         => new UsersResources($user),
+                    'manager'      => $user->manager ? new UsersResources($user->manager) : null,
+                    'peers'        => UsersResources::collection($peers),
+                    'subordinates' => UsersResources::collection($subordinates),
+                ], 'Success Get User Hierarchy');
+
+            } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+
+                return ApiResponse::error(
+                    'User not found',
+                    null,
+                    404
+                );
+
+            } catch (\Exception $e) {
+
+                return ApiResponse::error(
+                    'An error occurred while fetching user hierarchy',
+                    ['exception' => config('app.debug') ? $e->getMessage() : null],
+                    500
+                );
+            }
+        }
+
+
                 public function selectSubmenu()
                 {
                     return response()->json(
@@ -911,13 +973,22 @@ class Administrator extends Controller
                 }
 
                 // ── Dropdown pilih Cabang ──
+                // Ikutkan nama Company (name_group) supaya di form User,
+                // cabang yang namanya sama antar company (mis. dua "Jakarta"
+                // di company berbeda) tidak membingungkan saat dipilih.
                 public function selectCabang()
                 {
                     return response()->json(
                         DB::table('ms_cabang')
-                            ->select('id_cabang', 'cabang')
-                            ->whereNull('deleted_at')
-                            ->orderBy('cabang', 'asc')
+                            ->leftJoin('group_companies', 'group_companies.id_group', '=', 'ms_cabang.group_id')
+                            ->select(
+                                'ms_cabang.id_cabang',
+                                'ms_cabang.cabang',
+                                'ms_cabang.group_id',
+                                'group_companies.name_group'
+                            )
+                            ->whereNull('ms_cabang.deleted_at')
+                            ->orderBy('ms_cabang.cabang', 'asc')
                             ->get()
                     );
                 }
@@ -1319,6 +1390,9 @@ class Administrator extends Controller
             $onlyDeleted = $validated['only_deleted'] ?? false;
 
             $query = $this->MsCabang
+                // ── eager load group (company) -- cegah N+1 query pas
+                // CabangResources akses $this->group buat tiap baris ──
+                ->with(['group:id_group,name_group'])
                 ->onlyDeleted($onlyDeleted)
                 ->search($search)
                 ->sort($sortBy, $sortDir);
@@ -1330,7 +1404,7 @@ class Administrator extends Controller
 
         public function showCabang(string $id)
         {
-            $Cabang = $this->MsCabang->find($id);
+            $Cabang = $this->MsCabang->with('group')->find($id);
             if (!$Cabang) {
                 return ApiResponse::error('Cabang not found', [
                     'id' => ['Data with that ID is not available']
@@ -1356,6 +1430,8 @@ class Administrator extends Controller
                     'cabang'        => $data['cabang'],
                     'alamat' => $data['alamat'] ?? null,
                     'no_telp' => $data['no_telp'] ?? null,
+                    // ── 1 Cabang = 1 Company ──
+                    'group_id' => $data['group_id'],
                 ]);
 
                 return ApiResponse::success(new CabangResources($Cabang), 'Success Create New Cabang', 201);

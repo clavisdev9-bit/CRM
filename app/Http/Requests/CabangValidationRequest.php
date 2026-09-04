@@ -23,7 +23,7 @@ public function rules(): array
             'nullable',
             'string',
             'max:255',
-            'regex:/^[a-zA-Z0-9\s]+$/', 
+            // 'regex:/^[a-zA-Z0-9\s]+$/',
         ],
         'alamat' => [
             'nullable',
@@ -34,7 +34,14 @@ public function rules(): array
             'nullable',
             'string',
             'max:20',
-        ]
+        ],
+
+        // ── 1 Cabang = 1 Company -- wajib dipilih ──
+        'group_id' => [
+            'required',
+            'integer',
+            'exists:group_companies,id_group',
+        ],
     ];
 }
 
@@ -49,6 +56,8 @@ public function messages(): array
         'alamat.max'      => 'Alamat may not be greater than 255 characters.',
         'no_telp.string'  => 'No Telp must be a string.',
         'no_telp.max'     => 'No Telp may not be greater than 20 characters.',
+        'group_id.required' => 'Company must be selected.',
+        'group_id.exists'   => 'The selected company is invalid.',
     ];
 }
 
@@ -59,6 +68,7 @@ public function messages(): array
             'cabang'        => $this->has('cabang') ? trim($this->input('cabang')) : null,
             'alamat'        => $this->has('alamat') ? trim($this->input('alamat')) : null,
             'no_telp'       => $this->has('no_telp') ? trim($this->input('no_telp')) : null,
+            'group_id'      => $this->group_id ? (int) $this->group_id : null,
         ]);
     }
 }

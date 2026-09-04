@@ -18,10 +18,18 @@ class MsCabang extends Model
      protected $fillable = [
         'cabang',
         'alamat',
-        'no_telp'
+        'no_telp',
+        // ── 1 Cabang = 1 Company ──
+        'group_id',
     ];
 
-    
+    // ── Company pemilik cabang ini ──
+    public function group()
+    {
+        return $this->belongsTo(MsGroupCompany::class, 'group_id', 'id_group');
+    }
+
+
 
     //cek apakah ada name cabang yang sama  untuk add
     public static function isCabangExistsAdd($cabang)
@@ -69,6 +77,13 @@ public static function isDuplicate(array $data, $id = null): array
     $errors = [];
 
     $query = static::where('cabang', $data['cabang']);
+
+    // Unique PER COMPANY (group_id) -- 2 company beda boleh sama-sama
+    // punya cabang bernama sama (mis. sama-sama ada "Jakarta"), tapi
+    // dalam 1 company yang sama tidak boleh ada nama cabang duplikat.
+    if (!empty($data['group_id'])) {
+        $query->where('group_id', $data['group_id']);
+    }
 
     if ($id) {
         $query->where('id_cabang', '!=', $id); // Kecualikan ID yang sedang diupdate
