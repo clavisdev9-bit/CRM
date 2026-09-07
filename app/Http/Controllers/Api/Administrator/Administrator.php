@@ -854,11 +854,16 @@ class Administrator extends Controller
                     ->firstOrFail();
 
                 // Rekan setingkat: user lain dengan manager_id YANG SAMA
-                // persis (termasuk sama-sama tidak punya atasan / null)
-                // DAN role_id yang sama juga. Ini supaya misalnya Admin
-                // tidak nongol jadi "rekan setingkat" Sales hanya karena
-                // atasannya kebetulan sama (satu manager bisa punya
-                // bawahan dari beberapa role sekaligus).
+                // persis (termasuk sama-sama tidak punya atasan / null),
+                // role_id yang sama, DAN company (group_id) yang sama juga.
+                // Ini supaya misalnya:
+                // - Admin tidak nongol jadi "rekan setingkat" Sales hanya
+                //   karena atasannya kebetulan sama (satu manager bisa
+                //   punya bawahan dari beberapa role sekaligus).
+                // - Dua Manager top-level dari PT yang BEDA (sama-sama
+                //   tidak punya atasan) tidak dianggap rekan setingkat
+                //   satu sama lain hanya karena role & posisinya kebetulan
+                //   sama -- padahal beda perusahaan.
                 //
                 // Khusus role_id = 1 (Administrator/IT) selalu dikecualikan
                 // dari daftar rekan setingkat siapa pun -- role ini teknis/IT,
@@ -868,6 +873,7 @@ class Administrator extends Controller
                     ->where('id_user', '!=', $user->id_user)
                     ->where('role_id', $user->role_id)
                     ->where('role_id', '!=', 1)
+                    ->where('group_id', $user->group_id)
                     ->when(
                         $user->manager_id,
                         fn($q) => $q->where('manager_id', $user->manager_id),
