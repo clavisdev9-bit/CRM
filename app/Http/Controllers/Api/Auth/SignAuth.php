@@ -103,6 +103,7 @@ class SignAuth extends Controller
             1 => '/administrator-dashboard',
             2 => '/sales-home',
             3 => '/manager-home',
+            4 => '/admin-home',
             default => '/home',
         };
 

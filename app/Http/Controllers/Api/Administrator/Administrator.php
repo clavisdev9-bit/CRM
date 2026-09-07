@@ -853,11 +853,21 @@ class Administrator extends Controller
                     ->where('id_user', $id_user)
                     ->firstOrFail();
 
-                // Rekan setingkat: user lain dengan manager_id yang sama
-                // persis (termasuk sama-sama tidak punya atasan / null).
+                // Rekan setingkat: user lain dengan manager_id YANG SAMA
+                // persis (termasuk sama-sama tidak punya atasan / null)
+                // DAN role_id yang sama juga. Ini supaya misalnya Admin
+                // tidak nongol jadi "rekan setingkat" Sales hanya karena
+                // atasannya kebetulan sama (satu manager bisa punya
+                // bawahan dari beberapa role sekaligus).
+                //
+                // Khusus role_id = 1 (Administrator/IT) selalu dikecualikan
+                // dari daftar rekan setingkat siapa pun -- role ini teknis/IT,
+                // bukan bagian dari hirarki bisnis (Sales/Manager/Admin).
                 $peers = $this->MsUsers
                     ->with(['role', 'division', 'groups', 'cabang'])
                     ->where('id_user', '!=', $user->id_user)
+                    ->where('role_id', $user->role_id)
+                    ->where('role_id', '!=', 1)
                     ->when(
                         $user->manager_id,
                         fn($q) => $q->where('manager_id', $user->manager_id),
@@ -866,18 +876,58 @@ class Administrator extends Controller
                     ->orderBy('fullname', 'asc')
                     ->get();
 
-                // Bawahan langsung (1 level saja, bukan rekursif)
-                $subordinates = $this->MsUsers
-                    ->with(['role', 'division', 'groups', 'cabang'])
-                    ->where('manager_id', $user->id_user)
-                    ->orderBy('fullname', 'asc')
-                    ->get();
+                // Bawahan: ditelusuri REKURSIF ke bawah (bukan cuma 1 level
+                // langsung) -- jadi kalau ada Admin yang punya bawahan Sales
+                // sendiri, Sales itu tetap ikut kebawa walau bukan bawahan
+                // langsung user yang diklik. Role Administrator/IT
+                // (role_id = 1) tetap dikecualikan, sama seperti di peers.
+                //
+                // $maxDepth cuma jaga-jaga supaya tidak infinite loop kalau
+                // suatu saat ada data manager_id yang muter (harusnya tidak
+                // pernah terjadi secara normal).
+                $allSubordinates = collect();
+                $frontierIds     = [$user->id_user];
+                $maxDepth        = 20;
+
+                for ($depth = 0; $depth < $maxDepth && !empty($frontierIds); $depth++) {
+                    $nextLevel = $this->MsUsers
+                        ->with(['role', 'division', 'groups', 'cabang'])
+                        ->whereIn('manager_id', $frontierIds)
+                        ->where('role_id', '!=', 1)
+                        ->get();
+
+                    if ($nextLevel->isEmpty()) {
+                        break;
+                    }
+
+                    $allSubordinates = $allSubordinates->merge($nextLevel);
+                    $frontierIds     = $nextLevel->pluck('id_user')->all();
+                }
+
+                // Dikelompokkan per role, ditampilkan dengan urutan tier:
+                // Manager -> Admin -> Sales. Role lain (kalau ada di masa
+                // depan dan belum terdaftar di $tierOrder) otomatis ditaruh
+                // setelahnya secara alfabetis.
+                $tierOrder = ['manager', 'admin', 'sales'];
+
+                $subordinatesGrouped = $allSubordinates
+                    ->groupBy(fn($u) => strtolower($u->role?->role ?? 'lainnya'))
+                    ->sortBy(function ($group, $roleKey) use ($tierOrder) {
+                        $idx = array_search($roleKey, $tierOrder, true);
+                        return $idx === false ? (count($tierOrder) + 1) : $idx;
+                    })
+                    ->map(fn($group, $roleKey) => [
+                        'role'  => $roleKey,
+                        'label' => ucfirst($roleKey),
+                        'users' => UsersResources::collection($group->sortBy('fullname')->values()),
+                    ])
+                    ->values();
 
                 return ApiResponse::success([
                     'user'         => new UsersResources($user),
                     'manager'      => $user->manager ? new UsersResources($user->manager) : null,
                     'peers'        => UsersResources::collection($peers),
-                    'subordinates' => UsersResources::collection($subordinates),
+                    'subordinates' => $subordinatesGrouped,
                 ], 'Success Get User Hierarchy');
 
             } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
