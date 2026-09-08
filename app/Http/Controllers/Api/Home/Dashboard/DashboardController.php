@@ -285,7 +285,7 @@ public function homeStats()
     //         ->whereNull('deleted_at')
     //         ->count();
 
-      
+
 
     //     // Total leads yang dibuat di bulan tersebut
     //     $totalLeads = DB::table('leads')
@@ -870,7 +870,7 @@ $totalCustomers = DB::table('customers')
             'achievement' => $achievement,
             'per_day'     => $visitPerDay,
         ],
-        'total_leads'     => $totalLeads,  
+        'total_leads'     => $totalLeads,
         'total_customers' => $totalCustomers,
     ], 'Success');
 }
@@ -1016,40 +1016,40 @@ public function managerDashboard(Request $request)
     $end   = Carbon::now()->endOfMonth();
 
     // --- SUMMARY CARDS ---
-    $totalLeadsThisMonth = DB::table('leads')
+    $totalLeadsThisMonth = $this->applyCompanyScope(DB::table('leads'), 'assigned_to')
         ->whereNull('deleted_at')
         ->whereBetween('created_at', [$start, $end])
         ->count();
 
-    $totalCustomersThisMonth = DB::table('customers')
+    $totalCustomersThisMonth = $this->applyCompanyScope(DB::table('customers'), 'id_user')
         ->whereNull('deleted_at')
         ->whereBetween('created_at', [$start, $end])
         ->count();
 
-    $totalVisitsToday = DB::table('visits')
+    $totalVisitsToday = $this->applyCompanyScope(DB::table('visits'), 'sales_id')
         ->whereNull('deleted_at')
         ->whereDate('visit_at', $today)
         ->count();
 
-    $totalVisitsThisMonth = DB::table('visits')
+    $totalVisitsThisMonth = $this->applyCompanyScope(DB::table('visits'), 'sales_id')
         ->whereNull('deleted_at')
         ->whereBetween('visit_at', [$start, $end])
         ->count();
 
-    $totalDealsThisMonth = DB::table('follow_ups')
+    $totalDealsThisMonth = $this->applyCompanyScope(DB::table('follow_ups'), 'assigned_to')
         ->whereNull('deleted_at')
         ->where('result', 'DEAL')
         ->whereBetween('completed_at', [$start, $end])
         ->count();
 
-    $totalOverdue = DB::table('follow_ups')
+    $totalOverdue = $this->applyCompanyScope(DB::table('follow_ups'), 'assigned_to')
         ->whereNull('deleted_at')
         ->where('status', 'PENDING')
         ->where('follow_up_at', '<', Carbon::now())
         ->count();
 
     // --- PERFORMA TIM SALES ---
-    $salesPerformance = DB::table('visits as v')
+    $salesPerformance = $this->applyCompanyScope(DB::table('visits as v'), 'v.sales_id')
         ->select([
             'u.id_user as sales_id',
             'u.fullname as sales_name',
@@ -1074,6 +1074,9 @@ public function managerDashboard(Request $request)
         ->get();
 
     // Tambahkan deal count per sales
+    // (sales_id di sini sudah otomatis ter-scope company-nya dari query
+    // $salesPerformance di atas, jadi count follow_ups per sales_id ini
+    // aman tanpa perlu company-scope tambahan)
     $salesPerformance = $salesPerformance->map(function ($s) use ($start, $end) {
         $s->deals = DB::table('follow_ups')
             ->whereNull('deleted_at')
@@ -1085,7 +1088,7 @@ public function managerDashboard(Request $request)
     });
 
     // --- FOLLOW UP OVERDUE SEMUA SALES ---
-    $overdueFollowUps = DB::table('follow_ups as f')
+    $overdueFollowUps = $this->applyCompanyScope(DB::table('follow_ups as f'), 'f.assigned_to')
         ->select([
             'f.id', 'f.follow_up_code', 'f.follow_up_at',
             'f.follow_up_type', 'f.status', 'f.subject',
@@ -1111,7 +1114,7 @@ public function managerDashboard(Request $request)
         ->get();
 
     // --- VISIT HARI INI SEMUA SALES ---
-    $visitsToday = DB::table('visits as v')
+    $visitsToday = $this->applyCompanyScope(DB::table('visits as v'), 'v.sales_id')
         ->select([
             'v.id', 'v.visit_code', 'v.visit_at',
             'v.check_in_at', 'v.check_out_at',
@@ -1142,13 +1145,13 @@ public function managerDashboard(Request $request)
         ->get();
 
     // --- SALES BELUM ADA AKTIVITAS HARI INI ---
-    $activeSalesIds = DB::table('visits')
+    $activeSalesIds = $this->applyCompanyScope(DB::table('visits'), 'sales_id')
         ->whereNull('deleted_at')
         ->whereDate('visit_at', $today)
         ->pluck('sales_id')
         ->unique();
 
-  $inactiveSales = DB::table('ms_users as u')
+  $inactiveSales = $this->applyCompanyScopeUsers(DB::table('ms_users as u'), 'u.group_id')
     ->select([
         'u.id_user', 'u.fullname', 'u.image',
         DB::raw("
@@ -1167,18 +1170,18 @@ public function managerDashboard(Request $request)
     ->get();
 
     // --- CONVERSION RATE TIM ---
-    $totalLeads = DB::table('leads')
+    $totalLeads = $this->applyCompanyScope(DB::table('leads'), 'assigned_to')
         ->whereNull('deleted_at')
         ->whereBetween('created_at', [$start, $end])
         ->count();
 
-    $convertedLeads = DB::table('leads')
+    $convertedLeads = $this->applyCompanyScope(DB::table('leads'), 'assigned_to')
         ->whereNull('deleted_at')
         ->whereBetween('created_at', [$start, $end])
         ->whereNotNull('converted_at')
         ->count();
 
-    $totalCustomers = DB::table('customers')
+    $totalCustomers = $this->applyCompanyScope(DB::table('customers'), 'id_user')
         ->whereNull('deleted_at')
         ->whereBetween('created_at', [$start, $end])
         ->count();
@@ -1212,4 +1215,64 @@ public function managerDashboard(Request $request)
         ],
     ], 'Success');
 }
+
+    /**
+     * ======================================================
+     * FILTER PER COMPANY (multi-tenant)
+     * ======================================================
+     * Manager Dashboard ini isinya rekap lintas modul (Lead, Customer,
+     * Visit, Follow Up, Sales) yang tabel dasarnya beda-beda dan TIDAK
+     * punya kolom company/group_id sendiri -- company-nya ditentukan
+     * dari kolom user yang nempel di tiap tabel itu (assigned_to /
+     * sales_id / id_user), sama seperti aturan di
+     * ApprovalCustomerController, ApprovalCustomerBranchController, dan
+     * DashboardManagerController.
+     *
+     * Administrator/IT (role_id = 1) dikecualikan dari semua filter di
+     * bawah ini -- perannya lintas company, jadi tetap bisa lihat semua
+     * company sekaligus (dipakai misalnya buat keperluan support/IT).
+     */
+
+    /**
+     * Buat query yang tabel dasarnya punya kolom user (assigned_to,
+     * sales_id, id_user, dst) yang mengarah ke ms_users. Filter-nya
+     * lewat subquery: WHERE <column> IN (SELECT id_user FROM ms_users
+     * WHERE group_id = <company user login>).
+     *
+     * $column boleh diberi prefix alias (mis. 'v.sales_id') kalau
+     * query-nya pakai alias tabel.
+     */
+    private function applyCompanyScope($query, string $column)
+    {
+        $currentUser = auth()->user();
+
+        if (!$currentUser || $currentUser->role_id == 1) {
+            return $query;
+        }
+
+        return $query->whereIn($column, function ($sub) use ($currentUser) {
+            $sub->select('id_user')
+                ->from('ms_users')
+                ->where('group_id', $currentUser->group_id);
+        });
+    }
+
+    /**
+     * Sama seperti applyCompanyScope(), tapi khusus buat query yang tabel
+     * DASAR/anchor-nya sendiri ms_users -- filter langsung ke kolom
+     * group_id-nya, tanpa perlu subquery.
+     *
+     * $groupIdColumn default 'group_id', kasih 'u.group_id' kalau
+     * query-nya pakai alias 'u' buat ms_users.
+     */
+    private function applyCompanyScopeUsers($query, string $groupIdColumn = 'group_id')
+    {
+        $currentUser = auth()->user();
+
+        if (!$currentUser || $currentUser->role_id == 1) {
+            return $query;
+        }
+
+        return $query->where($groupIdColumn, $currentUser->group_id);
+    }
 }

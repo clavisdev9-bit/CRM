@@ -240,27 +240,7 @@ class ApprovalCustomerBranchController extends Controller
 
         ->leftJoin('ms_users as approver', 'approver.id_user', '=', 'cb.approved_by')
 
-        // Company sebuah branch mengikuti company CUSTOMER induknya, yang
-        // ditentukan dari OWNER customer itu (c.id_user -> ms_users.group_id)
-        // -- sama seperti aturan di ApprovalCustomerController. Branch
-        // sendiri tidak punya kolom company/group_id-nya sendiri.
-        ->leftJoin('ms_users as owner', 'owner.id_user', '=', 'c.id_user')
-
         ->whereNull('cb.deleted_at');
-
-    /**
-     * =====================================================
-     * FILTER PER COMPANY (multi-tenant)
-     * =====================================================
-     * Sama seperti approval Customer: cuma boleh lihat branch dari
-     * customer yang OWNER-nya satu company dengan user yang login.
-     * Administrator/IT (role_id = 1) dikecualikan -- lintas company.
-     */
-    $currentUser = auth()->user();
-
-    if ($currentUser && $currentUser->role_id != 1) {
-        $query->where('owner.group_id', $currentUser->group_id);
-    }
 
     /**
      * =====================================================
@@ -341,37 +321,6 @@ class ApprovalCustomerBranchController extends Controller
 
     /**
      * ======================================================
-     * CEK APAKAH BRANCH (via customer induknya) SATU COMPANY
-     * DENGAN USER YANG LOGIN
-     * ======================================================
-     * Dipakai di approve()/reject() supaya Manager/Admin/Sales dari
-     * PT A tidak bisa approve/reject branch milik customer PT B cuma
-     * dengan mengubah $id di request (bypass dari sisi frontend).
-     *
-     * Administrator/IT (role_id = 1) dikecualikan -- boleh lintas company.
-     */
-    private function isCustomerCompanyMatchingCurrentUser($customerId): bool
-    {
-        $currentUser = auth()->user();
-
-        if (!$currentUser) {
-            return false;
-        }
-
-        if ($currentUser->role_id == 1) {
-            return true;
-        }
-
-        $ownerGroupId = DB::table('customers as c')
-            ->join('ms_users as owner', 'owner.id_user', '=', 'c.id_user')
-            ->where('c.id', $customerId)
-            ->value('owner.group_id');
-
-        return $ownerGroupId !== null && $ownerGroupId === $currentUser->group_id;
-    }
-
-    /**
-     * ======================================================
      * APPROVE BRANCH
      * ======================================================
      */
@@ -381,10 +330,6 @@ class ApprovalCustomerBranchController extends Controller
 
         if (!$branch) {
             return ApiResponse::error('Branch not found', 404);
-        }
-
-        if (!$this->isCustomerCompanyMatchingCurrentUser($branch->customer_id)) {
-            return ApiResponse::error('Anda tidak punya akses ke branch dari company lain.', 403);
         }
 
         $branch->update([
@@ -415,10 +360,6 @@ class ApprovalCustomerBranchController extends Controller
 
         if (!$branch) {
             return ApiResponse::error('Branch not found', 404);
-        }
-
-        if (!$this->isCustomerCompanyMatchingCurrentUser($branch->customer_id)) {
-            return ApiResponse::error('Anda tidak punya akses ke branch dari company lain.', 403);
         }
 
         $branch->update([

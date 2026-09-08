@@ -33,22 +33,6 @@ use Carbon\Carbon;
  *     (bukan reset) -- otomatis kejamin krn cutoff-nya pakai created_at record
  *     target, dan update() di bawah cuma nyentuh target_count/notes, nggak
  *     nyentuh created_at.
- *
- * ----------------------------------------------------------------------------
- * FILTER PER COMPANY (multi-tenant) — ditambahkan belakangan:
- * Company sebuah target visit ditentukan dari SALES yang diberi target itu
- * (vt.sales_id -> ms_users.group_id) -- bukan dari manager yang membuatnya
- * (created_by), karena manager bisa saja pindah/beda dari sales-nya di masa
- * depan; yang relevan buat scoping adalah company si sales. Pola & helper-nya
- * sama seperti yang sudah dipakai di ApprovalCustomerController,
- * SalesReassign, dan SalesActivityDashboardController. Administrator/IT
- * (role_id = 1) dikecualikan dari semua filter ini -- perannya lintas company.
- *
- * baseVisitTargetQuery() (di trait BuildsVisitTargetQuery) sudah leftJoin
- * ms_users sebagai alias 'sales' (dibuktikan dari filter search yang sudah
- * ada sebelumnya: 'sales.fullname'), jadi index()/show() cukup nambah
- * where('sales.group_id', ...) langsung ke query yang sudah ada -- tidak
- * perlu subquery terpisah.
  * ============================================================================
  */
 class VisitTargetController extends Controller
@@ -80,20 +64,6 @@ class VisitTargetController extends Controller
 
             $inner = $this->baseVisitTargetQuery()
                 ->where('vt.period_month', $periodMonth);
-
-            /**
-             * ==========================================
-             * FILTER PER COMPANY (multi-tenant)
-             * ==========================================
-             * Manager cuma boleh lihat target visit yang sales-nya satu
-             * company dengan dirinya sendiri. Role_id = 1 (Administrator/IT)
-             * dikecualikan -- boleh lintas company.
-             */
-            $currentUser = auth()->user();
-
-            if ($currentUser && $currentUser->role_id != 1) {
-                $inner->where('sales.group_id', $currentUser->group_id);
-            }
 
             if ($salesId) {
                 $inner->where('vt.sales_id', $salesId);
@@ -143,12 +113,6 @@ class VisitTargetController extends Controller
      * dikonfirmasi dari migration create_customers_table yang kamu kirim.
      * Cuma nampilin customer yang approval_status = 'approved' (yang masih
      * pending/rejected nggak masuk akal buat dikasih target visit).
-     *
-     * FILTER PER COMPANY (multi-tenant): sales_id dari query param bisa saja
-     * dimanipulasi dari sisi frontend, jadi WAJIB dicek dulu apakah sales_id
-     * itu beneran satu company sama manager yang login -- kalau tidak,
-     * ditolak sebelum sempat query customer-nya sama sekali (mencegah manager
-     * PT A mengintip daftar customer sales dari PT B).
      */
     public function supportCustomers(Request $request)
     {
@@ -159,10 +123,6 @@ class VisitTargetController extends Controller
         $salesId = $request->query('sales_id');
         if (! $salesId) {
             return ApiResponse::error('sales_id wajib diisi.', [], 422);
-        }
-
-        if (! $this->isSameCompanyAsCurrentUser($salesId)) {
-            return ApiResponse::error('Sales tidak ditemukan atau bukan dari company Anda.', [], 403);
         }
 
         try {
@@ -202,22 +162,6 @@ class VisitTargetController extends Controller
                 return ApiResponse::error('Target visit tidak ditemukan.', [], 404);
             }
 
-            /**
-             * VALIDASI COMPANY (multi-tenant): cegah manager PT A buka detail
-             * target visit milik sales PT B lewat manipulasi $id di request.
-             * Sales_id-nya diambil langsung dari tabel visit_targets (bukan
-             * mengandalkan field di $row hasil join, biar pasti ada).
-             */
-            $salesId = DB::table('visit_targets')->where('id', $id)->value('sales_id');
-
-            if (! $this->isSameCompanyAsCurrentUser($salesId)) {
-                return ApiResponse::error(
-                    'Anda tidak punya akses ke target visit dari company lain.',
-                    [],
-                    403
-                );
-            }
-
             return ApiResponse::success(new VisitTargetResource($row), 'Success');
 
         } catch (\Throwable $e) {
@@ -238,21 +182,6 @@ class VisitTargetController extends Controller
 
         try {
             $validated   = $request->validated();
-
-            /**
-             * VALIDASI COMPANY (multi-tenant): cegah manager PT A membuat
-             * target visit buat sales dari PT B (misal lewat manipulasi
-             * sales_id di request langsung ke API, bukan lewat dropdown yang
-             * sudah kefilter di frontend).
-             */
-            if (! $this->isSameCompanyAsCurrentUser($validated['sales_id'])) {
-                return ApiResponse::error(
-                    'Sales tidak ditemukan atau bukan dari company Anda.',
-                    [],
-                    422
-                );
-            }
-
             $managerId   = auth()->user()->id_user;
             $periodMonth = Carbon::parse($validated['period_month'])->startOfMonth()->toDateString();
             $customerId  = $validated['customer_id'] ?? null;
@@ -319,18 +248,6 @@ class VisitTargetController extends Controller
                 return ApiResponse::error('Target visit tidak ditemukan.', [], 404);
             }
 
-            /**
-             * VALIDASI COMPANY (multi-tenant): cegah manager PT A mengubah
-             * target visit milik sales PT B lewat manipulasi $id.
-             */
-            if (! $this->isSameCompanyAsCurrentUser($target->sales_id)) {
-                return ApiResponse::error(
-                    'Anda tidak punya akses ke target visit dari company lain.',
-                    [],
-                    403
-                );
-            }
-
             DB::table('visit_targets')->where('id', $id)->update([
                 'target_count' => $validated['target_count'],
                 'notes'        => $validated['notes'] ?? null,
@@ -367,11 +284,6 @@ class VisitTargetController extends Controller
      *   bikin error -- jadi tombol ini aman diklik berkali-kali (idempoten),
      *   misal manager nggak sengaja klik dobel atau sudah keburu bikin
      *   sebagian target manual duluan buat bulan depan.
-     *
-     * FILTER PER COMPANY (multi-tenant): $sourceTargets cuma ambil target
-     * yang sales-nya satu company dengan manager yang login -- supaya
-     * duplikat bulan depan tidak ikut menyalin target visit milik company
-     * lain (yang manager ini bahkan tidak seharusnya bisa lihat).
      */
     public function duplicateToNextMonth(VisitTargetValidationDuplicate $request)
     {
@@ -386,7 +298,7 @@ class VisitTargetController extends Controller
             $sourceMonthStr = $sourceMonth->toDateString();
             $targetMonth    = $sourceMonth->copy()->addMonthNoOverflow()->startOfMonth()->toDateString();
 
-            $sourceTargets = $this->applyCompanyScope(DB::table('visit_targets'), 'sales_id')
+            $sourceTargets = DB::table('visit_targets')
                 ->whereNull('deleted_at')
                 ->where('period_month', $sourceMonthStr)
                 ->get();
@@ -465,18 +377,6 @@ class VisitTargetController extends Controller
                 return ApiResponse::error('Target visit tidak ditemukan.', [], 404);
             }
 
-            /**
-             * VALIDASI COMPANY (multi-tenant): cegah manager PT A menghapus
-             * target visit milik sales PT B lewat manipulasi $id.
-             */
-            if (! $this->isSameCompanyAsCurrentUser($target->sales_id)) {
-                return ApiResponse::error(
-                    'Anda tidak punya akses ke target visit dari company lain.',
-                    [],
-                    403
-                );
-            }
-
             DB::table('visit_targets')->where('id', $id)->update(['deleted_at' => now()]);
 
             return ApiResponse::success(null, 'Target visit berhasil dihapus');
@@ -506,59 +406,5 @@ class VisitTargetController extends Controller
             ->whereNull('deleted_at')
             ->whereRaw('LOWER(role) = ?', ['manager'])
             ->exists();
-    }
-
-    /**
-     * ======================================================
-     * FILTER PER COMPANY (multi-tenant)
-     * ======================================================
-     * Buat query yang tabel dasarnya punya kolom sales (mis. 'sales_id')
-     * yang mengarah ke ms_users. Filter-nya lewat subquery: WHERE <column>
-     * IN (SELECT id_user FROM ms_users WHERE group_id = <company user
-     * login>). Administrator/IT (role_id = 1) dikecualikan.
-     */
-    private function applyCompanyScope($query, $column)
-    {
-        $currentUser = auth()->user();
-
-        if (!$currentUser || $currentUser->role_id == 1) {
-            return $query;
-        }
-
-        return $query->whereIn($column, function ($sub) use ($currentUser) {
-            $sub->select('id_user')
-                ->from('ms_users')
-                ->where('group_id', $currentUser->group_id);
-        });
-    }
-
-    /**
-     * Cek apakah sales tertentu (id_user-nya) satu company dengan user yang
-     * login. Dipakai di store()/show()/update()/destroy()/supportCustomers()
-     * supaya manager PT A tidak bisa menyentuh/mengintip data sales PT B
-     * lewat manipulasi sales_id/$id. Role_id = 1 (Administrator/IT)
-     * dikecualikan.
-     */
-    private function isSameCompanyAsCurrentUser($salesId): bool
-    {
-        $currentUser = auth()->user();
-
-        if (!$currentUser) {
-            return false;
-        }
-
-        if ($currentUser->role_id == 1) {
-            return true;
-        }
-
-        if (!$salesId) {
-            return false;
-        }
-
-        $groupId = DB::table('ms_users')
-            ->where('id_user', $salesId)
-            ->value('group_id');
-
-        return $groupId !== null && $groupId === $currentUser->group_id;
     }
 }

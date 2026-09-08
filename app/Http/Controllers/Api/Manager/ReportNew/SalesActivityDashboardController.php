@@ -85,6 +85,16 @@ use Carbon\Carbon;
  *    check-in tapi belum check-out (live). Untuk tanggal lampau/rentang: sales
  *    yang punya minimal 1 aktivitas (visit ATAU follow_up/direct) pada periode
  *    tsb. Sesuaikan kalau definisi "aktif" kamu beda.
+ *
+ * ----------------------------------------------------------------------------
+ * FILTER PER COMPANY (multi-tenant) — ditambahkan belakangan:
+ * Semua data di dashboard ini (visits, follow_ups, roster sales) ditelusuri
+ * lewat sales yang mengerjakannya (visits.sales_id / COALESCE(follow_ups.
+ * assigned_to, follow_ups.created_by)) -> ms_users.group_id, dibandingkan
+ * dengan group_id user yang login. Pola & helper-nya sama seperti yang sudah
+ * dipakai di ApprovalCustomerController, DashboardManagerController,
+ * DashboardController (Home Manager), dan SalesReassign. Administrator/IT
+ * (role_id = 1) dikecualikan dari semua filter ini -- perannya lintas company.
  * ============================================================================
  */
 class SalesActivityDashboardController extends Controller
@@ -104,18 +114,21 @@ class SalesActivityDashboardController extends Controller
             [$startDate, $endDate, $isRange] = $this->resolveDateRange($validated);
             $dayCount = Carbon::parse($startDate)->diffInDays(Carbon::parse($endDate)) + 1;
 
-            $totalSales = DB::table('ms_users as u')
+            $totalSales = $this->applyCompanyScopeUsers(DB::table('ms_users as u'), 'u.group_id')
                 ->join('ms_role as r', 'r.id_role', '=', 'u.role_id')
                 ->whereRaw('LOWER(r.role) = ?', ['sales'])
                 ->whereNull('u.deleted_at')
                 ->count();
 
-            $visitCount = DB::table('visits as v')
+            $visitCount = $this->applyCompanyScope(DB::table('visits as v'), 'v.sales_id')
                 ->whereNull('v.deleted_at')
                 ->whereRaw('v.visit_at::date BETWEEN ? AND ?', [$startDate, $endDate])
                 ->count();
 
-            $followUpBase = fn () => DB::table('follow_ups as fu')
+            $followUpBase = fn () => $this->applyCompanyScope(
+                    DB::table('follow_ups as fu'),
+                    DB::raw('COALESCE(fu.assigned_to, fu.created_by)')
+                )
                 ->whereNull('fu.deleted_at')
                 // exclude follow_ups yang auto-generated dari sebuah visit (fu.visit_id
                 // terisi) — itu cuma metadata "next visit" milik visit tsb (sudah
@@ -232,6 +245,23 @@ class SalesActivityDashboardController extends Controller
                 return ApiResponse::error('Activity not found.', [], 404);
             }
 
+            /**
+             * ==========================================
+             * VALIDASI COMPANY (multi-tenant)
+             * ==========================================
+             * Cegah manager PT A buka detail visit/follow-up milik sales PT B
+             * cuma dengan mengganti $id di request (bypass dari sisi frontend).
+             * Baik buildVisitDetail() maupun buildFollowUpDetail() sudah
+             * menyertakan kolom sales_id di select-nya.
+             */
+            if (! $this->isSameCompanyAsCurrentUser($detail->sales_id ?? null)) {
+                return ApiResponse::error(
+                    'Anda tidak punya akses ke aktivitas dari company lain.',
+                    [],
+                    403
+                );
+            }
+
             return ApiResponse::success($detail, 'Success');
 
         } catch (\Throwable $e) {
@@ -262,6 +292,80 @@ class SalesActivityDashboardController extends Controller
             ->whereNull('deleted_at')
             ->whereRaw('LOWER(role) = ?', ['manager'])
             ->exists();
+    }
+
+    /**
+     * ======================================================
+     * FILTER PER COMPANY (multi-tenant)
+     * ======================================================
+     * Buat query yang tabel dasarnya punya kolom sales (v.sales_id, atau
+     * expression COALESCE(fu.assigned_to, fu.created_by)) yang mengarah ke
+     * ms_users. Filter-nya lewat subquery: WHERE <column> IN (SELECT id_user
+     * FROM ms_users WHERE group_id = <company user login>).
+     *
+     * $column boleh string kolom biasa ('v.sales_id') atau DB::raw() buat
+     * expression (mis. COALESCE(...)).
+     *
+     * Administrator/IT (role_id = 1) dikecualikan -- boleh lintas company.
+     */
+    private function applyCompanyScope($query, $column)
+    {
+        $currentUser = auth()->user();
+
+        if (!$currentUser || $currentUser->role_id == 1) {
+            return $query;
+        }
+
+        return $query->whereIn($column, function ($sub) use ($currentUser) {
+            $sub->select('id_user')
+                ->from('ms_users')
+                ->where('group_id', $currentUser->group_id);
+        });
+    }
+
+    /**
+     * Sama seperti applyCompanyScope(), tapi khusus buat query yang tabel
+     * DASAR/anchor-nya sendiri ms_users -- filter langsung ke kolom
+     * group_id-nya, tanpa perlu subquery.
+     */
+    private function applyCompanyScopeUsers($query, string $groupIdColumn = 'group_id')
+    {
+        $currentUser = auth()->user();
+
+        if (!$currentUser || $currentUser->role_id == 1) {
+            return $query;
+        }
+
+        return $query->where($groupIdColumn, $currentUser->group_id);
+    }
+
+    /**
+     * Cek apakah sales tertentu (id_user-nya) satu company dengan user yang
+     * login. Dipakai di activityDetail() supaya manager PT A tidak bisa buka
+     * detail visit/follow-up milik sales PT B lewat manipulasi $id.
+     * Role_id = 1 (Administrator/IT) dikecualikan.
+     */
+    private function isSameCompanyAsCurrentUser($salesId): bool
+    {
+        $currentUser = auth()->user();
+
+        if (!$currentUser) {
+            return false;
+        }
+
+        if ($currentUser->role_id == 1) {
+            return true;
+        }
+
+        if (!$salesId) {
+            return false;
+        }
+
+        $groupId = DB::table('ms_users')
+            ->where('id_user', $salesId)
+            ->value('group_id');
+
+        return $groupId !== null && $groupId === $currentUser->group_id;
     }
 
     /**
@@ -316,7 +420,7 @@ class SalesActivityDashboardController extends Controller
     {
         // mode live: hanya masuk akal kalau tanggalnya persis "hari ini"
         if (! $isRange && $startDate === now()->toDateString()) {
-            return DB::table('visits as v')
+            return $this->applyCompanyScope(DB::table('visits as v'), 'v.sales_id')
                 ->whereNull('v.deleted_at')
                 ->whereRaw('v.visit_at::date = ?', [$startDate])
                 ->whereNotNull('v.check_in_at')
@@ -326,13 +430,16 @@ class SalesActivityDashboardController extends Controller
         }
 
         // mode rekap/rentang: sales yang minimal punya 1 aktivitas apapun
-        $visitSalesIds = DB::table('visits')
+        $visitSalesIds = $this->applyCompanyScope(DB::table('visits'), 'sales_id')
             ->select('sales_id')
             ->whereNull('deleted_at')
             ->whereRaw('visit_at::date BETWEEN ? AND ?', [$startDate, $endDate])
             ->pluck('sales_id');
 
-        $followUpSalesIds = DB::table('follow_ups')
+        $followUpSalesIds = $this->applyCompanyScope(
+                DB::table('follow_ups'),
+                DB::raw('COALESCE(assigned_to, created_by)')
+            )
             ->select(DB::raw('COALESCE(assigned_to, created_by) as sales_id'))
             ->whereNull('deleted_at')
             ->whereNull('visit_id')
@@ -347,7 +454,7 @@ class SalesActivityDashboardController extends Controller
      */
     private function buildDailyRoster(string $date): array
     {
-        $liveVisits = DB::table('visits as v')
+        $liveVisits = $this->applyCompanyScope(DB::table('visits as v'), 'v.sales_id')
             ->select(
                 'v.sales_id',
                 DB::raw("COALESCE(cb.branch_name, c.company_name, l.company_name) as current_target")
@@ -362,7 +469,7 @@ class SalesActivityDashboardController extends Controller
             ->get()
             ->keyBy('sales_id');
 
-        $visitAgg = DB::table('visits as v')
+        $visitAgg = $this->applyCompanyScope(DB::table('visits as v'), 'v.sales_id')
             ->select(
                 'v.sales_id',
                 DB::raw('COUNT(*) as visit_count'),
@@ -374,7 +481,10 @@ class SalesActivityDashboardController extends Controller
             ->get()
             ->keyBy('sales_id');
 
-        $followUpAgg = DB::table('follow_ups as fu')
+        $followUpAgg = $this->applyCompanyScope(
+                DB::table('follow_ups as fu'),
+                DB::raw('COALESCE(fu.assigned_to, fu.created_by)')
+            )
             ->select(
                 DB::raw('COALESCE(fu.assigned_to, fu.created_by) as sales_id'),
                 DB::raw("COUNT(*) FILTER (WHERE fu.follow_up_type = 'VISIT') as followup_count"),
@@ -428,7 +538,7 @@ class SalesActivityDashboardController extends Controller
      */
     private function buildLeaderboard(string $startDate, string $endDate): array
     {
-        $visitAgg = DB::table('visits as v')
+        $visitAgg = $this->applyCompanyScope(DB::table('visits as v'), 'v.sales_id')
             ->select('v.sales_id', DB::raw('COUNT(*) as visit_count'))
             ->whereNull('v.deleted_at')
             ->whereRaw('v.visit_at::date BETWEEN ? AND ?', [$startDate, $endDate])
@@ -436,7 +546,10 @@ class SalesActivityDashboardController extends Controller
             ->get()
             ->keyBy('sales_id');
 
-        $followUpAgg = DB::table('follow_ups as fu')
+        $followUpAgg = $this->applyCompanyScope(
+                DB::table('follow_ups as fu'),
+                DB::raw('COALESCE(fu.assigned_to, fu.created_by)')
+            )
             ->select(
                 DB::raw('COALESCE(fu.assigned_to, fu.created_by) as sales_id'),
                 DB::raw("COUNT(*) FILTER (WHERE fu.follow_up_type = 'VISIT') as followup_count"),
@@ -483,7 +596,7 @@ class SalesActivityDashboardController extends Controller
      */
     private function buildActivitiesUnion(string $startDate, string $endDate, ?string $search)
     {
-        $visitQuery = DB::table('visits as v')
+        $visitQuery = $this->applyCompanyScope(DB::table('visits as v'), 'v.sales_id')
             ->select([
                 DB::raw("'visit' as activity_type"),
                 'v.id',
@@ -523,7 +636,10 @@ class SalesActivityDashboardController extends Controller
             ->whereNull('v.deleted_at')
             ->whereRaw('v.visit_at::date BETWEEN ? AND ?', [$startDate, $endDate]);
 
-        $followUpQuery = DB::table('follow_ups as fu')
+        $followUpQuery = $this->applyCompanyScope(
+                DB::table('follow_ups as fu'),
+                DB::raw('COALESCE(fu.assigned_to, fu.created_by)')
+            )
             ->select([
                 DB::raw("CASE WHEN fu.follow_up_type = 'VISIT' THEN 'followup' ELSE 'direct' END as activity_type"),
                 'fu.id',
@@ -597,7 +713,10 @@ class SalesActivityDashboardController extends Controller
      */
     private function buildFollowUpReminders(string $startDate, string $endDate): array
     {
-        return DB::table('follow_ups as fu')
+        return $this->applyCompanyScope(
+                DB::table('follow_ups as fu'),
+                DB::raw('COALESCE(fu.assigned_to, fu.created_by)')
+            )
             ->select([
                 'fu.id',
                 'fu.follow_up_code',

@@ -7,7 +7,6 @@ use App\Helpers\ApiResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use App\Models\MsCustomers;
-use App\Models\MsUsers;
 use App\Http\Resources\CostumersResourcesCollection;
 
 class ApprovalCustomerController extends Controller
@@ -19,7 +18,7 @@ class ApprovalCustomerController extends Controller
         $this->customer = $customer;
     }
 
-
+   
 
 
 
@@ -254,25 +253,6 @@ public function index(Request $request)
 
     /**
      * ==========================================
-     * FILTER PER COMPANY (multi-tenant)
-     * ==========================================
-     * Company sebuah customer ditentukan dari OWNER-nya (c.id_user,
-     * di-join sebagai "owner" -> owner.group_id). Manager/Admin/Sales
-     * cuma boleh lihat customer yang owner-nya satu company sama
-     * dengan dirinya sendiri.
-     *
-     * Khusus role_id = 1 (Administrator/IT) DIKECUALIKAN dari filter
-     * ini -- perannya lintas company (keperluan support/IT), jadi
-     * tetap bisa lihat semua company sekaligus.
-     */
-    $currentUser = auth()->user();
-
-    if ($currentUser && $currentUser->role_id != 1) {
-        $query->where('owner.group_id', $currentUser->group_id);
-    }
-
-    /**
-     * ==========================================
      * SEARCH
      * ==========================================
      */
@@ -315,33 +295,6 @@ public function index(Request $request)
 
     /**
      * ======================================================
-     * CEK APAKAH CUSTOMER SATU COMPANY DENGAN USER YANG LOGIN
-     * ======================================================
-     * Dipakai di approve()/reject() supaya Manager/Admin/Sales dari
-     * PT A tidak bisa approve/reject customer milik PT B cuma dengan
-     * mengubah $id di request (bypass dari sisi frontend).
-     *
-     * Administrator/IT (role_id = 1) dikecualikan -- boleh lintas company.
-     */
-    private function isSameCompanyAsCurrentUser($ownerId): bool
-    {
-        $currentUser = auth()->user();
-
-        if (!$currentUser) {
-            return false;
-        }
-
-        if ($currentUser->role_id == 1) {
-            return true;
-        }
-
-        $ownerGroupId = MsUsers::where('id_user', $ownerId)->value('group_id');
-
-        return $ownerGroupId !== null && $ownerGroupId === $currentUser->group_id;
-    }
-
-    /**
-     * ======================================================
      * APPROVE CUSTOMER
      * ======================================================
      */
@@ -351,10 +304,6 @@ public function index(Request $request)
 
         if (!$customer) {
             return ApiResponse::error('Customer not found', 404);
-        }
-
-        if (!$this->isSameCompanyAsCurrentUser($customer->id_user)) {
-            return ApiResponse::error('Anda tidak punya akses ke customer dari company lain.', 403);
         }
 
         $customer->update([
@@ -385,10 +334,6 @@ public function index(Request $request)
 
         if (!$customer) {
             return ApiResponse::error('Customer not found', 404);
-        }
-
-        if (!$this->isSameCompanyAsCurrentUser($customer->id_user)) {
-            return ApiResponse::error('Anda tidak punya akses ke customer dari company lain.', 403);
         }
 
         $customer->update([

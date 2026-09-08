@@ -88,12 +88,6 @@ class SalesReassign extends Controller
                     '=',
                     'c.created_by'
                 )
-                ->leftJoin(
-                    'ms_users as company_owner',
-                    'company_owner.id_user',
-                    '=',
-                    'c.id_user'
-                )
                 ->leftJoinSub($branchSubQuery, 'branch_data', function ($join) {
                     $join->on('branch_data.customer_id', '=', 'c.id');
                 })
@@ -109,26 +103,6 @@ class SalesReassign extends Controller
                     DB::raw("COALESCE(branch_data.branches, '[]'::json) as branches"),
                 ])
                 ->whereNull('c.deleted_at');
-
-            /**
-             * ==========================================
-             * FILTER PER COMPANY (multi-tenant)
-             * ==========================================
-             * Company sebuah customer ditentukan dari OWNER-nya
-             * (c.id_user, di-join sebagai "company_owner" ->
-             * company_owner.group_id) -- sama seperti pola di
-             * ApprovalCustomerController. Manager/Admin/Sales cuma
-             * boleh lihat & pindahkan customer yang owner-nya satu
-             * company sama dengan dirinya sendiri.
-             *
-             * Khusus role_id = 1 (Administrator/IT) DIKECUALIKAN
-             * dari filter ini -- perannya lintas company.
-             */
-            $currentUser = auth()->user();
-
-            if ($currentUser && $currentUser->role_id != 1) {
-                $query->where('company_owner.group_id', $currentUser->group_id);
-            }
 
             if ($search) {
                 $query->where(function ($builder) use ($search) {
@@ -199,22 +173,6 @@ class SalesReassign extends Controller
                 ->whereNull('r.deleted_at')
                 ->whereRaw('LOWER(r.role) = ?', ['sales']);
 
-            /**
-             * ==========================================
-             * FILTER PER COMPANY (multi-tenant)
-             * ==========================================
-             * Dropdown "Sales Baru" cuma boleh nampilin sales dari
-             * company yang sama dengan manager/admin yang login --
-             * supaya customer/cabang gak bisa dipindahkan ke sales
-             * dari PT lain. Role_id = 1 (Administrator/IT)
-             * dikecualikan -- boleh lintas company.
-             */
-            $currentUser = auth()->user();
-
-            if ($currentUser && $currentUser->role_id != 1) {
-                $query->where('u.group_id', $currentUser->group_id);
-            }
-
             if (!empty($data['search'])) {
                 $search = $data['search'];
 
@@ -239,44 +197,6 @@ class SalesReassign extends Controller
                 'exception' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
-    }
-
-    /**
-     * ======================================================
-     * CEK APAKAH SEBUAH USER (owner/sales) SATU COMPANY DENGAN
-     * USER YANG LOGIN
-     * ======================================================
-     * Dipakai di reassignCustomer()/reassignBranch() supaya
-     * Manager/Admin dari PT A tidak bisa:
-     * 1. Memindahkan customer/cabang milik PT B (bypass $id), dan
-     * 2. Memindahkan customer/cabang ke sales dari PT B (bypass
-     *    new_sales_id) -- cuma dengan mengubah request dari sisi
-     *    frontend.
-     *
-     * Administrator/IT (role_id = 1) dikecualikan -- boleh lintas
-     * company.
-     */
-    private function isSameCompanyAsCurrentUser($userId): bool
-    {
-        $currentUser = auth()->user();
-
-        if (!$currentUser) {
-            return false;
-        }
-
-        if ($currentUser->role_id == 1) {
-            return true;
-        }
-
-        if (!$userId) {
-            return false;
-        }
-
-        $groupId = DB::table('ms_users')
-            ->where('id_user', $userId)
-            ->value('group_id');
-
-        return $groupId !== null && $groupId === $currentUser->group_id;
     }
 
     // ======================================================
@@ -373,32 +293,6 @@ public function reassignCustomer(Request $request, $id)
 
         if (!$customer) {
             return ApiResponse::error('Customer not found', [], 404);
-        }
-
-        /**
-         * ==========================================
-         * VALIDASI COMPANY (multi-tenant)
-         * ==========================================
-         * 1. Customer yang mau dipindah harus satu company dengan
-         *    user yang login (dicek dari owner-nya, c.id_user).
-         * 2. Sales baru (new_sales_id) juga harus dari company yang
-         *    sama -- supaya customer tidak bisa "dititipkan" ke
-         *    sales PT lain lewat manipulasi request.
-         */
-        if (!$this->isSameCompanyAsCurrentUser($customer->id_user)) {
-            return ApiResponse::error(
-                'Anda tidak punya akses ke customer dari company lain.',
-                [],
-                403
-            );
-        }
-
-        if (!$this->isSameCompanyAsCurrentUser($data['new_sales_id'])) {
-            return ApiResponse::error(
-                'Sales baru harus dari company yang sama.',
-                [],
-                422
-            );
         }
 
         /**
@@ -754,39 +648,6 @@ public function reassignBranch(Request $request, $id)
 
         if (!$branch) {
             return ApiResponse::error('Branch not found', [], 404);
-        }
-
-        /**
-         * ==========================================
-         * VALIDASI COMPANY (multi-tenant)
-         * ==========================================
-         * customer_branches tidak punya kolom owner/company sendiri,
-         * jadi company-nya ditelusuri lewat customer induknya
-         * (branch->customer_id -> customers.id_user) -- pola sama
-         * seperti ApprovalCustomerBranchController.
-         *
-         * Sales baru (new_sales_id) juga wajib dari company yang
-         * sama, supaya cabang tidak bisa "dititipkan" ke sales PT
-         * lain lewat manipulasi request.
-         */
-        $customerOwnerId = DB::table('customers')
-            ->where('id', $branch->customer_id)
-            ->value('id_user');
-
-        if (!$this->isSameCompanyAsCurrentUser($customerOwnerId)) {
-            return ApiResponse::error(
-                'Anda tidak punya akses ke cabang dari company lain.',
-                [],
-                403
-            );
-        }
-
-        if (!$this->isSameCompanyAsCurrentUser($data['new_sales_id'])) {
-            return ApiResponse::error(
-                'Sales baru harus dari company yang sama.',
-                [],
-                422
-            );
         }
 
         /**

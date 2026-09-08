@@ -24,7 +24,7 @@ class DashboardManagerController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        $totalLeads = $this->applyCompanyScope(DB::table('leads'), 'assigned_to')
+        $totalLeads = DB::table('leads')
             ->whereNull('deleted_at')
             ->whereBetween('created_at', [$start, $end])
             ->count();
@@ -35,7 +35,7 @@ class DashboardManagerController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        $totalCustomers = $this->applyCompanyScope(DB::table('customers'), 'id_user')
+        $totalCustomers = DB::table('customers')
             ->whereNull('deleted_at')
             ->whereBetween('created_at', [$start, $end])
             ->count();
@@ -46,12 +46,12 @@ class DashboardManagerController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        $visitsToday = $this->applyCompanyScope(DB::table('visits'), 'sales_id')
+        $visitsToday = DB::table('visits')
             ->whereNull('deleted_at')
             ->whereDate('visit_at', today())
             ->count();
 
-        $visitsThisMonth = $this->applyCompanyScope(DB::table('visits'), 'sales_id')
+        $visitsThisMonth = DB::table('visits')
             ->whereNull('deleted_at')
             ->whereBetween('visit_at', [$start, $end])
             ->count();
@@ -59,7 +59,7 @@ class DashboardManagerController extends Controller
         $lastMonthStart = $start->copy()->subMonth()->startOfMonth();
         $lastMonthEnd   = $start->copy()->subMonth()->endOfMonth();
 
-        $visitsLastMonth = $this->applyCompanyScope(DB::table('visits'), 'sales_id')
+        $visitsLastMonth = DB::table('visits')
             ->whereNull('deleted_at')
             ->whereBetween('visit_at', [$lastMonthStart, $lastMonthEnd])
             ->count();
@@ -74,12 +74,12 @@ class DashboardManagerController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        $followUpsToday = $this->applyCompanyScope(DB::table('follow_ups'), 'assigned_to')
+        $followUpsToday = DB::table('follow_ups')
             ->whereNull('deleted_at')
             ->whereDate('follow_up_at', today())
             ->count();
 
-        $overdueFollowUps = $this->applyCompanyScope(DB::table('follow_ups'), 'assigned_to')
+        $overdueFollowUps = DB::table('follow_ups')
             ->whereNull('deleted_at')
             ->whereDate('follow_up_at', '<', today())
             ->whereNotIn('status', ['completed', 'closed'])
@@ -91,7 +91,7 @@ class DashboardManagerController extends Controller
         |--------------------------------------------------------------------------
         */
 
-        $activeSales = $this->applyCompanyScope(DB::table('visits'), 'sales_id')
+        $activeSales = DB::table('visits')
             ->whereNull('deleted_at')
             ->whereBetween('visit_at', [$start, $end])
             ->distinct()
@@ -145,12 +145,12 @@ public function salesPerformance(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $totalSales = $this->applyCompanyScopeUsers(DB::table('ms_users'))
+    $totalSales = DB::table('ms_users')
         ->whereNull('deleted_at')
         ->where('is_active', true)
         ->count();
 
-    $activeSales = $this->applyCompanyScope(DB::table('visits'), 'sales_id')
+    $activeSales = DB::table('visits')
         ->whereNull('deleted_at')
         ->whereBetween('visit_at', [$start, $end])
         ->distinct()
@@ -158,17 +158,17 @@ public function salesPerformance(Request $request)
 
     $inactiveSales = max(0, $totalSales - $activeSales);
 
-    $totalVisit = $this->applyCompanyScope(DB::table('visits'), 'sales_id')
+    $totalVisit = DB::table('visits')
         ->whereNull('deleted_at')
         ->whereBetween('visit_at', [$start, $end])
         ->count();
 
-    $totalFollowUp = $this->applyCompanyScope(DB::table('follow_ups'), 'assigned_to')
+    $totalFollowUp = DB::table('follow_ups')
         ->whereNull('deleted_at')
         ->whereBetween('follow_up_at', [$start, $end])
         ->count();
 
-    $totalCustomer = $this->applyCompanyScope(DB::table('customers'), 'id_user')
+    $totalCustomer = DB::table('customers')
         ->whereNull('deleted_at')
         ->whereBetween('created_at', [$start, $end])
         ->count();
@@ -179,7 +179,7 @@ public function salesPerformance(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $ranking = $this->applyCompanyScopeUsers(DB::table('ms_users as u'), 'u.group_id')
+    $ranking = DB::table('ms_users as u')
         ->leftJoin('visits as v', function ($join) use ($start, $end) {
             $join->on('u.id_user', '=', 'v.sales_id')
                 ->whereNull('v.deleted_at')
@@ -281,36 +281,36 @@ public function followUp(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $totalFollowUp = $this->applyCompanyScope(DB::table('follow_ups'), 'assigned_to')
+    $totalFollowUp = DB::table('follow_ups')
         ->whereNull('deleted_at')
         ->whereBetween('follow_up_at', [$start, $end])
         ->count();
 
-    $pending = $this->applyCompanyScope(DB::table('follow_ups'), 'assigned_to')
+    $pending = DB::table('follow_ups')
         ->whereNull('deleted_at')
         ->whereBetween('follow_up_at', [$start, $end])
         ->where('status', 'PENDING')
         ->count();
 
-    $done = $this->applyCompanyScope(DB::table('follow_ups'), 'assigned_to')
+    $done = DB::table('follow_ups')
         ->whereNull('deleted_at')
         ->whereBetween('follow_up_at', [$start, $end])
         ->where('status', 'DONE')
         ->count();
 
-    $cancelled = $this->applyCompanyScope(DB::table('follow_ups'), 'assigned_to')
+    $cancelled = DB::table('follow_ups')
         ->whereNull('deleted_at')
         ->whereBetween('follow_up_at', [$start, $end])
         ->where('status', 'CANCELLED')
         ->count();
 
-    $closed = $this->applyCompanyScope(DB::table('follow_ups'), 'assigned_to')
+    $closed = DB::table('follow_ups')
         ->whereNull('deleted_at')
         ->whereBetween('follow_up_at', [$start, $end])
         ->where('status', 'CLOSED')
         ->count();
 
-    $overdue = $this->applyCompanyScope(DB::table('follow_ups'), 'assigned_to')
+    $overdue = DB::table('follow_ups')
         ->whereNull('deleted_at')
         ->where('status', 'PENDING')
         ->whereDate('follow_up_at', '<', today())
@@ -322,7 +322,7 @@ public function followUp(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $activity = $this->applyCompanyScope(DB::table('follow_ups'), 'assigned_to')
+    $activity = DB::table('follow_ups')
         ->select(
             'follow_up_type',
             DB::raw('COUNT(*) as total')
@@ -339,7 +339,7 @@ public function followUp(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $result = $this->applyCompanyScope(DB::table('follow_ups'), 'assigned_to')
+    $result = DB::table('follow_ups')
         ->select(
             'result',
             DB::raw('COUNT(*) as total')
@@ -357,11 +357,8 @@ public function followUp(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $topSales = $this->applyCompanyScopeUsers(
-        DB::table('follow_ups as f')
-            ->join('ms_users as u', 'u.id_user', '=', 'f.assigned_to'),
-        'u.group_id'
-    )
+    $topSales = DB::table('follow_ups as f')
+        ->join('ms_users as u', 'u.id_user', '=', 'f.assigned_to')
         ->select(
             'u.id_user',
             'u.fullname',
@@ -383,7 +380,7 @@ public function followUp(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $overdueList = $this->applyCompanyScope(DB::table('follow_ups as f'), 'f.assigned_to')
+    $overdueList = DB::table('follow_ups as f')
         ->leftJoin('customers as c', 'c.id', '=', 'f.customer_id')
         ->leftJoin('leads as l', 'l.id', '=', 'f.lead_id')
         ->leftJoin('ms_users as u', 'u.id_user', '=', 'f.assigned_to')
@@ -409,7 +406,7 @@ public function followUp(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $trend = $this->applyCompanyScope(DB::table('follow_ups'), 'assigned_to')
+    $trend = DB::table('follow_ups')
         ->select(
             DB::raw("DATE(follow_up_at) as date"),
             DB::raw("COUNT(*) as total")
@@ -447,7 +444,7 @@ public function followUp(Request $request)
     /**
      * Visit Report
      */
-
+       
     public function visit(Request $request)
     {
         [$start, $end] = $this->getPeriod($request);
@@ -458,30 +455,30 @@ public function followUp(Request $request)
         |--------------------------------------------------------------------------
         */
 
-        $totalVisit = $this->applyCompanyScope(DB::table('visits'), 'sales_id')
+        $totalVisit = DB::table('visits')
             ->whereNull('deleted_at')
             ->whereBetween('visit_at', [$start, $end])
             ->count();
 
-        $doneVisit = $this->applyCompanyScope(DB::table('visits'), 'sales_id')
+        $doneVisit = DB::table('visits')
             ->whereNull('deleted_at')
             ->whereBetween('visit_at', [$start, $end])
             ->where('visit_status', 'DONE')
             ->count();
 
-        $ongoingVisit = $this->applyCompanyScope(DB::table('visits'), 'sales_id')
+        $ongoingVisit = DB::table('visits')
             ->whereNull('deleted_at')
             ->whereBetween('visit_at', [$start, $end])
             ->where('visit_status', 'ONGOING')
             ->count();
 
-        $checkedInVisit = $this->applyCompanyScope(DB::table('visits'), 'sales_id')
+        $checkedInVisit = DB::table('visits')
             ->whereNull('deleted_at')
             ->whereBetween('visit_at', [$start, $end])
             ->where('visit_status', 'CHECKED_IN')
             ->count();
 
-        $cancelVisit = $this->applyCompanyScope(DB::table('visits'), 'sales_id')
+        $cancelVisit = DB::table('visits')
             ->whereNull('deleted_at')
             ->whereBetween('visit_at', [$start, $end])
             ->where('visit_status', 'CANCELED')
@@ -493,7 +490,7 @@ public function followUp(Request $request)
         |--------------------------------------------------------------------------
         */
 
-        $complaint = $this->applyCompanyScope(DB::table('visits'), 'sales_id')
+        $complaint = DB::table('visits')
             ->whereNull('deleted_at')
             ->whereBetween('visit_at', [$start, $end])
             ->where('has_complaint', true)
@@ -505,7 +502,7 @@ public function followUp(Request $request)
         |--------------------------------------------------------------------------
         */
 
-        $potentialOrder = $this->applyCompanyScope(DB::table('visits'), 'sales_id')
+        $potentialOrder = DB::table('visits')
             ->whereNull('deleted_at')
             ->whereBetween('visit_at', [$start, $end])
             ->where('has_potential_order', true)
@@ -517,7 +514,7 @@ public function followUp(Request $request)
         |--------------------------------------------------------------------------
         */
 
-        $visitResult = $this->applyCompanyScope(DB::table('visits'), 'sales_id')
+        $visitResult = DB::table('visits')
             ->select(
                 'visit_result',
                 DB::raw('COUNT(*) as total')
@@ -535,11 +532,8 @@ public function followUp(Request $request)
         |--------------------------------------------------------------------------
         */
 
-        $topSales = $this->applyCompanyScopeUsers(
-            DB::table('visits as v')
-                ->join('ms_users as u', 'u.id_user', '=', 'v.sales_id'),
-            'u.group_id'
-        )
+        $topSales = DB::table('visits as v')
+            ->join('ms_users as u', 'u.id_user', '=', 'v.sales_id')
             ->select(
                 'u.id_user',
                 'u.fullname',
@@ -561,7 +555,7 @@ public function followUp(Request $request)
         |--------------------------------------------------------------------------
         */
 
-        $dailyTrend = $this->applyCompanyScope(DB::table('visits'), 'sales_id')
+        $dailyTrend = DB::table('visits')
             ->select(
                 DB::raw('DATE(visit_at) as date'),
                 DB::raw('COUNT(*) as total')
@@ -578,7 +572,7 @@ public function followUp(Request $request)
         |--------------------------------------------------------------------------
         */
 
-        $averageDuration = $this->applyCompanyScope(DB::table('visits'), 'sales_id')
+        $averageDuration = DB::table('visits')
             ->selectRaw("
                 AVG(
                     EXTRACT(EPOCH FROM (check_out_at - check_in_at))/60
@@ -596,13 +590,10 @@ public function followUp(Request $request)
         |--------------------------------------------------------------------------
         */
 
-        $visitList = $this->applyCompanyScopeUsers(
-            DB::table('visits as v')
-                ->leftJoin('customers as c', 'c.id', '=', 'v.customer_id')
-                ->leftJoin('leads as l', 'l.id', '=', 'v.lead_id')
-                ->join('ms_users as u', 'u.id_user', '=', 'v.sales_id'),
-            'u.group_id'
-        )
+        $visitList = DB::table('visits as v')
+            ->leftJoin('customers as c', 'c.id', '=', 'v.customer_id')
+            ->leftJoin('leads as l', 'l.id', '=', 'v.lead_id')
+            ->join('ms_users as u', 'u.id_user', '=', 'v.sales_id')
             ->select(
                 'v.visit_code',
                 DB::raw("COALESCE(c.company_name,l.company_name) as customer_name"),
@@ -667,12 +658,12 @@ public function followUp(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $totalLead = $this->applyCompanyScope(DB::table('leads'), 'assigned_to')
+    $totalLead = DB::table('leads')
         ->whereNull('deleted_at')
         ->whereBetween('created_at', [$start, $end])
         ->count();
 
-    $convertedLead = $this->applyCompanyScope(DB::table('customers'), 'id_user')
+    $convertedLead = DB::table('customers')
         ->whereNull('deleted_at')
         ->whereBetween('created_at', [$start, $end])
         ->whereNotNull('lead_id')
@@ -690,7 +681,7 @@ public function followUp(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $leadSource = $this->applyCompanyScope(DB::table('customers'), 'id_user')
+    $leadSource = DB::table('customers')
         ->select(
             'lead_source',
             DB::raw('COUNT(*) as total')
@@ -707,7 +698,7 @@ public function followUp(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $customerStatus = $this->applyCompanyScope(DB::table('customers'), 'id_user')
+    $customerStatus = DB::table('customers')
         ->select(
             'customer_status',
             DB::raw('COUNT(*) as total')
@@ -723,11 +714,8 @@ public function followUp(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $pipelinePerSales = $this->applyCompanyScopeUsers(
-        DB::table('ms_users as u')
-            ->leftJoin('customers as c', 'u.id_user', '=', 'c.id_user'),
-        'u.group_id'
-    )
+    $pipelinePerSales = DB::table('ms_users as u')
+        ->leftJoin('customers as c', 'u.id_user', '=', 'c.id_user')
         ->select(
             'u.id_user',
             'u.fullname',
@@ -748,7 +736,7 @@ public function followUp(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $monthlyConversion = $this->applyCompanyScope(DB::table('customers'), 'id_user')
+    $monthlyConversion = DB::table('customers')
         ->select(
             DB::raw("DATE(created_at) as date"),
             DB::raw("COUNT(*) as total")
@@ -765,7 +753,7 @@ public function followUp(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $latestCustomer = $this->applyCompanyScope(DB::table('customers as c'), 'c.id_user')
+    $latestCustomer = DB::table('customers as c')
         ->leftJoin('ms_users as u', 'u.id_user', '=', 'c.id_user')
         ->select(
             'c.customer_code',
@@ -820,11 +808,11 @@ public function activity(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $totalActivity = $this->applyCompanyScope(DB::table('follow_up_activities'), 'created_by')
+    $totalActivity = DB::table('follow_up_activities')
         ->whereBetween('activity_at', [$start, $end])
         ->count();
 
-    $todayActivity = $this->applyCompanyScope(DB::table('follow_up_activities'), 'created_by')
+    $todayActivity = DB::table('follow_up_activities')
         ->whereDate('activity_at', today())
         ->count();
 
@@ -834,7 +822,7 @@ public function activity(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $activityType = $this->applyCompanyScope(DB::table('follow_up_activities'), 'created_by')
+    $activityType = DB::table('follow_up_activities')
         ->select(
             'activity_type',
             DB::raw('COUNT(*) as total')
@@ -850,11 +838,8 @@ public function activity(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $topSales = $this->applyCompanyScopeUsers(
-        DB::table('follow_up_activities as fa')
-            ->join('ms_users as u', 'u.id_user', '=', 'fa.created_by'),
-        'u.group_id'
-    )
+    $topSales = DB::table('follow_up_activities as fa')
+        ->join('ms_users as u', 'u.id_user', '=', 'fa.created_by')
         ->select(
             'u.id_user',
             'u.fullname',
@@ -875,7 +860,7 @@ public function activity(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $dailyTrend = $this->applyCompanyScope(DB::table('follow_up_activities'), 'created_by')
+    $dailyTrend = DB::table('follow_up_activities')
         ->select(
             DB::raw('DATE(activity_at) as date'),
             DB::raw('COUNT(*) as total')
@@ -891,14 +876,11 @@ public function activity(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $latestActivity = $this->applyCompanyScopeUsers(
-        DB::table('follow_up_activities as fa')
-            ->join('ms_users as u', 'u.id_user', '=', 'fa.created_by')
-            ->join('follow_ups as fu', 'fu.id', '=', 'fa.follow_up_id')
-            ->leftJoin('customers as c', 'c.id', '=', 'fu.customer_id')
-            ->leftJoin('leads as l', 'l.id', '=', 'fu.lead_id'),
-        'u.group_id'
-    )
+    $latestActivity = DB::table('follow_up_activities as fa')
+        ->join('ms_users as u', 'u.id_user', '=', 'fa.created_by')
+        ->join('follow_ups as fu', 'fu.id', '=', 'fa.follow_up_id')
+        ->leftJoin('customers as c', 'c.id', '=', 'fu.customer_id')
+        ->leftJoin('leads as l', 'l.id', '=', 'fu.lead_id')
         ->select(
             'fa.id',
             'fa.activity_type',
@@ -947,12 +929,12 @@ public function conversion(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $totalLead = $this->applyCompanyScope(DB::table('leads'), 'assigned_to')
+    $totalLead = DB::table('leads')
         ->whereNull('deleted_at')
         ->whereBetween('created_at', [$start, $end])
         ->count();
 
-    $converted = $this->applyCompanyScope(DB::table('customers'), 'id_user')
+    $converted = DB::table('customers')
         ->whereNull('deleted_at')
         ->whereNotNull('lead_id')
         ->whereBetween('created_at', [$start, $end])
@@ -970,17 +952,14 @@ public function conversion(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $salesConversion = $this->applyCompanyScopeUsers(
-        DB::table('ms_users as u')
-            ->leftJoin('customers as c', function ($join) use ($start, $end) {
+    $salesConversion = DB::table('ms_users as u')
+        ->leftJoin('customers as c', function ($join) use ($start, $end) {
 
-                $join->on('u.id_user', '=', 'c.id_user')
-                    ->whereNull('c.deleted_at')
-                    ->whereBetween('c.created_at', [$start, $end]);
+            $join->on('u.id_user', '=', 'c.id_user')
+                ->whereNull('c.deleted_at')
+                ->whereBetween('c.created_at', [$start, $end]);
 
-            }),
-        'u.group_id'
-    )
+        })
         ->select(
 
             'u.id_user',
@@ -1005,7 +984,7 @@ public function conversion(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $dailyConversion = $this->applyCompanyScope(DB::table('customers'), 'id_user')
+    $dailyConversion = DB::table('customers')
         ->select(
 
             DB::raw('DATE(created_at) as date'),
@@ -1025,7 +1004,7 @@ public function conversion(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $customerStatus = $this->applyCompanyScope(DB::table('customers'), 'id_user')
+    $customerStatus = DB::table('customers')
         ->select(
 
             'customer_status',
@@ -1044,11 +1023,10 @@ public function conversion(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $latestConversion = $this->applyCompanyScopeUsers(
-        DB::table('customers as c')
-            ->join('ms_users as u', 'u.id_user', '=', 'c.id_user'),
-        'u.group_id'
-    )
+    $latestConversion = DB::table('customers as c')
+
+        ->join('ms_users as u', 'u.id_user', '=', 'c.id_user')
+
         ->select(
 
             'c.customer_code',
@@ -1114,13 +1092,13 @@ public function complaint(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $totalComplaint = $this->applyCompanyScope(DB::table('visits'), 'sales_id')
+    $totalComplaint = DB::table('visits')
         ->whereNull('deleted_at')
         ->whereBetween('visit_at', [$start, $end])
         ->where('has_complaint', true)
         ->count();
 
-    $totalVisit = $this->applyCompanyScope(DB::table('visits'), 'sales_id')
+    $totalVisit = DB::table('visits')
         ->whereNull('deleted_at')
         ->whereBetween('visit_at', [$start, $end])
         ->count();
@@ -1135,7 +1113,7 @@ public function complaint(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $dailyTrend = $this->applyCompanyScope(DB::table('visits'), 'sales_id')
+    $dailyTrend = DB::table('visits')
         ->select(
             DB::raw('DATE(visit_at) as date'),
             DB::raw('COUNT(*) as total')
@@ -1153,11 +1131,8 @@ public function complaint(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $complaintPerSales = $this->applyCompanyScopeUsers(
-        DB::table('visits as v')
-            ->join('ms_users as u', 'u.id_user', '=', 'v.sales_id'),
-        'u.group_id'
-    )
+    $complaintPerSales = DB::table('visits as v')
+        ->join('ms_users as u', 'u.id_user', '=', 'v.sales_id')
         ->select(
             'u.id_user',
             'u.fullname',
@@ -1179,7 +1154,7 @@ public function complaint(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $complaintPerCustomer = $this->applyCompanyScope(DB::table('visits as v'), 'v.sales_id')
+    $complaintPerCustomer = DB::table('visits as v')
         ->leftJoin('customers as c', 'c.id', '=', 'v.customer_id')
         ->leftJoin('leads as l', 'l.id', '=', 'v.lead_id')
         ->select(
@@ -1200,13 +1175,10 @@ public function complaint(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $latestComplaint = $this->applyCompanyScopeUsers(
-        DB::table('visits as v')
-            ->leftJoin('customers as c', 'c.id', '=', 'v.customer_id')
-            ->leftJoin('leads as l', 'l.id', '=', 'v.lead_id')
-            ->join('ms_users as u', 'u.id_user', '=', 'v.sales_id'),
-        'u.group_id'
-    )
+    $latestComplaint = DB::table('visits as v')
+        ->leftJoin('customers as c', 'c.id', '=', 'v.customer_id')
+        ->leftJoin('leads as l', 'l.id', '=', 'v.lead_id')
+        ->join('ms_users as u', 'u.id_user', '=', 'v.sales_id')
         ->select(
             'v.visit_code',
             'u.fullname as sales_name',
@@ -1228,11 +1200,8 @@ public function complaint(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $complaintPercentage = $this->applyCompanyScopeUsers(
-        DB::table('visits as v')
-            ->join('ms_users as u', 'u.id_user', '=', 'v.sales_id'),
-        'u.group_id'
-    )
+    $complaintPercentage = DB::table('visits as v')
+        ->join('ms_users as u', 'u.id_user', '=', 'v.sales_id')
         ->select(
             'u.id_user',
             'u.fullname',
@@ -1308,12 +1277,12 @@ public function potentialOrder(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $totalVisit = $this->applyCompanyScope(DB::table('visits'), 'sales_id')
+    $totalVisit = DB::table('visits')
         ->whereNull('deleted_at')
         ->whereBetween('visit_at', [$start, $end])
         ->count();
 
-    $totalPotential = $this->applyCompanyScope(DB::table('visits'), 'sales_id')
+    $totalPotential = DB::table('visits')
         ->whereNull('deleted_at')
         ->whereBetween('visit_at', [$start, $end])
         ->where('has_potential_order', true)
@@ -1329,7 +1298,7 @@ public function potentialOrder(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $dailyTrend = $this->applyCompanyScope(DB::table('visits'), 'sales_id')
+    $dailyTrend = DB::table('visits')
         ->select(
             DB::raw('DATE(visit_at) as date'),
             DB::raw('COUNT(*) as total')
@@ -1347,11 +1316,8 @@ public function potentialOrder(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $potentialPerSales = $this->applyCompanyScopeUsers(
-        DB::table('visits as v')
-            ->join('ms_users as u', 'u.id_user', '=', 'v.sales_id'),
-        'u.group_id'
-    )
+    $potentialPerSales = DB::table('visits as v')
+        ->join('ms_users as u', 'u.id_user', '=', 'v.sales_id')
         ->select(
             'u.id_user',
             'u.fullname',
@@ -1373,7 +1339,7 @@ public function potentialOrder(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $potentialPerCustomer = $this->applyCompanyScope(DB::table('visits as v'), 'v.sales_id')
+    $potentialPerCustomer = DB::table('visits as v')
         ->leftJoin('customers as c', 'c.id', '=', 'v.customer_id')
         ->leftJoin('leads as l', 'l.id', '=', 'v.lead_id')
         ->select(
@@ -1394,13 +1360,10 @@ public function potentialOrder(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $latestPotential = $this->applyCompanyScopeUsers(
-        DB::table('visits as v')
-            ->leftJoin('customers as c', 'c.id', '=', 'v.customer_id')
-            ->leftJoin('leads as l', 'l.id', '=', 'v.lead_id')
-            ->join('ms_users as u', 'u.id_user', '=', 'v.sales_id'),
-        'u.group_id'
-    )
+    $latestPotential = DB::table('visits as v')
+        ->leftJoin('customers as c', 'c.id', '=', 'v.customer_id')
+        ->leftJoin('leads as l', 'l.id', '=', 'v.lead_id')
+        ->join('ms_users as u', 'u.id_user', '=', 'v.sales_id')
         ->select(
             'v.visit_code',
             'u.fullname as sales_name',
@@ -1422,11 +1385,8 @@ public function potentialOrder(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $potentialPercentage = $this->applyCompanyScopeUsers(
-        DB::table('visits as v')
-            ->join('ms_users as u', 'u.id_user', '=', 'v.sales_id'),
-        'u.group_id'
-    )
+    $potentialPercentage = DB::table('visits as v')
+        ->join('ms_users as u', 'u.id_user', '=', 'v.sales_id')
         ->select(
             'u.id_user',
             'u.fullname',
@@ -1504,31 +1464,31 @@ public function customers(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $totalCustomer = $this->applyCompanyScope(DB::table('customers'), 'id_user')
+    $totalCustomer = DB::table('customers')
         ->whereNull('deleted_at')
         ->count();
 
-    $newCustomer = $this->applyCompanyScope(DB::table('customers'), 'id_user')
+    $newCustomer = DB::table('customers')
         ->whereNull('deleted_at')
         ->whereBetween('created_at', [$start, $end])
         ->count();
 
-    $activeCustomer = $this->applyCompanyScope(DB::table('customers'), 'id_user')
+    $activeCustomer = DB::table('customers')
         ->whereNull('deleted_at')
         ->where('customer_status', 'Active')
         ->count();
 
-    $dormantCustomer = $this->applyCompanyScope(DB::table('customers'), 'id_user')
+    $dormantCustomer = DB::table('customers')
         ->whereNull('deleted_at')
         ->where('customer_status', 'Dormant')
         ->count();
 
-    $inactiveCustomer = $this->applyCompanyScope(DB::table('customers'), 'id_user')
+    $inactiveCustomer = DB::table('customers')
         ->whereNull('deleted_at')
         ->where('customer_status', 'Inactive')
         ->count();
 
-    $lostCustomer = $this->applyCompanyScope(DB::table('customers'), 'id_user')
+    $lostCustomer = DB::table('customers')
         ->whereNull('deleted_at')
         ->where('customer_status', 'Lost')
         ->count();
@@ -1539,7 +1499,7 @@ public function customers(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $customerStatus = $this->applyCompanyScope(DB::table('customers'), 'id_user')
+    $customerStatus = DB::table('customers')
         ->select(
             'customer_status',
             DB::raw('COUNT(*) as total')
@@ -1555,7 +1515,7 @@ public function customers(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $leadSource = $this->applyCompanyScope(DB::table('customers'), 'id_user')
+    $leadSource = DB::table('customers')
         ->select(
             'lead_source',
             DB::raw('COUNT(*) as total')
@@ -1571,11 +1531,8 @@ public function customers(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $topSales = $this->applyCompanyScopeUsers(
-        DB::table('customers as c')
-            ->join('ms_users as u', 'u.id_user', '=', 'c.id_user'),
-        'u.group_id'
-    )
+    $topSales = DB::table('customers as c')
+        ->join('ms_users as u', 'u.id_user', '=', 'c.id_user')
         ->select(
             'u.id_user',
             'u.fullname',
@@ -1596,7 +1553,7 @@ public function customers(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $customerGrowth = $this->applyCompanyScope(DB::table('customers'), 'id_user')
+    $customerGrowth = DB::table('customers')
         ->select(
             DB::raw('DATE(created_at) as date'),
             DB::raw('COUNT(*) as total')
@@ -1613,11 +1570,8 @@ public function customers(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $topCustomer = $this->applyCompanyScope(
-        DB::table('visits as v')
-            ->join('customers as c', 'c.id', '=', 'v.customer_id'),
-        'c.id_user'
-    )
+    $topCustomer = DB::table('visits as v')
+        ->join('customers as c', 'c.id', '=', 'v.customer_id')
         ->select(
             'c.customer_code',
             'c.company_name',
@@ -1639,7 +1593,7 @@ public function customers(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $customerList = $this->applyCompanyScope(DB::table('customers as c'), 'c.id_user')
+    $customerList = DB::table('customers as c')
         ->leftJoin('ms_users as u', 'u.id_user', '=', 'c.id_user')
         ->select(
             'c.customer_code',
@@ -1713,66 +1667,6 @@ public function customers(Request $request)
         return [$start, $end];
     }
 
-    /**
-     * ======================================================
-     * FILTER PER COMPANY (multi-tenant)
-     * ======================================================
-     * Dashboard Manager ini isinya laporan lintas modul (Lead, Customer,
-     * Visit, Follow Up, Activity) yang tabel dasarnya beda-beda dan
-     * TIDAK punya kolom company/group_id sendiri -- company-nya
-     * ditentukan dari kolom user yang nempel di tiap tabel itu
-     * (assigned_to / sales_id / id_user / created_by), sama seperti
-     * aturan di ApprovalCustomerController & ApprovalCustomerBranchController.
-     *
-     * Administrator/IT (role_id = 1) dikecualikan dari semua filter di
-     * bawah ini -- perannya lintas company, jadi tetap bisa lihat semua
-     * company sekaligus (dipakai misalnya buat keperluan support/IT).
-     */
-
-    /**
-     * Buat query yang tabel dasarnya punya kolom user (assigned_to,
-     * sales_id, id_user, created_by, dst) yang mengarah ke ms_users.
-     * Filter-nya lewat subquery: WHERE <column> IN (SELECT id_user FROM
-     * ms_users WHERE group_id = <company user login>).
-     *
-     * $column boleh diberi prefix alias (mis. 'c.id_user') kalau query-nya
-     * pakai alias tabel.
-     */
-    private function applyCompanyScope($query, string $column)
-    {
-        $currentUser = auth()->user();
-
-        if (!$currentUser || $currentUser->role_id == 1) {
-            return $query;
-        }
-
-        return $query->whereIn($column, function ($sub) use ($currentUser) {
-            $sub->select('id_user')
-                ->from('ms_users')
-                ->where('group_id', $currentUser->group_id);
-        });
-    }
-
-    /**
-     * Sama seperti applyCompanyScope(), tapi khusus buat query yang tabel
-     * DASAR/anchor-nya sendiri ms_users (misal ranking sales, pipeline per
-     * sales, atau query lain yang sudah JOIN ke ms_users) -- filter
-     * langsung ke kolom group_id-nya, tanpa perlu subquery.
-     *
-     * $groupIdColumn default 'group_id', kasih 'u.group_id' kalau
-     * query-nya pakai alias 'u' buat ms_users.
-     */
-    private function applyCompanyScopeUsers($query, string $groupIdColumn = 'group_id')
-    {
-        $currentUser = auth()->user();
-
-        if (!$currentUser || $currentUser->role_id == 1) {
-            return $query;
-        }
-
-        return $query->where($groupIdColumn, $currentUser->group_id);
-    }
-
 
 
     /**
@@ -1788,7 +1682,7 @@ public function kpi(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $totalLead = $this->applyCompanyScope(DB::table('leads'), 'assigned_to')
+    $totalLead = DB::table('leads')
         ->whereNull('deleted_at')
         ->whereBetween('created_at', [$start, $end])
         ->count();
@@ -1799,7 +1693,7 @@ public function kpi(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $totalCustomer = $this->applyCompanyScope(DB::table('customers'), 'id_user')
+    $totalCustomer = DB::table('customers')
         ->whereNull('deleted_at')
         ->whereBetween('created_at', [$start, $end])
         ->count();
@@ -1810,12 +1704,12 @@ public function kpi(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $totalVisit = $this->applyCompanyScope(DB::table('visits'), 'sales_id')
+    $totalVisit = DB::table('visits')
         ->whereNull('deleted_at')
         ->whereBetween('visit_at', [$start, $end])
         ->count();
 
-    $visitToday = $this->applyCompanyScope(DB::table('visits'), 'sales_id')
+    $visitToday = DB::table('visits')
         ->whereNull('deleted_at')
         ->whereDate('visit_at', today())
         ->count();
@@ -1826,12 +1720,12 @@ public function kpi(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $totalFollowUp = $this->applyCompanyScope(DB::table('follow_ups'), 'assigned_to')
+    $totalFollowUp = DB::table('follow_ups')
         ->whereNull('deleted_at')
         ->whereBetween('follow_up_at', [$start, $end])
         ->count();
 
-    $overdueFollowUp = $this->applyCompanyScope(DB::table('follow_ups'), 'assigned_to')
+    $overdueFollowUp = DB::table('follow_ups')
         ->whereNull('deleted_at')
         ->where('status', 'PENDING')
         ->whereDate('follow_up_at', '<', today())
@@ -1843,7 +1737,7 @@ public function kpi(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $totalComplaint = $this->applyCompanyScope(DB::table('visits'), 'sales_id')
+    $totalComplaint = DB::table('visits')
         ->whereNull('deleted_at')
         ->whereBetween('visit_at', [$start, $end])
         ->where('has_complaint', true)
@@ -1855,7 +1749,7 @@ public function kpi(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $totalPotentialOrder = $this->applyCompanyScope(DB::table('visits'), 'sales_id')
+    $totalPotentialOrder = DB::table('visits')
         ->whereNull('deleted_at')
         ->whereBetween('visit_at', [$start, $end])
         ->where('has_potential_order', true)
@@ -1897,17 +1791,14 @@ public function kpi(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $topSales = $this->applyCompanyScopeUsers(
-        DB::table('ms_users as u')
-            ->leftJoin('visits as v', function ($join) use ($start, $end) {
+    $topSales = DB::table('ms_users as u')
+        ->leftJoin('visits as v', function ($join) use ($start, $end) {
 
-                $join->on('u.id_user', '=', 'v.sales_id')
-                    ->whereNull('v.deleted_at')
-                    ->whereBetween('v.visit_at', [$start, $end]);
+            $join->on('u.id_user', '=', 'v.sales_id')
+                ->whereNull('v.deleted_at')
+                ->whereBetween('v.visit_at', [$start, $end]);
 
-            }),
-        'u.group_id'
-    )
+        })
         ->select(
             'u.id_user',
             'u.fullname',
@@ -1927,7 +1818,7 @@ public function kpi(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $topCustomer = $this->applyCompanyScope(DB::table('customers as c'), 'c.id_user')
+    $topCustomer = DB::table('customers as c')
         ->leftJoin('visits as v', 'v.customer_id', '=', 'c.id')
         ->select(
             'c.customer_code',
@@ -2039,16 +1930,16 @@ public function lead(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $totalLead = $this->applyCompanyScope(DB::table('leads'), 'assigned_to')
+    $totalLead = DB::table('leads')
         ->whereNull('deleted_at')
         ->count();
 
-    $newLead = $this->applyCompanyScope(DB::table('leads'), 'assigned_to')
+    $newLead = DB::table('leads')
         ->whereNull('deleted_at')
         ->whereBetween('created_at', [$start, $end])
         ->count();
 
-    $convertedLead = $this->applyCompanyScope(DB::table('customers'), 'id_user')
+    $convertedLead = DB::table('customers')
         ->whereNull('deleted_at')
         ->whereNotNull('lead_id')
         ->count();
@@ -2065,7 +1956,7 @@ public function lead(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $leadSource = $this->applyCompanyScope(DB::table('leads'), 'assigned_to')
+    $leadSource = DB::table('leads')
         ->select(
             'lead_source',
             DB::raw('COUNT(*) as total')
@@ -2081,7 +1972,7 @@ public function lead(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $leadCategory = $this->applyCompanyScope(DB::table('leads as l'), 'l.assigned_to')
+    $leadCategory = DB::table('leads as l')
         ->leftJoin('lead_categories as lc', 'lc.id', '=', 'l.lead_category_id')
         ->select(
             'lc.name',
@@ -2098,7 +1989,7 @@ public function lead(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $leadIndustry = $this->applyCompanyScope(DB::table('leads as l'), 'l.assigned_to')
+    $leadIndustry = DB::table('leads as l')
         ->leftJoin('lead_industries as li', 'li.id', '=', 'l.industry_id')
         ->select(
             'li.name',
@@ -2115,11 +2006,8 @@ public function lead(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $leadPerSales = $this->applyCompanyScopeUsers(
-        DB::table('leads as l')
-            ->join('ms_users as u', 'u.id_user', '=', 'l.assigned_to'),
-        'u.group_id'
-    )
+    $leadPerSales = DB::table('leads as l')
+        ->join('ms_users as u', 'u.id_user', '=', 'l.assigned_to')
         ->select(
             'u.id_user',
             'u.fullname',
@@ -2139,7 +2027,7 @@ public function lead(Request $request)
     |--------------------------------------------------------------------------
     */
 
-    $dailyTrend = $this->applyCompanyScope(DB::table('leads'), 'assigned_to')
+    $dailyTrend = DB::table('leads')
         ->select(
             DB::raw('DATE(created_at) as date'),
             DB::raw('COUNT(*) as total')
@@ -2177,7 +2065,7 @@ public function lead(Request $request)
 |--------------------------------------------------------------------------
 */
 
-$latestLead = $this->applyCompanyScope(DB::table('leads as l'), 'l.assigned_to')
+$latestLead = DB::table('leads as l')
     ->leftJoin('ms_users as u', 'u.id_user', '=', 'l.assigned_to')
     ->select(
         'l.id',
