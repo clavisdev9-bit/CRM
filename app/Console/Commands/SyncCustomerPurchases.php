@@ -10,20 +10,23 @@ use Illuminate\Console\Command;
 class SyncCustomerPurchases extends Command
 {
 
-// cara sync php artisan odoo:sync-customers   
+// cara sync php artisan odoo:sync-customers
     protected $signature = 'odoo:sync-customer-purchases';
     protected $description = 'Sync data pembelian customer (sale.order + sale.order.line) dari Odoo';
 
     public function handle(OdooService $odoo)
     {
-        $companyId = (int) config('odoo.default_company_id');
-
-        $this->info("Fetching sale orders for company_id={$companyId}...");
+        // PENTING: sync ini SEKARANG narik sale order dari SEMUA company
+        // sekaligus (bukan cuma 1 default company_id lagi) -- pola sama
+        // persis kayak SyncOdooCustomers/SyncOdooProducts. company_id asli
+        // dari Odoo disimpan apa adanya per item pembelian, company
+        // scoping-nya dilakukan belakangan pas listing/detail di OdooSync
+        // controller, bukan di tahap sync ini.
+        $this->info('Fetching sale orders from Odoo (semua company)...');
 
         $orders = $odoo->searchRead(
             'sale.order',
             [
-                ['company_id', '=', $companyId],
                 ['state', 'in', ['sale', 'done']],
             ],
             ['id', 'name', 'date_order', 'partner_id', 'company_id'],
@@ -76,7 +79,10 @@ class SyncCustomerPurchases extends Command
                         'product_name'     => $product[1] ?? null,
                         'qty'              => $line['product_uom_qty'] ?? 0,
                         'price_unit'       => $line['price_unit'] ?? 0,
-                        'company_id'       => $order['company_id'][0] ?? $companyId,
+                        // company_id balik sebagai [id, name] dari Odoo --
+                        // ambil id-nya aja apa adanya, tanpa fallback ke
+                        // company default lagi (sync sekarang lintas company).
+                        'company_id'       => $order['company_id'][0] ?? null,
                     ]
                 );
 

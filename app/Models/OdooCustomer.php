@@ -88,6 +88,26 @@ class OdooCustomer extends Model
             ->orderBy($sortBy, $sortDir);
     }
 
+    /**
+     * Company scoping: customer yang company_id-nya NULL dianggap
+     * shared/global (Odoo company_id = false), kelihatan buat semua
+     * company. Selain itu, cuma customer yang company_id-nya cocok sama
+     * $odooCompanyId (odoo_company_id milik company CRM yang login) yang
+     * ditampilkan. Dipanggil dari OdooSync controller, TIDAK dipanggil
+     * sama sekali kalau user Administrator/IT (role_id 1) -- pola sama
+     * persis kayak yang dipakai di ProductController.
+     */
+    public function scopeFilterByCompany(Builder $query, ?int $odooCompanyId): Builder
+    {
+        return $query->where(function (Builder $q) use ($odooCompanyId) {
+            $q->whereNull('company_id');
+
+            if ($odooCompanyId) {
+                $q->orWhere('company_id', $odooCompanyId);
+            }
+        });
+    }
+
     // Tambahan tahap ini: filter customer berdasarkan sales yang pegang
     public function scopeFilterBySales(Builder $query, ?int $salesId): Builder
     {

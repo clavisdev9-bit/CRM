@@ -11,16 +11,36 @@ use App\Http\Resources\OdooCustomerResource;
 use App\Http\Resources\OdooCustomerResourceCollection;
 use App\Http\Requests\CustomerPopulationRequest;
 use App\Models\CustomerSalesAssignmentOdoo;
+use Illuminate\Support\Facades\DB;
 
 class OdooSync extends Controller
 {
     /**
-     * 1 = Admin, 3 = Manager → lihat semua data customer.
+     * 1 = Admin, 3 = Manager → lihat semua data customer (dalam company-nya
+     * sendiri -- company scoping dilakukan terpisah lewat
+     * scopedCompanyId()/scopeFilterByCompany(), method ini cuma ngatur
+     * boleh-tidaknya lintas SALES dalam 1 company).
      * Role lain (termasuk 2 = Sales) dibatasi hanya customer miliknya.
      */
     private function canViewAllCustomers($user): bool
     {
         return in_array($user->role_id, [1, 3]);
+    }
+
+    /**
+     * odoo_company_id company CRM tempat $user berada. HANYA dipanggil di
+     * tempat yang sudah mengecek role_id !== 1 lebih dulu -- Administrator/
+     * IT (role_id 1) TIDAK boleh lewat sini sama sekali, karena NULL di
+     * sini artinya "company user ini belum di-mapping" (jadi cuma boleh
+     * lihat data shared), beda makna sama "skip filter, full akses" punya
+     * Admin. Pola pengecekan role_id !== 1 di tiap caller sama persis
+     * kayak yang dipakai di Leads/ProductController.
+     */
+    private function scopedCompanyId($user): ?int
+    {
+        return DB::table('group_companies')
+            ->where('id_group', $user->group_id)
+            ->value('odoo_company_id');
     }
 
     // public function customerPopulation(CustomerPopulationRequest $request)
@@ -66,6 +86,10 @@ class OdooSync extends Controller
         ->filterPurchased($filter)
         ->sort($sortBy, $sortDir);
 
+    if ((int) $user->role_id !== 1) {
+        $query->filterByCompany($this->scopedCompanyId($user));
+    }
+
     if (!$this->canViewAllCustomers($user)) {
         $query->filterBySales($user->id_user);
     }
@@ -98,6 +122,27 @@ class OdooSync extends Controller
 
         $user = auth()->user();
 
+        // ── Company scoping ──────────────────────────────────────
+        // Administrator/IT (role_id 1) full akses, tidak di-scope sama
+        // sekali. Selain itu, customer punya company lain (bukan shared,
+        // bukan company-nya user) diperlakukan sebagai "not found", bukan
+        // "unauthorized" -- biar ga bocorin informasi kalau customer itu
+        // sebenarnya ada tapi di company lain.
+        if ((int) $user->role_id !== 1) {
+            $odooCompanyId = $this->scopedCompanyId($user);
+
+            $sameCompany = $customer->company_id === null
+                || ($odooCompanyId && (int) $customer->company_id === (int) $odooCompanyId);
+
+            if (!$sameCompany) {
+                return ApiResponse::error(
+                    'Customer not found',
+                    ['id' => ['Data customer dengan ID tersebut tidak ditemukan']],
+                    404
+                );
+            }
+        }
+
         if (!$this->canViewAllCustomers($user)) {
             $ownedBySales = $customer->assignment && $customer->assignment->sales_id == $user->id_user;
 
@@ -128,6 +173,10 @@ class OdooSync extends Controller
         $user = auth()->user();
 
         $baseQuery = OdooCustomer::query();
+
+        if ((int) $user->role_id !== 1) {
+            $baseQuery->filterByCompany($this->scopedCompanyId($user));
+        }
 
         if (!$this->canViewAllCustomers($user)) {
             $baseQuery->filterBySales($user->id_user);

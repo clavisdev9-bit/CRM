@@ -966,38 +966,37 @@ public function searchCompanyName(Request $request) {
 
 
                     public function selectUserByDivision()
-                            {
-                                $currentUser = auth()->user();
- 
-                                $query = DB::table('ms_users as mu')
-                                    ->join('ms_division as md', 'mu.divisi_id', '=', 'md.id')
-                                    ->where('mu.is_active', true)
-                                    ->where('mu.divisi_id', 3);
- 
-                                /**
-                                 * ==========================
-                                 * FILTER COMPANY (GROUP)
-                                 * ==========================
-                                 * Hanya tampilkan sales dari company yang sama
-                                 * dengan user yang sedang login. role_id = 1
-                                 * (Administrator/IT) dikecualikan supaya tetap
-                                 * bisa melihat sales lintas company.
-                                 */
-                                if ($currentUser && $currentUser->role_id != 1) {
-                                    $query->where('mu.group_id', $currentUser->group_id);
-                                }
- 
-                                return response()->json(
-                                    $query->orderBy('mu.fullname', 'asc')
-                                        ->select(
-                                            'mu.id_user',
-                                            'mu.fullname as name',
-                                            'md.name_division'
- 
-                                        )
-                                        ->get()
-                                );
-                            }
+{
+    $currentUser = auth()->user();
+
+    $query = DB::table('ms_users as mu')
+        ->join('ms_division as md', 'mu.divisi_id', '=', 'md.id')
+        ->where('mu.is_active', true)
+        ->whereIn('mu.divisi_id', [2, 3]);
+
+    /**
+     * ==========================
+     * FILTER COMPANY (GROUP)
+     * ==========================
+     * Hanya tampilkan sales dari company yang sama
+     * dengan user yang sedang login. role_id = 1
+     * (Administrator/IT) dikecualikan supaya tetap
+     * bisa melihat sales lintas company.
+     */
+    if ($currentUser && $currentUser->role_id != 1) {
+        $query->where('mu.group_id', $currentUser->group_id);
+    }
+
+    return response()->json(
+        $query->orderBy('mu.fullname', 'asc')
+            ->select(
+                'mu.id_user',
+                'mu.fullname as name',
+                'md.name_division'
+            )
+            ->get()
+    );
+}
  
 
 
