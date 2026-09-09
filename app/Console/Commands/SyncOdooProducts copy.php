@@ -18,11 +18,7 @@ class SyncOdooProducts extends Command
 
     public function handle(OdooService $odoo)
     {
-        // Sumbernya sekarang tabel odoo_settings (menu Odoo Settings),
-        // bukan langsung .env lagi -- lihat OdooService::defaultCompanyId().
-        // Katalog produk dianggap SHARED (bukan milik 1 company CRM
-        // tertentu), makanya tetap pakai default GLOBAL, bukan per-company.
-        $companyId = (int) $odoo->defaultCompanyId();
+        $companyId = (int) config('odoo.default_company_id');
 
         $this->info("Fetching products for company_id={$companyId}...");
 

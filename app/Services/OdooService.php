@@ -2,7 +2,9 @@
 
 namespace App\Services;
 
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
+use Illuminate\Support\Facades\Schema;
 
 class OdooService
 {
@@ -10,14 +12,28 @@ class OdooService
     protected string $db;
     protected string $username;
     protected string $apiKey;
+    protected ?int $defaultCompanyId = null;
     protected ?int $uid = null;
 
     public function __construct()
     {
-        $this->url      = config('odoo.url');
-        $this->db       = config('odoo.db');
-        $this->username = config('odoo.username');
-        $this->apiKey   = config('odoo.api_key');
+        // ── Koneksi dibaca dari tabel odoo_settings (menu Odoo Settings),
+        // BUKAN langsung dari .env lagi. Schema::hasTable() dicek dulu
+        // supaya OdooService tidak ikut error kalau migration
+        // create_odoo_settings_table belum sempat dijalankan di server
+        // (misalnya di tengah proses deploy) -- fallback ke config('odoo.*')
+        // (nilai .env lama) di semua kondisi itu.
+        $settings = Schema::hasTable('odoo_settings')
+            ? DB::table('odoo_settings')->first()
+            : null;
+
+        $this->url      = $settings->url      ?? config('odoo.url');
+        $this->db       = $settings->db       ?? config('odoo.db');
+        $this->username = $settings->username ?? config('odoo.username');
+        $this->apiKey   = $settings->api_key  ?? config('odoo.api_key');
+
+        $defaultCompanyId = $settings->default_company_id ?? config('odoo.default_company_id');
+        $this->defaultCompanyId = $defaultCompanyId !== null ? (int) $defaultCompanyId : null;
     }
 
     protected function call(string $service, string $method, array $args)
@@ -188,5 +204,42 @@ class OdooService
             [[['model', 'like', $keyword]]],
             ['fields' => ['model', 'name']],
         ]);
+    }
+
+    /**
+     * Company_id Odoo default GLOBAL (dari odoo_settings.default_company_id,
+     * fallback ke config('odoo.default_company_id') / .env). Dipakai untuk
+     * proses yang memang TIDAK per-CRM-company -- misalnya SyncOdooProducts
+     * (katalog produk dianggap shared, bukan milik 1 company CRM tertentu).
+     */
+    public function defaultCompanyId(): ?int
+    {
+        return $this->defaultCompanyId;
+    }
+
+    /**
+     * Company_id Odoo untuk 1 company CRM tertentu. Odoo mendukung
+     * multi-company dalam SATU instance/database -- kolom
+     * group_companies.odoo_company_id memetakan tiap company CRM
+     * (group_id) ke company_id yang berkorespondensi di Odoo.
+     *
+     * Kalau $groupId tidak dikirim, atau company itu belum di-mapping
+     * (odoo_company_id masih null), fallback ke defaultCompanyId() --
+     * supaya proses push ke Odoo tidak mendadak gagal cuma karena
+     * mapping-nya belum sempat diisi admin di menu Odoo Settings.
+     */
+    public function companyIdFor(?int $groupId = null): ?int
+    {
+        if ($groupId) {
+            $mapped = DB::table('group_companies')
+                ->where('id_group', $groupId)
+                ->value('odoo_company_id');
+
+            if ($mapped !== null) {
+                return (int) $mapped;
+            }
+        }
+
+        return $this->defaultCompanyId;
     }
 }

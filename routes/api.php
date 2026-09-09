@@ -31,6 +31,7 @@ use App\Http\Controllers\Api\Manager\SalesTarget\SalesTargetController;
 use App\Http\Controllers\Api\Users\Sales\Plan\SalesVisitPlanController;
 use App\Http\Controllers\Api\Users\Expense\ExpenseController;
 use App\Http\Controllers\Api\Users\Quotation\QuotationController;
+use App\Http\Controllers\Api\Odoo\OdooSettingsController;
 use Illuminate\Support\Facades\Http;
 
 
@@ -328,6 +329,15 @@ Route::prefix('sales-targets')->group(function () {
     Route::delete('/{id}', [SalesTargetController::class, 'destroy']);
     Route::get('/options/products', [SalesTargetController::class, 'productOptions']);
     Route::get('/options/categories', [SalesTargetController::class, 'categoryOptions']);
+});
+
+
+// untuk pengaturan Odoo (admin) -- termasuk koneksi global + daftar company + mapping-nya
+Route::prefix('admin/odoo-settings')->group(function () {
+    Route::get('/', [OdooSettingsController::class, 'index']);
+    Route::put('connection', [OdooSettingsController::class, 'updateConnection']);
+    Route::post('test-connection', [OdooSettingsController::class, 'testConnection']);
+    Route::put('company/{groupId}', [OdooSettingsController::class, 'updateCompanyMapping']);
 });
 
 
