@@ -10,6 +10,7 @@ class OdooProduct extends Model
 
     protected $fillable = [
         'odoo_product_id',
+        'company_id',
         'name',
         'default_code',
         'barcode',

@@ -16,20 +16,43 @@ class ProductController extends Controller
      * GET /products
      * List product hasil sync dari Odoo -- search/sort/pagination, sama
      * seperti daftar customer/aktivitas yang sudah ada. Bisa diakses Sales
-     * maupun Manager (data product bukan data yang di-scope per sales).
+     * maupun Manager.
+     *
+     * Company scoping: product yang company_id-nya NULL dianggap
+     * shared/global (Odoo company_id = false), kelihatan buat semua
+     * company. Selain itu, cuma product yang company_id-nya cocok sama
+     * odoo_company_id milik company (group) user yang login yang
+     * ditampilkan. Administrator/IT (role_id 1) tetap full akses semua
+     * company, konsisten dengan pola yang sudah dipakai di Leads/Quotation.
      */
     public function index(ProductValidationIndex $request)
     {
         try {
             $validated = $request->validated();
- 
+
             $search  = $validated['search'] ?? null;
             $perPage = $validated['per_page'] ?? 10;
             $sortBy  = $validated['sort_by'] ?? 'name';
             $sortDir = $validated['sort_dir'] ?? 'asc';
- 
+
             $query = OdooProduct::query()->where('active', true);
- 
+
+            $user = auth()->user();
+
+            if ($user && (int) $user->role_id !== 1) {
+                $odooCompanyId = DB::table('group_companies')
+                    ->where('id_group', $user->group_id)
+                    ->value('odoo_company_id');
+
+                $query->where(function ($q) use ($odooCompanyId) {
+                    $q->whereNull('company_id');
+
+                    if ($odooCompanyId) {
+                        $q->orWhere('company_id', $odooCompanyId);
+                    }
+                });
+            }
+
             if ($search) {
                 $query->where(function ($q) use ($search) {
                     $q->where('name', 'ILIKE', "%{$search}%")
@@ -38,65 +61,67 @@ class ProductController extends Controller
                         ->orWhere('categ_name', 'ILIKE', "%{$search}%");
                 });
             }
- 
+
             $query->orderBy($sortBy, $sortDir);
- 
+
             $results = $query->paginate($perPage);
- 
+
             return ApiResponse::paginate(
                 ProductResourceCollection::make($results),
                 $results->isEmpty() ? 'Data product not found' : 'Success'
             );
- 
+
         } catch (\Throwable $e) {
             return ApiResponse::error('Failed to load products', [
                 'exception' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
     }
- 
+
     /**
      * POST /products/sync
      * Manager-only. Trigger sync product dari Odoo secara manual (tombol
-     * "Sync Sekarang" di frontend).
+     * "Sync Sekarang" di frontend). Sync ini narik product dari SEMUA
+     * company sekaligus -- company scoping terjadi pas listing (index()
+     * di atas), bukan di tahap sync ini.
      */
     public function sync()
     {
         if (! $this->isManager()) {
             return ApiResponse::error('Unauthorized. Sync product khusus Manager.', [], 403);
         }
- 
+
         try {
             $exitCode = Artisan::call('odoo:sync-products');
             $output   = trim(Artisan::output());
- 
+
             if ($exitCode !== 0) {
                 return ApiResponse::error('Sync product gagal, cek log server.', [
                     'output' => config('app.debug') ? $output : null,
                 ], 500);
             }
- 
+
             return ApiResponse::success([
                 'total_products' => OdooProduct::count(),
                 'last_synced_at' => OdooProduct::max('updated_at'),
                 'output'         => config('app.debug') ? $output : null,
             ], 'Sync product berhasil.');
- 
+
         } catch (\Throwable $e) {
             return ApiResponse::error('Failed to sync products', [
                 'exception' => config('app.debug') ? $e->getMessage() : null,
             ], 500);
         }
     }
- 
+
     private function isManager(): bool
     {
         $user = auth()->user();
- 
+
         if (! $user || empty($user->role_id)) {
             return false;
         }
- 
+
         return DB::table('ms_role')
             ->where('id_role', $user->role_id)
             ->whereNull('deleted_at')

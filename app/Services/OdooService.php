@@ -38,7 +38,13 @@ class OdooService
 
     protected function call(string $service, string $method, array $args)
     {
-        $response = Http::post("{$this->url}/jsonrpc", [
+        // Timeout default Laravel HTTP client cuma 30 detik -- kepotong
+        // pas SyncOdooProducts narik SEMUA product dari SEMUA company
+        // sekaligus (payload besar + field qty_available itu computed
+        // field yang berat di Odoo). Dinaikin ke 120 detik biar proses
+        // sync yang datanya banyak tetap kelar, bukan cuma buat request
+        // kecil kayak authenticate()/searchCount().
+        $response = Http::timeout(120)->post("{$this->url}/jsonrpc", [
             'jsonrpc' => '2.0',
             'method'  => 'call',
             'params'  => [

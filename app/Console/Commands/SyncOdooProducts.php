@@ -18,25 +18,25 @@ class SyncOdooProducts extends Command
 
     public function handle(OdooService $odoo)
     {
-        // Sumbernya sekarang tabel odoo_settings (menu Odoo Settings),
-        // bukan langsung .env lagi -- lihat OdooService::defaultCompanyId().
-        // Katalog produk dianggap SHARED (bukan milik 1 company CRM
-        // tertentu), makanya tetap pakai default GLOBAL, bukan per-company.
-        $companyId = (int) $odoo->defaultCompanyId();
+        // PENTING: sync ini SEKARANG narik product dari SEMUA company
+        // sekaligus (bukan cuma 1 default company_id lagi). company_id asli
+        // dari Odoo disimpan apa adanya per product (kolom company_id di
+        // odoo_products), dan penentuan "product ini boleh dilihat company
+        // CRM yang mana" dilakukan belakangan pas listing, di
+        // ProductController -- bukan di tahap sync ini.
+        //
+        // Kalau sync dibatasi ke 1 company_id di sini kayak sebelumnya,
+        // product punya company lain (misal PT My Everything) ga akan
+        // pernah ke-tarik ke tabel lokal sama sekali, walaupun mapping
+        // odoo_company_id di group_companies sudah bener.
+        $this->info('Fetching products from Odoo (semua company)...');
 
-        $this->info("Fetching products for company_id={$companyId}...");
-
-        // Pola filter company_id sama kayak SyncOdooCustomers (produk yang
-        // company_id-nya cocok ATAU produk shared/tanpa company_id).
-        // Ditambah sale_ok=true biar cuma produk yang memang bisa DIJUAL
-        // yang ke-sync (bukan raw material/consumable internal Odoo).
-        // Odoo search_read secara default cuma balikin active=true, jadi
-        // produk yang di-archive di Odoo otomatis ga ke-pull lagi di sini.
+        // sale_ok=true biar cuma produk yang memang bisa DIJUAL yang
+        // ke-sync (bukan raw material/consumable internal Odoo). Odoo
+        // search_read secara default cuma balikin active=true, jadi produk
+        // yang di-archive di Odoo otomatis ga ke-pull lagi di sini.
         $domain = [
             ['sale_ok', '=', true],
-            '|',
-            ['company_id', '=', $companyId],
-            ['company_id', '=', false],
         ];
 
         $products = $odoo->searchRead(
@@ -44,7 +44,7 @@ class SyncOdooProducts extends Command
             $domain,
             [
                 'id', 'name', 'default_code', 'barcode',
-                'categ_id', 'uom_id',
+                'categ_id', 'uom_id', 'company_id',
                 'list_price', 'standard_price', 'qty_available',
                 'active',
             ],
@@ -68,6 +68,9 @@ class SyncOdooProducts extends Command
                     'categ_name'     => $p['categ_id'][1] ?? null,
                     'uom_id'         => $p['uom_id'][0] ?? null,
                     'uom_name'       => $p['uom_id'][1] ?? null,
+                    // company_id juga balik sebagai [id, name] -- ambil
+                    // id-nya aja. false/kosong artinya shared/global.
+                    'company_id'     => $p['company_id'][0] ?? null,
                     'list_price'     => $p['list_price'] ?? 0,
                     'standard_price' => $p['standard_price'] ?? 0,
                     'qty_available'  => $p['qty_available'] ?? 0,
