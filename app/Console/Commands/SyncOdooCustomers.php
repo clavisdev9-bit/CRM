@@ -32,13 +32,17 @@ class SyncOdooCustomers extends Command
             ['customer_rank', '>', 0],
         ];
 
-        // Catatan: field 'mobile' ditambahin ke daftar fields -- sebelumnya
-        // ga diminta ke Odoo padahal dipakai di bawah ($c['mobile']),
-        // jadinya kolom mobile selalu kesimpen null. Sekalian dibenerin.
+        // Catatan: field 'mobile' TIDAK diminta ke Odoo -- sempat dicoba
+        // ditambahin, tapi ternyata di instance Odoo ini (19.0 trial)
+        // model res.partner tidak punya field 'mobile' sama sekali,
+        // request-nya ditolak (ValueError: Invalid field 'mobile' on
+        // 'res.partner'). Jadi kolom mobile di odoo_customers memang akan
+        // selalu null -- itu bukan bug, field-nya memang tidak ada di
+        // Odoo yang dipakai.
         $customers = $odoo->searchRead(
             'res.partner',
             $domain,
-            ['id', 'name', 'email', 'phone', 'mobile', 'contact_address', 'is_company', 'company_id'],
+            ['id', 'name', 'email', 'phone', 'contact_address', 'is_company', 'company_id'],
             0,
             'name asc'
         );
