@@ -789,17 +789,7 @@ public function salesDashboard(Request $request)
     ->get();
 
     // --- RANKING BULAN INI ---
-    // Company scoping: leaderboard SEBELUMNYA nampilin ranking lintas
-    // company (semua sales, dari company manapun, ke-hitung bareng) --
-    // padahal "This Month's Leaderboard" ini muncul di Sales Home,
-    // seharusnya cuma bandingin sales SATU company yang sama kayak yang
-    // login (kejadian nyata: sales company "MY EVERYTHING IND" lihat
-    // sales dari "PT Duta Indomandiri" nangkring di leaderboard-nya).
-    // Di-scope pakai applyCompanyScopeUsers() -- method yang SAMA PERSIS
-    // dipakai managerDashboard() buat query yang anchor-nya ms_users
-    // (alias 'u' di sini). Administrator/IT (role_id 1) tetap full akses
-    // lintas company kalau suatu saat endpoint ini dipanggil oleh admin.
-    $rankingsQuery = DB::table('visits as v')
+    $rankings = DB::table('visits as v')
         ->select([
             'v.sales_id',
             'u.fullname as sales_name',
@@ -816,11 +806,7 @@ public function salesDashboard(Request $request)
         ])
         ->leftJoin('ms_users as u', 'u.id_user', '=', 'v.sales_id')
         ->whereNull('v.deleted_at')
-        ->whereBetween('v.visit_at', [$start, $end]);
-
-    $rankingsQuery = $this->applyCompanyScopeUsers($rankingsQuery, 'u.group_id');
-
-    $rankings = $rankingsQuery
+        ->whereBetween('v.visit_at', [$start, $end])
         ->groupBy('v.sales_id', 'u.fullname', 'u.image')
         ->orderBy('total_visits', 'desc')
         ->get();
@@ -1245,9 +1231,6 @@ public function managerDashboard(Request $request)
      * Administrator/IT (role_id = 1) dikecualikan dari semua filter di
      * bawah ini -- perannya lintas company, jadi tetap bisa lihat semua
      * company sekaligus (dipakai misalnya buat keperluan support/IT).
-     *
-     * Dipakai juga oleh salesDashboard() (leaderboard "This Month's
-     * Leaderboard" di Sales Home) -- pola & alasannya sama persis.
      */
 
     /**
