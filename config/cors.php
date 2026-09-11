@@ -24,10 +24,15 @@ return [
         'http://localhost:8000',
         'http://127.0.0.1:8000',
         'http://72.60.76.201:8080',
+        'http://187.77.121.116:8086',
         'http://wpc_website.test',
         'http://192.168.132.12:8000',
         'http://political-gerard-uncertainly.ngrok-free.app',
         'https://discomposingly-grainless-dante.ngrok-free.app',
+         // Production
+        'https://crm.clavisdev.cloud',
+        'https://crmbk.clavisdev.cloud',
+
     ],
 
     'allowed_origins_patterns' => [],
