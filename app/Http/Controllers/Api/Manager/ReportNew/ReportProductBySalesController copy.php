@@ -14,7 +14,6 @@ use App\Models\OdooCustomerPurchaseItem;
 use App\Models\OdooProduct;
 use Illuminate\Http\Request;
 use Illuminate\Pagination\LengthAwarePaginator;
-use Illuminate\Support\Collection;
 
 /**
  * ============================================================================
@@ -54,23 +53,12 @@ use Illuminate\Support\Collection;
  *   - GET /sales-targets/options/sales
  *   - GET /sales-targets/options/categories
  * Soalnya isinya sama persis (daftar sales role=2 aktif, daftar
- * categ_id/categ_name unik dari odoo_products), ga perlu duplikat. Karena
- * REUSE endpoint itu, dropdown-nya OTOMATIS ikut ke-company-scope begitu
- * SalesTargetController::salesOptions()/categoryOptions() di-scope --
- * ga perlu diapa-apain lagi di sisi controller ini.
+ * categ_id/categ_name unik dari odoo_products), ga perlu duplikat.
  *
  * AKSES: Admin/Manager (role_id 1/3) lihat semua sales. Sales (role_id 2)
  * cuma lihat baris punya dia sendiri (sales_id dipaksa = id_user dia,
  * mengabaikan sales_id yang dikirim di query kalau ada) -- pola sama
  * seperti index() di SalesTargetController.
- *
- * COMPANY SCOPING: Manager (role_id 3) cuma boleh lihat rekap sales dari
- * company-nya sendiri -- BUKAN semua sales lintas company kayak sebelumnya.
- * Administrator/IT (role_id 1) tetap full akses. Logic-nya dipusatkan di
- * scopedSalesIds() di bawah, dipakai bareng sama index()/summary()/
- * detail() biar konsisten (termasuk validasi ulang di server kalau ada
- * sales_id spesifik yang dikirim manual dari company lain -- defense-in-
- * depth, sama pola kayak SalesTargetController).
  * ============================================================================
  */
 class ReportProductBySalesController extends Controller
@@ -90,14 +78,14 @@ class ReportProductBySalesController extends Controller
             $perPage    = $validated['per_page'] ?? 10;
             $page       = (int) $request->query('page', 1);
 
-            $salesIds = $this->scopedSalesIds($user, $validated['sales_id'] ?? null);
+            $salesFilterId = $this->canViewAllSales($user)
+                ? ($validated['sales_id'] ?? null)
+                : $user->id_user;
 
             // ── 1. Peta odoo_customer_id -> sales_id, dari assignment ──
-            // $salesIds === null artinya "jangan filter sales_id" (cuma
-            // kejadian buat Admin yang ga milih sales_id spesifik).
             $assignmentQuery = CustomerSalesAssignmentOdoo::query();
-            if ($salesIds !== null) {
-                $assignmentQuery->whereIn('sales_id', $salesIds);
+            if ($salesFilterId) {
+                $assignmentQuery->where('sales_id', $salesFilterId);
             }
             $assignments = $assignmentQuery->get(['sales_id', 'odoo_customer_id']);
 
@@ -225,11 +213,13 @@ class ReportProductBySalesController extends Controller
             $periodYear = (int) ($request->query('period_year') ?? now()->year);
             $categId    = $request->query('categ_id');
 
-            $salesIds = $this->scopedSalesIds($user, $request->query('sales_id'));
+            $salesFilterId = $this->canViewAllSales($user)
+                ? $request->query('sales_id')
+                : $user->id_user;
 
             $assignmentQuery = CustomerSalesAssignmentOdoo::query();
-            if ($salesIds !== null) {
-                $assignmentQuery->whereIn('sales_id', $salesIds);
+            if ($salesFilterId) {
+                $assignmentQuery->where('sales_id', $salesFilterId);
             }
             $assignments = $assignmentQuery->get(['sales_id', 'odoo_customer_id']);
 
@@ -288,20 +278,7 @@ class ReportProductBySalesController extends Controller
         try {
             $user = $request->user();
 
-            if ($this->canViewAllSales($user)) {
-                // Company scoping: Manager (role_id 3) cuma boleh lihat
-                // detail baris punya sales dari company-nya sendiri.
-                // Administrator/IT (role_id 1) full akses.
-                if ((int) $user->role_id !== 1) {
-                    $inSameCompany = MsUsers::where('id_user', $salesId)
-                        ->where('group_id', $user->group_id)
-                        ->exists();
-
-                    if (!$inSameCompany) {
-                        return ApiResponse::error('Data laporan tidak ditemukan.', [], 404);
-                    }
-                }
-            } elseif ((int) $salesId !== (int) $user->id_user) {
+            if (!$this->canViewAllSales($user) && (int) $salesId !== (int) $user->id_user) {
                 return ApiResponse::error('Unauthorized.', [], 403);
             }
 
@@ -383,46 +360,5 @@ class ReportProductBySalesController extends Controller
     private function canViewAllSales($user): bool
     {
         return $user && in_array($user->role_id, [1, 3]);
-    }
-
-    /**
-     * Balikin daftar sales_id yang BOLEH dilihat $user, dipakai buat
-     * scoping bareng di index()/summary(). NULL artinya "jangan filter
-     * sales_id sama sekali" (cuma kejadian buat Admin yang ga milih
-     * sales_id spesifik) -- selain itu SELALU balikin Collection (bisa isi
-     * 0, kalau sales_id yang diminta ternyata bukan dari company user):
-     *
-     * - role_id 1 (Admin): $requestedSalesId dikirim -> [itu doang]. Ga
-     *   dikirim -> null (semua sales, lintas company).
-     * - role_id 2 (Sales): SELALU [id_user dia sendiri], mengabaikan
-     *   $requestedSalesId kalau ada (pola sama kayak SalesTargetController).
-     * - role_id 3 (Manager): $requestedSalesId dikirim -> divalidasi ulang
-     *   di server (defense-in-depth, sama pola kayak store()/update() di
-     *   SalesTargetController) -- dipakai KALAU dari company sendiri,
-     *   kalau bukan balikin collection kosong (bukan error, biar konsisten
-     *   sama pola "empty result" yang sudah dipakai controller ini). Ga
-     *   dikirim -> semua sales AKTIF dari company Manager itu sendiri.
-     */
-    private function scopedSalesIds($user, $requestedSalesId): ?Collection
-    {
-        if ((int) $user->role_id === 1) {
-            return $requestedSalesId ? collect([$requestedSalesId]) : null;
-        }
-
-        if (!$this->canViewAllSales($user)) {
-            return collect([$user->id_user]);
-        }
-
-        if ($requestedSalesId) {
-            $inSameCompany = MsUsers::where('id_user', $requestedSalesId)
-                ->where('group_id', $user->group_id)
-                ->exists();
-
-            return $inSameCompany ? collect([$requestedSalesId]) : collect();
-        }
-
-        return MsUsers::where('group_id', $user->group_id)
-            ->where('role_id', 2)
-            ->pluck('id_user');
     }
 }

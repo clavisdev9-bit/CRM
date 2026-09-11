@@ -16,6 +16,11 @@ class ExpenseCategoryOdooProduct extends Model
 
     protected $fillable = [
         'category',
+        // Company_id ASLI dari Odoo (res.company id). NULL = mapping ini
+        // SHARED/global (product-nya company_id=false di Odoo, dipakai
+        // buat semua company). Diisi kalau product-nya company-specific --
+        // lihat migration add_company_id_to_expense_category_odoo_products_table.
+        'company_id',
         'odoo_product_id',
         'odoo_product_name',
     ];

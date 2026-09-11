@@ -15,7 +15,6 @@ use App\Models\MsUsers;
 use App\Models\OdooCustomer;
 use App\Models\OdooProduct;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 
 /**
  * ============================================================================
@@ -65,18 +64,6 @@ use Illuminate\Support\Facades\DB;
  * CustomerSalesAssignmentOdoo), cuma ditambah filter ke odoo_product_id
  * (Brand) atau ke semua odoo_product_id yang categ_id-nya cocok (Kategori)
  * -- lihat computeAchievedAmount() di bawah.
- *
- * UPDATE -- COMPANY SCOPING: fitur ini nyentuh 2 "jenis" data company yang
- * BEDA cara scoping-nya, jangan ketuker:
- *   1) ms_users / sales_targets (sales_id) -- group_id di ms_users itu
- *      LANGSUNG id_group CRM, dicocokin apa adanya ke $user->group_id.
- *      Sama persis pola selectUserByDivision() di Leads.php.
- *   2) odoo_products / odoo_customers (company_id) -- company_id di situ
- *      itu company_id ASLI dari Odoo, butuh mapping lewat
- *      group_companies.odoo_company_id dulu buat nyamain ke $user->group_id.
- *      Sama persis pola ProductController/OdooSync.
- * Administrator/IT (role_id 1) selalu full akses lintas company, tidak
- * pernah di-scope di manapun (dua-duanya).
  * ============================================================================
  */
 class SalesTargetController extends Controller
@@ -93,7 +80,7 @@ class SalesTargetController extends Controller
             $validated = $request->validated();
 
             $query = SalesTarget::with([
-                'salesUser:id_user,fullname,group_id',
+                'salesUser:id_user,fullname',
                 'odooCustomer:odoo_partner_id,name',
                 'odooProduct:odoo_product_id,name',
                 'creator:id_user,fullname',
@@ -102,15 +89,6 @@ class SalesTargetController extends Controller
             if ($this->canManageTargets($user)) {
                 if (!empty($validated['sales_id'])) {
                     $query->where('sales_id', $validated['sales_id']);
-                }
-
-                // Company scoping: Manager (role_id 3) cuma boleh lihat
-                // target sales dari company-nya sendiri. Administrator/IT
-                // (role_id 1) full akses lintas company.
-                if ((int) $user->role_id !== 1) {
-                    $query->whereHas('salesUser', function ($q) use ($user) {
-                        $q->where('group_id', $user->group_id);
-                    });
                 }
             } else {
                 $query->where('sales_id', $user->id_user);
@@ -199,7 +177,7 @@ class SalesTargetController extends Controller
             $user = $request->user();
 
             $target = SalesTarget::with([
-                'salesUser:id_user,fullname,group_id',
+                'salesUser:id_user,fullname',
                 'odooCustomer:odoo_partner_id,name',
                 'odooProduct:odoo_product_id,name',
             ])->find($id);
@@ -208,20 +186,7 @@ class SalesTargetController extends Controller
                 return ApiResponse::error('Sales target not found.', [], 404);
             }
 
-            if ($this->canManageTargets($user)) {
-                // Company scoping: Manager cuma boleh lihat detail target
-                // sales dari company-nya sendiri. Dibalikin "not found",
-                // bukan "unauthorized" -- biar ga bocorin informasi kalau
-                // target itu sebenarnya ada tapi di company lain.
-                if ((int) $user->role_id !== 1) {
-                    $sameCompany = $target->salesUser
-                        && (int) $target->salesUser->group_id === (int) $user->group_id;
-
-                    if (!$sameCompany) {
-                        return ApiResponse::error('Sales target not found.', [], 404);
-                    }
-                }
-            } elseif ($target->sales_id !== $user->id_user) {
+            if (!$this->canManageTargets($user) && $target->sales_id !== $user->id_user) {
                 return ApiResponse::error('Unauthorized.', [], 403);
             }
 
@@ -379,18 +344,11 @@ class SalesTargetController extends Controller
                 ->whereNull('odoo_product_id')
                 ->whereNull('categ_id')
                 ->where('period_year', $periodYear)
-                ->with('salesUser:id_user,fullname,group_id');
+                ->with('salesUser:id_user,fullname');
 
             if ($this->canManageTargets($user)) {
                 if ($request->filled('sales_id')) {
                     $query->where('sales_id', $request->query('sales_id'));
-                }
-
-                // Company scoping: sama pola kayak index().
-                if ((int) $user->role_id !== 1) {
-                    $query->whereHas('salesUser', function ($q) use ($user) {
-                        $q->where('group_id', $user->group_id);
-                    });
                 }
             } else {
                 $query->where('sales_id', $user->id_user);
@@ -441,23 +399,13 @@ class SalesTargetController extends Controller
      * sebagai server-search juga, tapi limit-nya sengaja digedein
      * (bukan 20 kayak dropdown customer) soalnya endpoint ini emang
      * dimaksudkan buat balikin "semua sales", bukan sebagian hasil cari.
-     *
-     * COMPANY SCOPING: sebelumnya endpoint ini balikin SEMUA sales lintas
-     * company (persis bug yang sama kayak selectUserByDivision() lama di
-     * Leads.php sebelum dibenerin) -- sekarang di-scope ke group_id user
-     * yang login, kecuali Administrator/IT (role_id 1).
      */
     public function salesOptions(Request $request)
     {
         try {
-            $user = $request->user();
             $search = $request->query('search');
 
             $query = MsUsers::where('role_id', 2)->where('is_active', true);
-
-            if ($user && (int) $user->role_id !== 1) {
-                $query->where('group_id', $user->group_id);
-            }
 
             if (!empty($search)) {
                 $query->where('fullname', 'ILIKE', "%{$search}%");
@@ -508,24 +456,13 @@ class SalesTargetController extends Controller
      * child-contact ber-nama "." udah DILEPAS -- soalnya malah ikut mbuang
      * customer beneran (kolom is_company kayaknya ga konsisten ke-set true
      * pas sync). Cukup jaga-jaga buang nama kosong/"." aja.
-     *
-     * COMPANY SCOPING (defense-in-depth): salesOptions() di frontend udah
-     * cuma nawarin sales dari company sendiri, tapi endpoint ini validasi
-     * ULANG di server -- kalau $salesId yang dikirim ternyata bukan dari
-     * company user yang login (misal Manager kirim request manual/lewat
-     * devtools), balikin list KOSONG, jangan bocorin customer company lain.
      */
     public function customerOptions(Request $request)
     {
         try {
-            $user = $request->user();
             $salesId = $request->query('sales_id');
 
             if (empty($salesId)) {
-                return ApiResponse::success([], 'Success');
-            }
-
-            if ($user && (int) $user->role_id !== 1 && !$this->salesInSameCompany((int) $salesId, $user)) {
                 return ApiResponse::success([], 'Success');
             }
 
@@ -561,34 +498,14 @@ class SalesTargetController extends Controller
      * "dimiliki" sales tertentu (beda konsep sama assignment customer) --
      * computeAchievedAmount() buat target per-brand ngitung dari SEMUA
      * transaksi customer yang di-assign ke sales itu untuk product
-     * tersebut.
-     *
-     * COMPANY SCOPING: tetap di-scope ke COMPANY (bukan ke sales_id) --
-     * product yang company_id Odoo-nya NULL dianggap shared/global
-     * (kelihatan semua company), selain itu cuma product yang company_id-
-     * nya cocok sama odoo_company_id company user yang login. Pola sama
-     * kayak ProductController -- biar Manager ga bisa bikin target "per
-     * Brand" pakai product yang sebenarnya bukan katalog company-nya.
+     * tersebut, jadi list product-nya global buat semua product aktif.
      */
     public function productOptions(Request $request)
     {
         try {
-            $user = $request->user();
             $search = $request->query('search');
 
             $query = OdooProduct::where('active', true);
-
-            if ($user && (int) $user->role_id !== 1) {
-                $odooCompanyId = $this->scopedOdooCompanyId($user);
-
-                $query->where(function ($q) use ($odooCompanyId) {
-                    $q->whereNull('company_id');
-
-                    if ($odooCompanyId) {
-                        $q->orWhere('company_id', $odooCompanyId);
-                    }
-                });
-            }
 
             if (!empty($search)) {
                 $query->where(function ($q) use ($search) {
@@ -620,30 +537,13 @@ class SalesTargetController extends Controller
      * categ_id/categ_name UNIK dari odoo_products (bukan tabel kategori
      * terpisah, soalnya memang belum ada -- categ_id/categ_name di sini
      * cuma denormalisasi dari Odoo lewat SyncOdooProducts).
-     *
-     * COMPANY SCOPING: sama pola kayak productOptions() -- kategori yang
-     * ditawarin cuma dari product yang kelihatan buat company user (shared
-     * atau company_id-nya cocok).
      */
     public function categoryOptions(Request $request)
     {
         try {
-            $user = $request->user();
             $search = $request->query('search');
 
             $query = OdooProduct::whereNotNull('categ_id')->whereNotNull('categ_name');
-
-            if ($user && (int) $user->role_id !== 1) {
-                $odooCompanyId = $this->scopedOdooCompanyId($user);
-
-                $query->where(function ($q) use ($odooCompanyId) {
-                    $q->whereNull('company_id');
-
-                    if ($odooCompanyId) {
-                        $q->orWhere('company_id', $odooCompanyId);
-                    }
-                });
-            }
 
             if (!empty($search)) {
                 $query->where('categ_name', 'ILIKE', "%{$search}%");
@@ -673,23 +573,12 @@ class SalesTargetController extends Controller
      */
     public function store(SalesTargetValidationStore $request)
     {
-        $user = $request->user();
-
-        if (!$this->canManageTargets($user)) {
+        if (!$this->canManageTargets($request->user())) {
             return ApiResponse::error('Unauthorized. Hanya Admin/Manager yang bisa membuat target penjualan.', [], 403);
         }
 
         try {
             $data = $request->validated();
-
-            // Company scoping (defense-in-depth): salesOptions() di
-            // frontend udah cuma nawarin sales dari company sendiri, ini
-            // validasi ULANG di server -- Manager ga boleh bikin target
-            // buat sales dari company lain walaupun request-nya dikirim
-            // manual (bukan lewat dropdown).
-            if ((int) $user->role_id !== 1 && !$this->salesInSameCompany((int) $data['sales_id'], $user)) {
-                return ApiResponse::error('Sales yang dipilih bukan dari company Anda.', [], 403);
-            }
 
             if ($this->targetAlreadyExists(
                 $data['sales_id'],
@@ -701,7 +590,7 @@ class SalesTargetController extends Controller
                 return ApiResponse::error($this->duplicateTargetMessage($data), [], 422);
             }
 
-            $data['created_by'] = $user->id_user;
+            $data['created_by'] = $request->user()->id_user;
 
             $target = SalesTarget::create($data);
             $target->load([
@@ -732,9 +621,7 @@ class SalesTargetController extends Controller
      */
     public function update(SalesTargetValidationStore $request, $id)
     {
-        $user = $request->user();
-
-        if (!$this->canManageTargets($user)) {
+        if (!$this->canManageTargets($request->user())) {
             return ApiResponse::error('Unauthorized. Hanya Admin/Manager yang bisa mengubah target penjualan.', [], 403);
         }
 
@@ -745,11 +632,6 @@ class SalesTargetController extends Controller
             }
 
             $data = $request->validated();
-
-            // Company scoping (defense-in-depth): sama pola kayak store().
-            if ((int) $user->role_id !== 1 && !$this->salesInSameCompany((int) $data['sales_id'], $user)) {
-                return ApiResponse::error('Sales yang dipilih bukan dari company Anda.', [], 403);
-            }
 
             if ($this->targetAlreadyExists(
                 $data['sales_id'],
@@ -791,22 +673,13 @@ class SalesTargetController extends Controller
      */
     public function destroy(Request $request, $id)
     {
-        $user = $request->user();
-
-        if (!$this->canManageTargets($user)) {
+        if (!$this->canManageTargets($request->user())) {
             return ApiResponse::error('Unauthorized. Hanya Admin/Manager yang bisa menghapus target penjualan.', [], 403);
         }
 
         try {
             $target = SalesTarget::find($id);
             if (!$target) {
-                return ApiResponse::error('Sales target not found.', [], 404);
-            }
-
-            // Company scoping (defense-in-depth): Manager ga boleh hapus
-            // target sales dari company lain -- "not found", bukan
-            // "unauthorized", biar konsisten sama detail().
-            if ((int) $user->role_id !== 1 && !$this->salesInSameCompany((int) $target->sales_id, $user)) {
                 return ApiResponse::error('Sales target not found.', [], 404);
             }
 
@@ -927,34 +800,5 @@ class SalesTargetController extends Controller
     private function canManageTargets($user): bool
     {
         return $user && in_array($user->role_id, [1, 3]);
-    }
-
-    /**
-     * True kalau sales dengan id $salesId ada di company yang SAMA kayak
-     * $user (group_id ms_users dicocokin LANGSUNG, tanpa mapping Odoo --
-     * beda konsep sama scopedOdooCompanyId() di bawah). Dipakai buat
-     * validasi server-side di store()/update()/destroy()/customerOptions(),
-     * defense-in-depth di atas salesOptions() yang udah di-scope duluan di
-     * frontend.
-     */
-    private function salesInSameCompany(int $salesId, $user): bool
-    {
-        return MsUsers::where('id_user', $salesId)
-            ->where('group_id', $user->group_id)
-            ->exists();
-    }
-
-    /**
-     * odoo_company_id company CRM tempat $user berada -- dipakai buat
-     * scoping tabel yang company_id-nya ASLI dari Odoo (odoo_products),
-     * BEDA sama group_id di ms_users/sales_targets yang langsung dicocokin
-     * tanpa mapping (lihat salesInSameCompany()). HANYA dipanggil di tempat
-     * yang sudah mengecek role_id !== 1 duluan.
-     */
-    private function scopedOdooCompanyId($user): ?int
-    {
-        return DB::table('group_companies')
-            ->where('id_group', $user->group_id)
-            ->value('odoo_company_id');
     }
 }

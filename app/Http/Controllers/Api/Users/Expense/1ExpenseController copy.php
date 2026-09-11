@@ -27,15 +27,6 @@ use Illuminate\Support\Facades\Log;
  * dipisah jadi 2 controller. Scoping "lihat punya sendiri vs lihat semua"
  * ditentukan lewat canViewAllExpenses($user) di tiap method.
  *
- * COMPANY SCOPING: Manager (role_id 3) sebelumnya lihat/approve/reject
- * expense dari SEMUA sales lintas company (cuma "lihat semua vs lihat
- * punya sendiri" yang dibedain, company sama sekali belum dibedain).
- * Sekarang di-scope lewat group_id di ms_users (dicocokin LANGSUNG ke
- * $user->group_id, TANPA mapping Odoo -- beda konsep sama company_id
- * Odoo yang dipakai fitur Product/Customer, sama persis pola
- * SalesTargetController/ReportProductBySalesController). Administrator/IT
- * (role_id 1) tetap full akses lintas company di semua method.
- *
  * Alur:
  *   1. Sales submit expense lewat store() -> status = pending.
  *   2. Manager/Admin approve()/reject() dari halaman approval.
@@ -67,19 +58,6 @@ class ExpenseController extends Controller
         return in_array($user->role_id, [1, 3]);
     }
 
-    /**
-     * True kalau sales dengan id $salesId ada di company yang SAMA kayak
-     * $user (group_id ms_users dicocokin LANGSUNG, tanpa mapping Odoo --
-     * pola persis salesInSameCompany() di SalesTargetController). HANYA
-     * dipanggil di tempat yang sudah mengecek role_id !== 1 duluan.
-     */
-    private function salesInSameCompany(int $salesId, $user): bool
-    {
-        return MsUsers::where('id_user', $salesId)
-            ->where('group_id', $user->group_id)
-            ->exists();
-    }
-
     // ════════════════════════════════════════════
     // LIST (Sales: punya sendiri, Manager/Admin: semua)
     // ════════════════════════════════════════════
@@ -95,15 +73,6 @@ class ExpenseController extends Controller
         if ($this->canViewAllExpenses($user)) {
             if (!empty($validated['sales_id'])) {
                 $query->where('sales_id', $validated['sales_id']);
-            }
-
-            // Company scoping: Manager (role_id 3) cuma boleh lihat
-            // expense dari sales company-nya sendiri. Administrator/IT
-            // (role_id 1) full akses lintas company.
-            if ((int) $user->role_id !== 1) {
-                $query->whereHas('sales', function ($q) use ($user) {
-                    $q->where('group_id', $user->group_id);
-                });
             }
         } else {
             // Sales cuma bisa lihat expense miliknya sendiri.
@@ -157,15 +126,7 @@ class ExpenseController extends Controller
             return ApiResponse::error('Data expense tidak ditemukan', 404);
         }
 
-        if ($this->canViewAllExpenses($user)) {
-            // Company scoping: Manager cuma boleh lihat detail expense
-            // dari sales company-nya sendiri. Dibalikin "tidak ditemukan",
-            // bukan "tidak punya akses" -- biar ga bocorin informasi
-            // kalau expense itu sebenarnya ada tapi di company lain.
-            if ((int) $user->role_id !== 1 && !$this->salesInSameCompany((int) $expense->sales_id, $user)) {
-                return ApiResponse::error('Data expense tidak ditemukan', 404);
-            }
-        } elseif ((int) $expense->sales_id !== (int) $user->id_user) {
+        if (!$this->canViewAllExpenses($user) && (int) $expense->sales_id !== (int) $user->id_user) {
             return ApiResponse::error('Anda tidak memiliki akses ke data expense ini', 403);
         }
 
@@ -241,14 +202,6 @@ class ExpenseController extends Controller
             return ApiResponse::error('Anda tidak memiliki akses ke data expense ini', 403);
         }
 
-        // Company scoping: Manager cuma boleh hapus expense dari sales
-        // company-nya sendiri. Sales pemilik expense (owner) selalu boleh,
-        // sudah ditangani lewat $isOwner di atas -- ini cuma buat jalur
-        // Manager/Admin.
-        if (!$isOwner && (int) $user->role_id !== 1 && !$this->salesInSameCompany((int) $expense->sales_id, $user)) {
-            return ApiResponse::error('Data expense tidak ditemukan', 404);
-        }
-
         if ($expense->status !== Expense::STATUS_PENDING) {
             return ApiResponse::error('Expense yang sudah di-' . $expense->status . ' tidak bisa dihapus', 422);
         }
@@ -272,12 +225,6 @@ class ExpenseController extends Controller
         $expense = Expense::with('sales')->find($id);
 
         if (!$expense) {
-            return ApiResponse::error('Data expense tidak ditemukan', 404);
-        }
-
-        // Company scoping: Manager cuma boleh approve expense dari sales
-        // company-nya sendiri. Administrator/IT full akses.
-        if ((int) $user->role_id !== 1 && !$this->salesInSameCompany((int) $expense->sales_id, $user)) {
             return ApiResponse::error('Data expense tidak ditemukan', 404);
         }
 
@@ -323,11 +270,6 @@ class ExpenseController extends Controller
             return ApiResponse::error('Data expense tidak ditemukan', 404);
         }
 
-        // Company scoping: sama pola kayak approve().
-        if ((int) $user->role_id !== 1 && !$this->salesInSameCompany((int) $expense->sales_id, $user)) {
-            return ApiResponse::error('Data expense tidak ditemukan', 404);
-        }
-
         if ($expense->status !== Expense::STATUS_PENDING) {
             return ApiResponse::error('Expense ini sudah di-' . $expense->status . ' sebelumnya', 422);
         }
@@ -365,11 +307,6 @@ class ExpenseController extends Controller
             return ApiResponse::error('Data expense tidak ditemukan', 404);
         }
 
-        // Company scoping: sama pola kayak approve()/reject().
-        if ((int) $user->role_id !== 1 && !$this->salesInSameCompany((int) $expense->sales_id, $user)) {
-            return ApiResponse::error('Data expense tidak ditemukan', 404);
-        }
-
         if ($expense->status !== Expense::STATUS_APPROVED) {
             return ApiResponse::error('Cuma expense yang sudah approved yang bisa dikirim ulang ke Odoo', 422);
         }
@@ -396,15 +333,7 @@ class ExpenseController extends Controller
         $user  = auth()->user();
         $query = Expense::query();
 
-        if ($this->canViewAllExpenses($user)) {
-            // Company scoping: Manager cuma ngitung expense dari sales
-            // company-nya sendiri. Administrator/IT full akses.
-            if ((int) $user->role_id !== 1) {
-                $query->whereHas('sales', function ($q) use ($user) {
-                    $q->where('group_id', $user->group_id);
-                });
-            }
-        } else {
+        if (!$this->canViewAllExpenses($user)) {
             $query->where('sales_id', $user->id_user);
         }
 
@@ -432,10 +361,6 @@ class ExpenseController extends Controller
         // (yang aktif saja) -- bisa ditambah/diubah Admin langsung lewat
         // tabel ini tanpa perlu ubah kode/deploy ulang. Lihat model
         // ExpenseCategory.
-        //
-        // TIDAK di-company-scope -- kategori expense itu master data
-        // SHARED buat semua company (bukan katalog per-company kayak
-        // Product), jadi sengaja tetap sama buat semua user.
         $categories = ExpenseCategory::where('is_active', true)
             ->orderBy('name')
             ->pluck('name');
@@ -456,10 +381,6 @@ class ExpenseController extends Controller
     // sales): COALESCE(c.assigned_to, c.created_by) = sales login,
     // supaya customer yang assigned_to-nya masih NULL (belum pernah
     // di-assign ulang) tetap kehitung punya sales pembuatnya.
-    //
-    // TIDAK butuh company scoping tambahan -- endpoint ini SELALU
-    // di-scope ke sales yang login sendiri (bukan ke role Manager/Admin),
-    // jadi otomatis udah dalam company user itu.
     //
     // Kalau customer yang dimaksud belum ada di sistem, sales tetap bisa
     // ketik manual nama lokasinya di frontend (dikirim sebagai
@@ -511,6 +432,14 @@ class ExpenseController extends Controller
                 );
             }
 
+            $productId = $this->resolveOdooProductIdForCategory($expense->category);
+            if (!$productId) {
+                throw new \Exception(
+                    "Tidak ditemukan product Odoo (can_be_expensed) yang namanya cocok dengan kategori \"{$expense->category}\". "
+                    . 'Silakan cek manual data Expense Category/Product di Odoo.'
+                );
+            }
+
             // WAJIB set company_id eksplisit sama dengan company_id
             // employee-nya -- kalau tidak diisi, Odoo defaultnya pakai
             // company punya user API (ARIS), yang bisa beda dari company
@@ -519,12 +448,6 @@ class ExpenseController extends Controller
             // ("no company crossover is allowed"). Diambil FRESH dari
             // Odoo tiap push (bukan dari cache ms_users) supaya selalu
             // akurat kalau suatu saat employee-nya dipindah company.
-            //
-            // Diambil DULUAN sebelum resolveOdooProductIdForCategory() --
-            // product_id yang di-resolve HARUS company-aware juga (product
-            // Odoo bisa company-specific, bukan selalu shared), makanya
-            // companyId employee ini perlu dioper ke situ. Lihat komentar
-            // di resolveOdooProductIdForCategory().
             $employeeRows = $this->odooService->searchRead(
                 'hr.employee',
                 [['id', '=', $employeeId]],
@@ -537,14 +460,6 @@ class ExpenseController extends Controller
                 throw new \Exception(
                     "Tidak bisa menentukan company Odoo untuk employee ID {$employeeId}. "
                     . 'Silakan cek manual data Employee tersebut di Odoo.'
-                );
-            }
-
-            $productId = $this->resolveOdooProductIdForCategory($expense->category, $companyId);
-            if (!$productId) {
-                throw new \Exception(
-                    "Tidak ditemukan product Odoo (can_be_expensed) yang namanya cocok dengan kategori \"{$expense->category}\" buat company employee ini. "
-                    . 'Silakan cek manual data Expense Category/Product di Odoo.'
                 );
             }
 
@@ -581,16 +496,6 @@ class ExpenseController extends Controller
      * Odoo berdasarkan nama persis (fullname), simpan hasilnya kalau
      * ketemu TEPAT 1 match. Kalau tidak ketemu / ambigu (>1 match),
      * return null (caller yang nampilin pesan error-nya).
-     *
-     * Operator domain-nya '=ilike' (exact match, case-INSENSITIVE) --
-     * BUKAN '=' (exact, case-sensitive) kayak sebelumnya. Nama sales di
-     * CRM sering ga persis sama casing-nya kayak nama employee di Odoo
-     * (misal "amir hamzah" di CRM vs "Amir Hamzah" di Odoo), jadi pakai
-     * '=' selalu gagal match padahal orangnya ada. '=ilike' tetap exact
-     * match (bukan substring kayak 'ilike' biasa yang dipakai di
-     * resolveOdooProductIdForCategory()), cuma ga peduli besar/kecil huruf
-     * -- jadi ga nambah resiko ke-nyangkut ke employee lain yang cuma
-     * namanya MIRIP/mengandung kata yang sama.
      */
     private function resolveOdooEmployeeId(MsUsers $sales): ?int
     {
@@ -600,7 +505,7 @@ class ExpenseController extends Controller
 
         $matches = $this->odooService->searchRead(
             'hr.employee',
-            [['name', '=ilike', $sales->fullname]],
+            [['name', '=', $sales->fullname]],
             ['id', 'name'],
             2 // cukup ambil maks 2 buat deteksi ambigu, gak perlu semua
         );
@@ -622,60 +527,26 @@ class ExpenseController extends Controller
 
     /**
      * AUTO-MATCH BY NAME + CACHE -- resolve product_id Odoo buat 1 kategori
-     * expense CRM, buat employee yang company Odoo-nya $companyId.
-     * Cache-nya di tabel expense_category_odoo_products, SEKARANG
-     * company-aware (kolom company_id) -- soalnya product Odoo yang
-     * di-match TERNYATA bisa company-specific (bukan selalu shared), dan
-     * kalau mapping-nya dipaksa 1 global per kategori, expense dari
-     * employee company LAIN bisa gagal push ke Odoo ("no company crossover
-     * is allowed") walaupun kategorinya sama.
-     *
-     * company_id di cache/domain search ini SELALU angka company_id ASLI
-     * dari Odoo (res.company id, sama kayak company_id di
-     * odoo_products/odoo_customers) -- BUKAN group_id CRM. NULL artinya
-     * mapping shared/global (product-nya company_id=false di Odoo).
-     *
-     * Urutan lookup cache: PRIORITASKAN mapping yang company_id-nya persis
-     * $companyId (kalau ada), baru fallback ke mapping shared
-     * (company_id NULL) -- supaya kalau kategori yang sama pernah ke-cache
-     * sebagai shared duluan padahal sebenarnya ada juga versi
-     * company-specific-nya, versi company-specific tetap dipakai kalau ada.
+     * expense CRM. Cache-nya di tabel expense_category_odoo_products (1
+     * baris per kategori, cuma 7 kategori total). Kalau belum ada
+     * cache-nya, cari product Odoo (can_be_expensed=true) yang namanya
+     * ILIKE kategori, simpan kalau ketemu TEPAT 1 match.
      */
-    private function resolveOdooProductIdForCategory(string $category, ?int $companyId): ?int
+    private function resolveOdooProductIdForCategory(string $category): ?int
     {
-        $cached = ExpenseCategoryOdooProduct::where('category', $category)
-            ->where(function ($q) use ($companyId) {
-                $q->whereNull('company_id');
-
-                if ($companyId) {
-                    $q->orWhere('company_id', $companyId);
-                }
-            })
-            ->orderByRaw('company_id IS NULL') // company-specific (bukan NULL) diprioritaskan duluan
-            ->first();
+        $cached = ExpenseCategoryOdooProduct::where('category', $category)->first();
 
         if ($cached && $cached->odoo_product_id) {
             return (int) $cached->odoo_product_id;
         }
 
-        $domain = [
-            ['can_be_expensed', '=', true],
-            ['name', 'ilike', $category],
-        ];
-
-        // Product-nya boleh yang company_id-nya SAMA kayak employee, ATAU
-        // yang shared (company_id=false di Odoo) -- gak boleh ke-match
-        // product company LAIN yang bakal ditolak Odoo pas create hr.expense.
-        if ($companyId) {
-            $domain[] = '|';
-            $domain[] = ['company_id', '=', $companyId];
-            $domain[] = ['company_id', '=', false];
-        }
-
         $matches = $this->odooService->searchRead(
             'product.product',
-            $domain,
-            ['id', 'name', 'company_id'],
+            [
+                ['can_be_expensed', '=', true],
+                ['name', 'ilike', $category],
+            ],
+            ['id', 'name'],
             2
         );
 
@@ -685,15 +556,9 @@ class ExpenseController extends Controller
 
         $productId   = (int) $matches[0]['id'];
         $productName = $matches[0]['name'];
-        // Simpan company_id ASLI punya product yang ke-match (bukan
-        // $companyId punya employee) -- kalau product-nya memang shared
-        // (company_id=false di Odoo), cache-nya jadi NULL juga, jadi bisa
-        // dipakai ulang buat employee company manapun tanpa perlu
-        // nge-search Odoo lagi tiap company beda.
-        $productCompanyId = $matches[0]['company_id'][0] ?? null;
 
         ExpenseCategoryOdooProduct::updateOrCreate(
-            ['category' => $category, 'company_id' => $productCompanyId],
+            ['category' => $category],
             ['odoo_product_id' => $productId, 'odoo_product_name' => $productName]
         );
 
