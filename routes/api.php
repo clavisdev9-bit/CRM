@@ -41,7 +41,7 @@ Route::post('/forgot-password-request', [SignAuth::class, 'requestResetPassword'
 Route::post('/reset-password', [SignAuth::class, 'resetPassword'])->name('api.reset.password');
 
 Route::middleware(['jwt.auth'])->group(function () {
-    
+
 Route::get('/get-profile', [SignAuth::class, 'profile'])->name('api.get.profile');
 Route::post('/signOut', [SignAuth::class, 'signOut'])->name('api.sign.out');
 Route::post('/update-profile', [SignAuth::class, 'updateProfile'])->name('api.update.profile');
@@ -56,7 +56,7 @@ Route::get('/sessions', [SignAuth::class, 'sessions']);
 Route::delete('/sessions/{id}', [SignAuth::class, 'revokeSession']);
 
 
-// api administrator role management 
+// api administrator role management
 Route::get('/role-management', [Administrator::class, 'Role'])->name('api.role.management');
 Route::get('/role-management-show/{id}', [Administrator::class, 'showRole'])->name('api.show.role.management');
 Route::post('/store-role-management', [Administrator::class, 'storeRole'])->name('api.store.role.management');
@@ -107,7 +107,7 @@ Route::get('/users-management/hierarchy/{id}', [Administrator::class, 'userHiera
 
 
 
-// access user to submenu 
+// access user to submenu
 Route::get('/users/{id_user}/submenu-access', [Administrator::class, 'submenuAccess']);
 Route::put('/users/{id_user}/submenu-access/{id_submenu}',[Administrator::class, 'updateSubmenuAccess']);
 
@@ -117,6 +117,13 @@ Route::post('/setting-app-store-management', [Administrator::class, 'storeSettin
 Route::put('/update-setting-app-management/{id}', [Administrator::class, 'updateSetting'])->name('api.update.setting.app.management');
 Route::delete('/delete-setting-app-management/{id}', [Administrator::class, 'deleteSetting'])->name('api.delete.setting.management');
 Route::get('/setting-app-show/{id}', [Administrator::class, 'showAppSetting'])->name('api.show.app.setting.management');
+
+// logo per company (group_companies) -- section terpisah di halaman
+// Setting Management yang SAMA (bukan menu baru), soalnya datanya
+// multi-baris (1 baris per company), beda dari app_settings yang cuma
+// 1 baris global. Lihat Administrator::companyLogos()/updateCompanyLogo().
+Route::get('/company-logos', [Administrator::class, 'companyLogos'])->name('api.company.logos');
+Route::put('/company-logos/{id_group}', [Administrator::class, 'updateCompanyLogo'])->name('api.update.company.logo');
 
 
 
@@ -150,9 +157,9 @@ Route::get('/attendance-management', [Attendance::class, 'GetAttendanceById'])->
 Route::get('/attendance/check-today', [Attendance::class, 'checkToday'])->name('api.attendance.check.today');
 Route::get('/attendance/show/{id}', [Attendance::class, 'showAttendance'])->name('api.attendance.show');
 
-//ini untuk sales 
+//ini untuk sales
 Route::post('/attendance/process-free-location', [Attendance::class, 'storeAttendanceFreeLocation'])->name('api.attendance.process.free.location');
-//ini untuk office 
+//ini untuk office
 Route::post('/attendance/process-office-location', [Attendance::class, 'storeAttendanceForOffice'])->name('api.attendance.process.office.location');
 Route::delete('/attendance/delete/{id_attendance}', [Attendance::class, 'deleteAttendance'])->name('api.delete.attendance');
 // Route::put('/attendance/update/{id}', [Attendance::class, 'updateAttendance'])->name('api.update.attendance');
@@ -187,7 +194,7 @@ Route::get('/leads/search-company-name', [Leads::class, 'searchCompanyName']);
 
 
 // api sales Customers
-Route::get('/customers-masters', [Costumers::class, 'customers'])->name('api.customers.master'); 
+Route::get('/customers-masters', [Costumers::class, 'customers'])->name('api.customers.master');
 Route::post('/customers/store', [Costumers::class, 'storeCostumers'])->name('api.customers.store');
 Route::put('/customers/update/{id}', [Costumers::class, 'updateCostumers'])->name('api.customers.update');
 Route::delete('/customers/delete/{id}', [Costumers::class, 'destroyCostumers'])->name('api.customers.delete');
@@ -289,10 +296,10 @@ Route::prefix('expenses')->group(function () {
     Route::get('summary', [ExpenseController::class, 'summary']);
     Route::get('options/categories', [ExpenseController::class, 'categoryOptions']);
     Route::get('options/customers', [ExpenseController::class, 'customerOptions']);
- 
+
     Route::get('/', [ExpenseController::class, 'index']);
     Route::post('/', [ExpenseController::class, 'store']);
- 
+
     Route::get('{id}', [ExpenseController::class, 'show']);
     Route::delete('{id}', [ExpenseController::class, 'destroy']);
     Route::post('{id}/approve', [ExpenseController::class, 'approve']);
@@ -305,10 +312,10 @@ Route::prefix('quotations')->group(function () {
     Route::get('summary', [QuotationController::class, 'summary']);
     Route::get('options/customers', [QuotationController::class, 'customerOptions']);
     Route::get('options/products', [QuotationController::class, 'productOptions']);
- 
+
     Route::get('/', [QuotationController::class, 'index']);
     Route::post('/', [QuotationController::class, 'store']);
- 
+
     Route::get('{id}', [QuotationController::class, 'show']);
     Route::put('{id}', [QuotationController::class, 'update']);
     Route::delete('{id}', [QuotationController::class, 'destroy']);
@@ -395,7 +402,7 @@ Route::prefix('customers')->group(function () {
     Route::get('/population', [OdooSync::class, 'customerPopulation']);
     Route::get('/{id}/purchase-detail', [OdooSync::class, 'customerPurchaseDetail']);
 
-     //assign/reassign sales untuk see customer 
+     //assign/reassign sales untuk see customer
     Route::post('/assign-sales', [OdooSync::class, 'assignCustomerSales']);
     Route::post('/unassign-sales', [OdooSync::class, 'unassignCustomerSales']);
     Route::get('/sales-assignments', [OdooSync::class, 'listCustomerSalesAssignments']);
@@ -421,7 +428,7 @@ Route::get('/geocode', [Location::class, 'search']);
 
 // untuk data map external
 Route::get('/data-visits-leads-map', [Visits::class, 'getVisitTargetMap'])->name('api.data.visits.map');
-// untuk data visit all data 
+// untuk data visit all data
 Route::get('/data-visits-all-data', [Visits::class, 'getVisitAllData'])->name('api.data.visits.all');
 
 // untuk popoukation product custumers external
@@ -475,13 +482,10 @@ Route::get('/asset-version', function () {
 
 
 Route::get('/holidays', function (Request $request) {
-    return Http::withoutVerifying() 
+    return Http::withoutVerifying()
         ->get('https://libur.deno.dev/api', [
             'year' => $request->year,
             'month' => $request->month
         ])
         ->json();
 });
-
-
-

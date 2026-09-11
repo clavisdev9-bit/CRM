@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class MsGroupCompany extends Model
 {
- 
+
 
      use HasFactory;
      use SoftDeletes;
@@ -20,6 +20,10 @@ class MsGroupCompany extends Model
      protected $fillable = [
         'name_group',
         'description_group',
+        // Logo per company (path file, disk 'public', folder
+        // 'company-logos') -- lihat Administrator::updateCompanyLogo()
+        // dan migration add_logo_to_group_companies_table.
+        'logo',
         'is_active',
     ];
 }

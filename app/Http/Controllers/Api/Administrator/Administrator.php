@@ -1365,6 +1365,77 @@ class Administrator extends Controller
         }
 
 
+        // ════════════════════════════════════════════════════════════
+        // LOGO PER COMPANY (group_companies) -- BUKAN app_settings
+        // ════════════════════════════════════════════════════════════
+        // Logo App Setting di atas itu GLOBAL (1 baris, dipakai semua
+        // company sebagai FALLBACK kalau company yang bersangkutan
+        // belum punya logo sendiri). Endpoint di bawah ini spesifik
+        // buat logo PER company (tabel group_companies) -- dipakai di
+        // halaman Setting Management yang SAMA, cuma section-nya
+        // terpisah (bukan menu baru), soalnya datanya multi-baris (1
+        // baris per company), beda dari app_settings yang cuma 1 baris.
+        //
+        // Pola upload file-nya SAMA PERSIS kayak storeSetting()/
+        // updateSetting() di atas (Storage::disk('public'), hapus file
+        // lama sebelum simpan yang baru) -- cuma folder-nya beda
+        // ('company-logos', bukan 'app-setting').
+        //
+        // Ditampilkan di Sidebar.vue (brandLogoUrl) sesuai company user
+        // yang login (authStore.user.groups.logo).
+
+        public function companyLogos()
+        {
+            $companies = DB::table('group_companies')
+                ->select('id_group', 'name_group', 'logo', 'is_active')
+                ->whereNull('deleted_at')
+                ->orderBy('name_group', 'asc')
+                ->get();
+
+            return ApiResponse::success($companies, 'Success');
+        }
+
+        public function updateCompanyLogo(Request $request, $id_group)
+        {
+            $request->validate([
+                'logo' => ['required', 'image', 'max:2048'],
+            ]);
+
+            $company = DB::table('group_companies')
+                ->where('id_group', $id_group)
+                ->whereNull('deleted_at')
+                ->first();
+
+            if (!$company) {
+                return ApiResponse::error('Company tidak ditemukan', [
+                    'id_group' => ['Data dengan ID tersebut tidak tersedia']
+                ], 404);
+            }
+
+            $folder = 'company-logos';
+
+            // Hapus file lama (kalau ada) sebelum simpan yang baru.
+            if ($company->logo && Storage::disk('public')->exists($folder . '/' . $company->logo)) {
+                Storage::disk('public')->delete($folder . '/' . $company->logo);
+            }
+
+            $file     = $request->file('logo');
+            $filename = uniqid('company_logo_') . '.' . $file->getClientOriginalExtension();
+            $file->storeAs($folder, $filename, 'public');
+
+            DB::table('group_companies')->where('id_group', $id_group)->update([
+                'logo'       => $filename,
+                'updated_at' => now(),
+            ]);
+
+            return ApiResponse::success([
+                'id_group'   => (int) $id_group,
+                'name_group' => $company->name_group,
+                'logo'       => $filename,
+            ], 'Logo company berhasil diperbarui');
+        }
+
+
         public function deleteSetting($id)
             {
                 try {
