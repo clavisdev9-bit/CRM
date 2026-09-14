@@ -10,6 +10,7 @@ use App\Http\Requests\QuotationValidationUpdate;
 use App\Http\Resources\QuotationResource;
 use App\Http\Resources\QuotationResourceCollection;
 use App\Models\MsCustomers;
+use App\Models\MsUsers;
 use App\Models\OdooProduct;
 use App\Models\Quotation;
 use App\Models\QuotationItem;
@@ -48,6 +49,20 @@ use Illuminate\Support\Facades\Log;
  *
  * PDF: pakai barryvdh/laravel-dompdf, render dari view resources/views/
  * pdf/quotation.blade.php.
+ *
+ * COMPANY SCOPING (ditambahkan belakangan): Manager (role_id 3) sebelumnya
+ * lihat/monitoring quotation dari SEMUA sales lintas company (cuma "lihat
+ * semua vs lihat punya sendiri" yang dibedain, company sama sekali belum
+ * dibedain) -- sama persis bug yang sudah diperbaiki di
+ * SalesTargetController/ReportProductBySalesController/ExpenseController.
+ * Sekarang di-scope lewat group_id di ms_users (dicocokin LANGSUNG ke
+ * $user->group_id, TANPA mapping Odoo -- pola sama persis
+ * salesInSameCompany() di ExpenseController/SalesTargetController).
+ * Administrator/IT (role_id 1) tetap full akses lintas company di semua
+ * method. productOptions() (katalog product Odoo) di-scope TERPISAH lewat
+ * scopedOdooCompanyId(), karena company_id di odoo_products itu company_id
+ * ASLI Odoo (hasil mapping group_companies.odoo_company_id), bukan group_id
+ * CRM langsung -- pola sama persis ProductController::index().
  * ============================================================================
  */
 class QuotationController extends Controller
@@ -68,6 +83,35 @@ class QuotationController extends Controller
         return in_array($user->role_id, [1, 3]);
     }
 
+    /**
+     * True kalau sales dengan id $salesId ada di company yang SAMA kayak
+     * $user (group_id ms_users dicocokin LANGSUNG, tanpa mapping Odoo --
+     * pola persis salesInSameCompany() di ExpenseController/
+     * SalesTargetController). HANYA dipanggil di tempat yang sudah
+     * mengecek role_id !== 1 duluan.
+     */
+    private function salesInSameCompany(int $salesId, $user): bool
+    {
+        return MsUsers::where('id_user', $salesId)
+            ->where('group_id', $user->group_id)
+            ->exists();
+    }
+
+    /**
+     * odoo_company_id company CRM tempat $user berada -- dipakai buat
+     * scoping tabel yang company_id-nya ASLI dari Odoo (odoo_products),
+     * BEDA sama group_id di ms_users yang langsung dicocokin tanpa mapping
+     * (lihat salesInSameCompany()). Pola sama persis
+     * SalesTargetController::scopedOdooCompanyId(). HANYA dipanggil di
+     * tempat yang sudah mengecek role_id !== 1 duluan.
+     */
+    private function scopedOdooCompanyId($user): ?int
+    {
+        return DB::table('group_companies')
+            ->where('id_group', $user->group_id)
+            ->value('odoo_company_id');
+    }
+
     // ════════════════════════════════════════════
     // LIST (Sales: punya sendiri, Manager/Admin: semua -- read-only monitoring)
     // ════════════════════════════════════════════
@@ -83,6 +127,15 @@ class QuotationController extends Controller
         if ($this->canViewAllQuotations($user)) {
             if (!empty($validated['sales_id'])) {
                 $query->where('sales_id', $validated['sales_id']);
+            }
+
+            // Company scoping: Manager (role_id 3) cuma boleh lihat
+            // quotation dari sales company-nya sendiri. Administrator/IT
+            // (role_id 1) full akses lintas company.
+            if ((int) $user->role_id !== 1) {
+                $query->whereHas('sales', function ($q) use ($user) {
+                    $q->where('group_id', $user->group_id);
+                });
             }
         } else {
             $query->where('sales_id', $user->id_user);
@@ -133,7 +186,16 @@ class QuotationController extends Controller
             return ApiResponse::error('Data quotation tidak ditemukan', 404);
         }
 
-        if (!$this->canViewAllQuotations($user) && (int) $quotation->sales_id !== (int) $user->id_user) {
+        if ($this->canViewAllQuotations($user)) {
+            // Company scoping: Manager cuma boleh lihat detail quotation
+            // dari sales company-nya sendiri. Dibalikin "tidak ditemukan",
+            // bukan "tidak punya akses" -- biar ga bocorin informasi kalau
+            // quotation itu sebenarnya ada tapi di company lain (pola sama
+            // persis ExpenseController::show()).
+            if ((int) $user->role_id !== 1 && !$this->salesInSameCompany((int) $quotation->sales_id, $user)) {
+                return ApiResponse::error('Data quotation tidak ditemukan', 404);
+            }
+        } elseif ((int) $quotation->sales_id !== (int) $user->id_user) {
             return ApiResponse::error('Anda tidak memiliki akses ke data quotation ini', 403);
         }
 
@@ -281,7 +343,15 @@ class QuotationController extends Controller
         $user = auth()->user();
 
         $base = Quotation::query();
-        if (!$this->canViewAllQuotations($user)) {
+        if ($this->canViewAllQuotations($user)) {
+            // Company scoping: Manager cuma ngitung quotation dari sales
+            // company-nya sendiri. Administrator/IT full akses.
+            if ((int) $user->role_id !== 1) {
+                $base->whereHas('sales', function ($q) use ($user) {
+                    $q->where('group_id', $user->group_id);
+                });
+            }
+        } else {
             $base->where('sales_id', $user->id_user);
         }
 
@@ -338,12 +408,36 @@ class QuotationController extends Controller
     // OPTIONS: dropdown-search product (dari katalog odoo_products yang
     // sudah tersync -- lihat ProductController/SyncOdooProducts)
     // ════════════════════════════════════════════
+    // Company scoping: product yang company_id-nya NULL dianggap
+    // shared/global (Odoo company_id = false), kelihatan buat semua
+    // company. Selain itu, cuma product yang company_id-nya cocok sama
+    // odoo_company_id milik company (group) user yang login yang
+    // ditampilkan -- pola sama persis ProductController::index(). Kalau
+    // tidak di-scope, sales bisa pilih product company LAIN buat item
+    // quotation-nya, yang ujungnya bakal ditolak Odoo pas push ("no
+    // company crossover is allowed") atau malah salah pilih company sale
+    // order-nya. Administrator/IT (role_id 1) tetap full akses semua
+    // company.
     public function productOptions(Request $request)
     {
+        $user   = auth()->user();
         $search = $request->input('search');
 
-        $query = OdooProduct::query()
-            ->where('active', true)
+        $query = OdooProduct::query()->where('active', true);
+
+        if ((int) $user->role_id !== 1) {
+            $odooCompanyId = $this->scopedOdooCompanyId($user);
+
+            $query->where(function ($q) use ($odooCompanyId) {
+                $q->whereNull('company_id');
+
+                if ($odooCompanyId) {
+                    $q->orWhere('company_id', $odooCompanyId);
+                }
+            });
+        }
+
+        $query
             ->when($search, function ($q) use ($search) {
                 $q->where(function ($sq) use ($search) {
                     $sq->where('name', 'ILIKE', "%{$search}%")
@@ -377,7 +471,12 @@ class QuotationController extends Controller
             return ApiResponse::error('Data quotation tidak ditemukan', 404);
         }
 
-        if (!$this->canViewAllQuotations($user) && (int) $quotation->sales_id !== (int) $user->id_user) {
+        if ($this->canViewAllQuotations($user)) {
+            // Company scoping: sama pola kayak show().
+            if ((int) $user->role_id !== 1 && !$this->salesInSameCompany((int) $quotation->sales_id, $user)) {
+                return ApiResponse::error('Data quotation tidak ditemukan', 404);
+            }
+        } elseif ((int) $quotation->sales_id !== (int) $user->id_user) {
             return ApiResponse::error('Anda tidak memiliki akses ke data quotation ini', 403);
         }
 
@@ -412,7 +511,7 @@ class QuotationController extends Controller
     public function pushToOdoo($id)
     {
         $user      = auth()->user();
-        $quotation = Quotation::with(['customer', 'items.odooProduct'])->find($id);
+        $quotation = Quotation::with(['sales', 'customer', 'items.odooProduct'])->find($id);
 
         if (!$quotation) {
             return ApiResponse::error('Data quotation tidak ditemukan', 404);
@@ -421,6 +520,14 @@ class QuotationController extends Controller
         $isOwner = (int) $quotation->sales_id === (int) $user->id_user;
         if (!$this->canViewAllQuotations($user) && !$isOwner) {
             return ApiResponse::error('Anda tidak memiliki akses ke quotation ini', 403);
+        }
+
+        // Company scoping: Manager cuma boleh push quotation dari sales
+        // company-nya sendiri. Sales pemilik (owner) selalu boleh, sudah
+        // ditangani lewat $isOwner di atas -- ini cuma buat jalur
+        // Manager/Admin (pola sama persis ExpenseController::destroy()).
+        if (!$isOwner && (int) $user->role_id !== 1 && !$this->salesInSameCompany((int) $quotation->sales_id, $user)) {
+            return ApiResponse::error('Data quotation tidak ditemukan', 404);
         }
 
         $this->pushQuotationToOdoo($quotation);
@@ -446,11 +553,19 @@ class QuotationController extends Controller
      * belum dikonfirmasi ke user -- kalau nanti dibutuhkan, tinggal
      * ditambah sama pola auto-match+cache seperti employee/kategori di
      * fitur Expenses.
+     *
+     * Salesperson (user_id) di sale.order DIISI juga sekarang lewat
+     * resolveOdooUserId() -- auto-match by name + cache ke res.users,
+     * sama pola persis employee/kategori. BEDA dengan partner_id/product_id
+     * di atas, field ini TIDAK WAJIB ketemu -- kalau sales-nya tidak
+     * ketemu/ambigu di res.users, push tetap lanjut (Salesperson-nya
+     * dikosongkan di Odoo), tidak sampai bikin seluruh quotation gagal
+     * push cuma gara-gara 1 field non-esensial ini.
      */
     private function pushQuotationToOdoo(Quotation $quotation): void
     {
         try {
-            $quotation->loadMissing(['customer', 'items.odooProduct']);
+            $quotation->loadMissing(['sales', 'customer', 'items.odooProduct']);
 
             $partnerId = $this->resolveOdooPartnerId($quotation->customer);
             if (!$partnerId) {
@@ -533,6 +648,15 @@ class QuotationController extends Controller
                 $values['company_id'] = $companyId;
             }
 
+            // Salesperson -- lihat resolveOdooUserId(). Kalau tidak ketemu
+            // (0/ambigu match di res.users), field ini dibiarkan tidak
+            // dikirim sama sekali, jadi Odoo tetap boleh isi/kosongkan
+            // sendiri (bukan dipaksa 0/kosong secara eksplisit).
+            $salesUserId = $quotation->sales ? $this->resolveOdooUserId($quotation->sales) : null;
+            if ($salesUserId) {
+                $values['user_id'] = $salesUserId;
+            }
+
             if ($quotation->odoo_sale_order_id) {
                 // Update record yang sudah ada -- [5,0,0] = unlink SEMUA
                 // order_line lama dulu, baru diisi ulang dari data
@@ -563,14 +687,136 @@ class QuotationController extends Controller
         }
     }
 
+    /**
+     * "Salesperson (CRM): ..." SENGAJA ikut dimasukkan ke sini juga (bukan
+     * cuma mengandalkan field user_id/Salesperson resmi) -- soalnya field
+     * Salesperson resmi TERGANTUNG employee-nya sudah di-link ke akun user
+     * (res.users) di Odoo (lihat resolveOdooUserId()), yang ternyata belum
+     * semua sales py link-nya. Selama belum semua ke-link, minimal nama
+     * sales pembuat quotation-nya TETAP kelihatan di catatan sale.order,
+     * gak sepenuhnya hilang cuma karena field resminya kosong.
+     */
     private function buildOdooNote(Quotation $quotation): string
     {
         return implode("\n", array_filter([
+            $quotation->sales?->fullname ? "Salesperson (CRM): {$quotation->sales->fullname}" : null,
             $quotation->payment_terms ? "Payment Terms: {$quotation->payment_terms}" : null,
             $quotation->validity ? "Validity: {$quotation->validity}" : null,
             $quotation->delivery_time ? "Delivery Time: {$quotation->delivery_time}" : null,
             $quotation->term ? "Term: {$quotation->term}" : null,
         ]));
+    }
+
+    /**
+     * Resolve ID user Odoo (res.users) buat 1 sales (ms_users), dipakai
+     * buat ngisi field "Salesperson" (user_id) di sale.order pas push
+     * quotation. Cache-nya di ms_users.odoo_user_id.
+     *
+     * UPDATE (setelah ketauan di instance Odoo user ini cuma ada 1 akun
+     * res.users, yaitu akun API "ARIS" -- sales-sales CRM TIDAK
+     * masing-masing punya akun login Odoo sendiri): auto-match by name
+     * LANGSUNG ke res.users (versi sebelumnya) jadinya SELALU 0 match,
+     * karena memang tidak ada res.users dengan nama sales-sales itu.
+     *
+     * SEKARANG lewat jalur yang sama seperti fitur Expenses: resolve dulu
+     * hr.employee-nya (resolveOdooEmployeeId() di bawah -- pola & cache
+     * PERSIS ExpenseController::resolveOdooEmployeeId(), malah biasanya
+     * LANGSUNG kepakai dari cache ms_users.odoo_employee_id yang sudah
+     * keisi duluan dari fitur Expenses, tidak perlu search ulang), lalu
+     * baca field user_id BAWAAN hr.employee itu sendiri di Odoo (kalau
+     * employee itu memang sudah di-link ke 1 akun res.users oleh Admin
+     * Odoo). Ini jauh lebih akurat daripada nebak-nebak lewat pencarian
+     * nama terpisah ke res.users -- tinggal ngikutin link resmi yang
+     * Odoo sendiri sudah punya antara hr.employee <-> res.users.
+     *
+     * TETAP TIDAK melempar exception kalau employee-nya tidak ketemu ATAU
+     * employee-nya ketemu tapi belum di-link ke akun user manapun di
+     * Odoo (user_id hr.employee-nya kosong) -- Salesperson bukan field
+     * wajib di sale.order, jadi caller (pushQuotationToOdoo()) cukup
+     * lewatin field user_id kalau null, push tetap lanjut.
+     */
+    private function resolveOdooUserId(MsUsers $sales): ?int
+    {
+        if ($sales->odoo_user_id) {
+            return (int) $sales->odoo_user_id;
+        }
+
+        $employeeId = $this->resolveOdooEmployeeId($sales);
+        if (!$employeeId) {
+            Log::warning(
+                "Tidak bisa resolve hr.employee Odoo buat sales \"{$sales->fullname}\" (dipakai buat cari Salesperson-nya juga) "
+                . '-- field Salesperson di sale.order akan dikosongkan.'
+            );
+
+            return null;
+        }
+
+        $employeeRows = $this->odooService->searchRead(
+            'hr.employee',
+            [['id', '=', $employeeId]],
+            ['user_id'],
+            1
+        );
+
+        $userId = $employeeRows[0]['user_id'][0] ?? null;
+
+        if (!$userId) {
+            Log::warning(
+                "Employee Odoo \"{$sales->fullname}\" (hr.employee #{$employeeId}) belum di-link ke akun user (res.users) manapun di Odoo "
+                . '-- field Salesperson di sale.order akan dikosongkan. Kalau mau keisi, employee ini perlu dibuatkan/di-link ke akun user login di Odoo dulu.'
+            );
+
+            return null;
+        }
+
+        $userId   = (int) $userId;
+        $userName = $employeeRows[0]['user_id'][1] ?? null;
+
+        $sales->update([
+            'odoo_user_id'   => $userId,
+            'odoo_user_name' => $userName,
+        ]);
+
+        return $userId;
+    }
+
+    /**
+     * AUTO-MATCH BY NAME + CACHE -- resolve ID employee Odoo (hr.employee)
+     * buat 1 sales (ms_users). Duplikat sengaja dari
+     * ExpenseController::resolveOdooEmployeeId() (pola yang sama persis,
+     * termasuk cache-nya SAMA-SAMA di ms_users.odoo_employee_id -- jadi
+     * kalau sales ini sudah pernah punya expense yang di-approve, cache-nya
+     * langsung kepakai di sini tanpa search ulang ke Odoo). Tidak
+     * cross-call ke ExpenseController supaya QuotationController tetap
+     * self-contained (konsisten dengan alasan customerOptions() juga
+     * dibuat sendiri, bukan cross-call).
+     */
+    private function resolveOdooEmployeeId(MsUsers $sales): ?int
+    {
+        if ($sales->odoo_employee_id) {
+            return (int) $sales->odoo_employee_id;
+        }
+
+        $matches = $this->odooService->searchRead(
+            'hr.employee',
+            [['name', '=ilike', $sales->fullname]],
+            ['id', 'name'],
+            2 // cukup ambil maks 2 buat deteksi ambigu, gak perlu semua
+        );
+
+        if (count($matches) !== 1) {
+            return null;
+        }
+
+        $employeeId   = (int) $matches[0]['id'];
+        $employeeName = $matches[0]['name'];
+
+        $sales->update([
+            'odoo_employee_id'   => $employeeId,
+            'odoo_employee_name' => $employeeName,
+        ]);
+
+        return $employeeId;
     }
 
     /**
@@ -633,20 +879,28 @@ class QuotationController extends Controller
      * ada di tabel customers) -- name, alamat, email, telpon -- supaya
      * ga nebak-nebak field kustom Odoo yang belum tentu ada.
      *
-     * company_id di-set eksplisit ke default company CRM (config
-     * odoo.default_company_id, sama seperti dipakai SyncOdooProducts)
-     * supaya partner baru ini konsisten satu company sama product-product
-     * yang nanti dipakai di sale order-nya -- menghindari bug "company
-     * crossover" yang sama seperti yang sudah pernah diperbaiki
-     * sebelumnya di fitur ini & di Expenses.
+     * company_id DULU di-set eksplisit ke default company CRM (config
+     * odoo.default_company_id) buat semua customer -- SEKARANG diganti
+     * companyIdFor() supaya company_id-nya ikut company CRM pemilik
+     * customer ini (dari group_id sales pemilik customer, lihat
+     * customers.id_user), bukan default global buat semua company.
+     * Company yang belum di-mapping (group_companies.odoo_company_id
+     * masih null) tetap fallback ke default global lewat companyIdFor(),
+     * jadi tetap konsisten sama product-product yang dipakai di sale
+     * order-nya -- menghindari bug "company crossover" yang sama seperti
+     * yang sudah pernah diperbaiki sebelumnya di fitur ini & di Expenses.
      */
     private function createOdooPartnerForCustomer(MsCustomers $customer): ?int
     {
         try {
+            $groupId = DB::table('ms_users')
+                ->where('id_user', $customer->id_user)
+                ->value('group_id');
+
             $values = [
                 'name'       => $customer->company_name,
                 'is_company' => true,
-                'company_id' => (int) config('odoo.default_company_id'),
+                'company_id' => $this->odooService->companyIdFor($groupId ? (int) $groupId : null),
             ];
 
             if (!empty($customer->address)) {

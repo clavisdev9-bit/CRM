@@ -39,6 +39,13 @@ class MsUsers extends Model
         // lookup ulang ke Odoo tiap kali push. ──
         'odoo_employee_id',
         'odoo_employee_name',
+        // ── Cache auto-match Odoo user/res.users buat Salesperson di
+        // sale.order (fitur Quotations) -- diisi otomatis oleh
+        // QuotationController::resolveOdooUserId() pas quotation pertama
+        // kali di-push. BEDA dengan odoo_employee_id di atas (itu
+        // hr.employee, ini res.users -- 2 model beda di Odoo). ──
+        'odoo_user_id',
+        'odoo_user_name',
     ];
 
         public function employee()

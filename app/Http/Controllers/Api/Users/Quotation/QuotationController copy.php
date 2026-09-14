@@ -387,18 +387,23 @@ class QuotationController extends Controller
     }
 
     /**
-     * quotation_no biasanya mengandung "/" (contoh: "22005/UN/CAP"), tapi
-     * karakter "/" dan "\" TIDAK BOLEH ada di nama file pada header
-     * Content-Disposition -- Symfony bakal lempar InvalidArgumentException
+     * Nama file PDF dasarnya pakai customer_ref (BUKAN quotation_no lagi --
+     * quotation_no sekarang opsional/sering masih kosong pas quotation baru
+     * dibuat, lihat migration make_quotation_no_nullable, jadi kurang cocok
+     * dipakai sebagai nama file). customer_ref WAJIB diisi (lihat
+     * QuotationValidationStore), jadi selalu ada isinya.
+     *
+     * Tetap disanitize dari "/" dan "\" (siapa tau customer_ref ada karakter
+     * itu juga) -- karakter itu TIDAK BOLEH ada di nama file pada header
+     * Content-Disposition, Symfony bakal lempar InvalidArgumentException
      * ("The filename and the fallback cannot contain the "/" and "\"
-     * characters.") kalau dibiarkan apa adanya. Makanya di-ganti ke "-"
-     * dulu sebelum dipakai sebagai nama file download.
+     * characters.") kalau dibiarkan apa adanya.
      */
     private function buildPdfFilename(Quotation $quotation): string
     {
-        $safeNo = str_replace(['/', '\\'], '-', $quotation->quotation_no);
+        $safeRef = str_replace(['/', '\\'], '-', $quotation->customer_ref);
 
-        return "Quotation-{$safeNo}.pdf";
+        return "Quotation-{$safeRef}.pdf";
     }
 
     // ════════════════════════════════════════════════════════════════════
@@ -450,8 +455,10 @@ class QuotationController extends Controller
             $partnerId = $this->resolveOdooPartnerId($quotation->customer);
             if (!$partnerId) {
                 throw new \Exception(
-                    "Tidak ditemukan partner Odoo dengan nama persis \"{$quotation->customer->company_name}\" (atau namanya ambigu/lebih dari 1 match). "
-                    . 'Silakan cek manual data Contact/Customer di Odoo, lalu isi kolom odoo_partner_id di customer ini.'
+                    "Gagal menentukan partner Odoo untuk customer \"{$quotation->customer->company_name}\". "
+                    . 'Kemungkinan ada lebih dari 1 contact di Odoo dengan nama yang sama persis (ambigu -- sistem sengaja TIDAK auto-create supaya tidak nambah duplikat baru), '
+                    . 'atau auto-create contact baru sempat gagal (cek storage/logs/laravel.log buat detail error dari Odoo). '
+                    . 'Silakan cek manual data Contact/Customer di Odoo, lalu isi kolom odoo_partner_id di customer ini kalau perlu.'
                 );
             }
 
@@ -570,6 +577,19 @@ class QuotationController extends Controller
      * AUTO-MATCH BY NAME + CACHE -- resolve partner_id Odoo (res.partner)
      * buat 1 customer CRM. Cache-nya di customers.odoo_partner_id
      * (mirip ms_users.odoo_employee_id di fitur Expenses).
+     *
+     * UPDATE: sekarang kalau nama customer-nya TIDAK KETEMU SAMA SEKALI
+     * (0 match) di Odoo, sistem AUTO-CREATE contact baru (res.partner)
+     * langsung dari data customer CRM ini -- lihat createOdooPartnerFor
+     * Customer(). Ini permintaan eksplisit user supaya push quotation ga
+     * ke-block cuma gara-gara contact-nya belum pernah dibikin di Odoo.
+     *
+     * Kalau AMBIGU (>1 match dengan nama sama persis), TETAP TIDAK
+     * di-auto-create -- sengaja, karena kalau sistem asal bikin partner
+     * baru pas ambigu, itu malah nambah 1 lagi duplikat di tengah data
+     * yang sudah bermasalah, dan resiko salah pilih company/partner
+     * makin gede. Kasus ambigu tetap harus dicek & di-map manual (lihat
+     * command quotation:list-odoo-partners).
      */
     private function resolveOdooPartnerId(MsCustomers $customer): ?int
     {
@@ -584,18 +604,75 @@ class QuotationController extends Controller
             2
         );
 
-        if (count($matches) !== 1) {
+        if (count($matches) === 1) {
+            $partnerId   = (int) $matches[0]['id'];
+            $partnerName = $matches[0]['name'];
+
+            $customer->update([
+                'odoo_partner_id'   => $partnerId,
+                'odoo_partner_name' => $partnerName,
+            ]);
+
+            return $partnerId;
+        }
+
+        // Ambigu (>1 match dengan nama sama persis) -- jangan auto-create,
+        // biarkan caller lempar error supaya di-mapping manual.
+        if (count($matches) > 1) {
             return null;
         }
 
-        $partnerId   = (int) $matches[0]['id'];
-        $partnerName = $matches[0]['name'];
+        // 0 match -- benar-benar belum ada contact-nya di Odoo, auto-create.
+        return $this->createOdooPartnerForCustomer($customer);
+    }
 
-        $customer->update([
-            'odoo_partner_id'   => $partnerId,
-            'odoo_partner_name' => $partnerName,
-        ]);
+    /**
+     * Buat contact (res.partner) BARU di Odoo langsung dari data customer
+     * CRM, dipanggil HANYA kalau exact-name-match beneran 0 hasil (bukan
+     * ambigu). Field yang dikirim sengaja MINIMAL & aman (cuma yang jelas
+     * ada di tabel customers) -- name, alamat, email, telpon -- supaya
+     * ga nebak-nebak field kustom Odoo yang belum tentu ada.
+     *
+     * company_id di-set eksplisit ke default company CRM (config
+     * odoo.default_company_id, sama seperti dipakai SyncOdooProducts)
+     * supaya partner baru ini konsisten satu company sama product-product
+     * yang nanti dipakai di sale order-nya -- menghindari bug "company
+     * crossover" yang sama seperti yang sudah pernah diperbaiki
+     * sebelumnya di fitur ini & di Expenses.
+     */
+    private function createOdooPartnerForCustomer(MsCustomers $customer): ?int
+    {
+        try {
+            $values = [
+                'name'       => $customer->company_name,
+                'is_company' => true,
+                'company_id' => (int) config('odoo.default_company_id'),
+            ];
 
-        return $partnerId;
+            if (!empty($customer->address)) {
+                $values['street'] = $customer->address;
+            }
+            if (!empty($customer->email)) {
+                $values['email'] = $customer->email;
+            }
+            if (!empty($customer->phone)) {
+                $values['phone'] = $customer->phone;
+            }
+
+            $partnerId = $this->odooService->create('res.partner', $values);
+
+            $customer->update([
+                'odoo_partner_id'   => $partnerId,
+                'odoo_partner_name' => $customer->company_name,
+            ]);
+
+            Log::info("Auto-create partner Odoo baru buat customer #{$customer->id} \"{$customer->company_name}\" -> odoo_partner_id={$partnerId}");
+
+            return $partnerId;
+        } catch (\Throwable $e) {
+            Log::error("Gagal auto-create partner Odoo buat customer #{$customer->id} \"{$customer->company_name}\": " . $e->getMessage());
+
+            return null;
+        }
     }
 }
