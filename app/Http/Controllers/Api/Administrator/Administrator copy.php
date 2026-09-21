@@ -87,10 +87,10 @@ class Administrator extends Controller
         $this->MsCabang = $MsCabang;
     }
 
-      
+
     // code role
     // get Data
-      public function Role(RoleValidationIndex $request) 
+      public function Role(RoleValidationIndex $request)
        {
             $validated = $request->validated();
             $search = $validated['search'] ?? null;
@@ -108,7 +108,7 @@ class Administrator extends Controller
             return ApiResponse::paginate(new RoleResourcesCollection($results), $message);
        }
 
-    //   show detail data 
+    //   show detail data
        public function showRole(string $id)
         {
             $Role = $this->MsRole->find($id);
@@ -126,8 +126,8 @@ class Administrator extends Controller
             $data = $request->validated();
 
             try {
-        
-                $errors = MsRole::isDuplicate($data); 
+
+                $errors = MsRole::isDuplicate($data);
                 if (!empty($errors)) {
                         return ApiResponse::error('Validation failed', $errors, 400);
                     }
@@ -151,7 +151,7 @@ class Administrator extends Controller
         }
 
 
-        
+
     public function updateRole(RoleValidationRequest $request, $id_role)
         {
             $data = $request->validated();
@@ -206,7 +206,7 @@ class Administrator extends Controller
 
 
         // code menu
-    public function Menu(MenuValidationIndex $request) 
+    public function Menu(MenuValidationIndex $request)
        {
             $validated = $request->validated();
             $search = $validated['search'] ?? null;
@@ -225,7 +225,7 @@ class Administrator extends Controller
         }
 
 
-         //   show detail data 
+         //   show detail data
        public function showMenu(string $id)
         {
             $Menu = $this->MsMenu->find($id);
@@ -243,8 +243,8 @@ class Administrator extends Controller
             $data = $request->validated();
 
             try {
-        
-                $errors = MsMenu::isDuplicate($data); 
+
+                $errors = MsMenu::isDuplicate($data);
                 if (!empty($errors)) {
                         return ApiResponse::error('Validation failed', $errors, 400);
                     }
@@ -355,7 +355,7 @@ class Administrator extends Controller
                 );
             }
 
-    
+
 
         public function showSubmenu(int $id)
         {
@@ -495,7 +495,7 @@ class Administrator extends Controller
                 }
             }
 
-           
+
 
         //  code access role - access menu
         /**
@@ -503,7 +503,7 @@ class Administrator extends Controller
          */
         public function AccessRoleToMenu($roleId, AccessMenuValidationIndex $request)
         {
-    
+
         $validated = $request->validated();
         $search  = $validated['search'] ?? null;
         $perPage = is_numeric($validated['per_page'] ?? null) ? $validated['per_page'] : 10;
@@ -596,6 +596,11 @@ class Administrator extends Controller
                     'role:id_role,role',
                     'division:id,name_division',
                     'groups:id_group,name_group',
+                    // ── manager & cabang -- di-eager load supaya UsersResources
+                    // tidak kena N+1 query pas akses $this->manager / $this->cabang
+                    // buat tiap baris di listing. ──
+                    'manager:id_user,fullname',
+                    'cabang:id_cabang,cabang',
                 ])
                 ->when($onlyDeleted, function ($q) {
                     $q->onlyTrashed();
@@ -731,7 +736,7 @@ class Administrator extends Controller
             $user->update($data);
 
         // //  WAJIB
-        $user->refresh()->load('role');
+        $user->refresh()->load(['role', 'manager', 'cabang']);
 
         return ApiResponse::success(
             new UsersResources($user),
@@ -804,7 +809,7 @@ class Administrator extends Controller
         {
             try {
                 $user = $this->MsUsers
-                    ->with('role')
+                    ->with(['role', 'manager', 'cabang'])
                     ->where('id_user', $id_user)
                     ->firstOrFail();
 
@@ -825,6 +830,144 @@ class Administrator extends Controller
 
                 return ApiResponse::error(
                     'An error occurred while fetching user detail',
+                    ['exception' => config('app.debug') ? $e->getMessage() : null],
+                    500
+                );
+            }
+        }
+
+
+        // ── MODAL HIRARKI USER ──
+        // Dipakai buat tombol "Lihat Hirarki" di tabel User Management:
+        // menampilkan atasan user ini, rekan setingkat (user lain yang
+        // atasannya sama persis), dan bawahan langsungnya (1 level saja,
+        // bukan rekursif -- cukup buat kebutuhan tampilan/modal).
+        //
+        // ── PERUBAHAN (permintaan user) ──
+        // Kalau user yang di-klik itu TOP-LEVEL (tidak punya atasan --
+        // manager_id NULL, misal "Pak Budi"), modal tetap tampil LENGKAP
+        // seperti sebelumnya: rekan setingkat + seluruh bawahan rekursif.
+        //
+        // Tapi kalau user yang di-klik itu BUKAN top-level (punya atasan),
+        // modal HANYA menampilkan: dirinya sendiri, atasannya, dan
+        // bawahannya kalau punya -- daftar "rekan setingkat" (peers)
+        // SENGAJA tidak ditampilkan lagi buat kasus ini (sebelumnya semua
+        // rekan setingkat ikut nongol, sekarang cuma buat top-level user).
+        public function userHierarchy($id_user)
+        {
+            try {
+                $user = $this->MsUsers
+                    ->with([
+                        'role', 'division', 'groups', 'cabang',
+                        'manager.role', 'manager.division', 'manager.groups', 'manager.cabang',
+                    ])
+                    ->where('id_user', $id_user)
+                    ->firstOrFail();
+
+                // Top-level = tidak punya atasan (manager_id NULL). Cuma
+                // untuk kasus inilah "rekan setingkat" (peers) ikut
+                // ditampilkan -- selain top-level, peers selalu dikosongkan.
+                $isTopLevel = is_null($user->manager_id);
+
+                // Rekan setingkat: user lain dengan manager_id YANG SAMA
+                // persis (termasuk sama-sama tidak punya atasan / null),
+                // role_id yang sama, DAN company (group_id) yang sama juga.
+                // Ini supaya misalnya:
+                // - Admin tidak nongol jadi "rekan setingkat" Sales hanya
+                //   karena atasannya kebetulan sama (satu manager bisa
+                //   punya bawahan dari beberapa role sekaligus).
+                // - Dua Manager top-level dari PT yang BEDA (sama-sama
+                //   tidak punya atasan) tidak dianggap rekan setingkat
+                //   satu sama lain hanya karena role & posisinya kebetulan
+                //   sama -- padahal beda perusahaan.
+                //
+                // Khusus role_id = 1 (Administrator/IT) selalu dikecualikan
+                // dari daftar rekan setingkat siapa pun -- role ini teknis/IT,
+                // bukan bagian dari hirarki bisnis (Sales/Manager/Admin).
+                //
+                // Query-nya cuma dijalankan kalau $isTopLevel -- selain itu
+                // langsung dikosongkan (lihat catatan PERUBAHAN di atas).
+                $peers = $isTopLevel
+                    ? $this->MsUsers
+                        ->with(['role', 'division', 'groups', 'cabang'])
+                        ->where('id_user', '!=', $user->id_user)
+                        ->where('role_id', $user->role_id)
+                        ->where('role_id', '!=', 1)
+                        ->where('group_id', $user->group_id)
+                        ->whereNull('manager_id')
+                        ->orderBy('fullname', 'asc')
+                        ->get()
+                    : collect();
+
+                // Bawahan: ditelusuri REKURSIF ke bawah (bukan cuma 1 level
+                // langsung) -- jadi kalau ada Admin yang punya bawahan Sales
+                // sendiri, Sales itu tetap ikut kebawa walau bukan bawahan
+                // langsung user yang diklik. Role Administrator/IT
+                // (role_id = 1) tetap dikecualikan, sama seperti di peers.
+                // Bagian ini TIDAK berubah oleh perubahan di atas -- bawahan
+                // tetap selalu ditampilkan (kalau ada), baik user yang
+                // diklik itu top-level atau bukan.
+                //
+                // $maxDepth cuma jaga-jaga supaya tidak infinite loop kalau
+                // suatu saat ada data manager_id yang muter (harusnya tidak
+                // pernah terjadi secara normal).
+                $allSubordinates = collect();
+                $frontierIds     = [$user->id_user];
+                $maxDepth        = 20;
+
+                for ($depth = 0; $depth < $maxDepth && !empty($frontierIds); $depth++) {
+                    $nextLevel = $this->MsUsers
+                        ->with(['role', 'division', 'groups', 'cabang'])
+                        ->whereIn('manager_id', $frontierIds)
+                        ->where('role_id', '!=', 1)
+                        ->get();
+
+                    if ($nextLevel->isEmpty()) {
+                        break;
+                    }
+
+                    $allSubordinates = $allSubordinates->merge($nextLevel);
+                    $frontierIds     = $nextLevel->pluck('id_user')->all();
+                }
+
+                // Dikelompokkan per role, ditampilkan dengan urutan tier:
+                // Manager -> Admin -> Sales. Role lain (kalau ada di masa
+                // depan dan belum terdaftar di $tierOrder) otomatis ditaruh
+                // setelahnya secara alfabetis.
+                $tierOrder = ['manager', 'admin', 'sales'];
+
+                $subordinatesGrouped = $allSubordinates
+                    ->groupBy(fn($u) => strtolower($u->role?->role ?? 'lainnya'))
+                    ->sortBy(function ($group, $roleKey) use ($tierOrder) {
+                        $idx = array_search($roleKey, $tierOrder, true);
+                        return $idx === false ? (count($tierOrder) + 1) : $idx;
+                    })
+                    ->map(fn($group, $roleKey) => [
+                        'role'  => $roleKey,
+                        'label' => ucfirst($roleKey),
+                        'users' => UsersResources::collection($group->sortBy('fullname')->values()),
+                    ])
+                    ->values();
+
+                return ApiResponse::success([
+                    'user'         => new UsersResources($user),
+                    'manager'      => $user->manager ? new UsersResources($user->manager) : null,
+                    'peers'        => UsersResources::collection($peers),
+                    'subordinates' => $subordinatesGrouped,
+                ], 'Success Get User Hierarchy');
+
+            } catch (\Illuminate\Database\Eloquent\ModelNotFoundException $e) {
+
+                return ApiResponse::error(
+                    'User not found',
+                    null,
+                    404
+                );
+
+            } catch (\Exception $e) {
+
+                return ApiResponse::error(
+                    'An error occurred while fetching user hierarchy',
                     ['exception' => config('app.debug') ? $e->getMessage() : null],
                     500
                 );
@@ -880,6 +1023,48 @@ class Administrator extends Controller
                             ->select('id_group', 'name_group','is_active')
                             ->where('is_active', true)
                             ->orderBy('name_group', 'asc')
+                            ->get()
+                    );
+                }
+
+                // ── Dropdown pilih Atasan (Master User hierarchy) ──
+                // exclude_id (opsional, query param) dipakai pas form Edit User
+                // supaya user yang sedang di-edit tidak muncul jadi pilihan
+                // atasannya sendiri.
+                public function selectManager(Request $request)
+                {
+                    $excludeId = $request->query('exclude_id');
+
+                    $query = MsUsers::query()
+                        ->select('id_user', 'fullname')
+                        ->whereNull('deleted_at')
+                        ->where('is_active', true)
+                        ->orderBy('fullname', 'asc');
+
+                    if ($excludeId) {
+                        $query->where('id_user', '!=', $excludeId);
+                    }
+
+                    return response()->json($query->get());
+                }
+
+                // ── Dropdown pilih Cabang ──
+                // Ikutkan nama Company (name_group) supaya di form User,
+                // cabang yang namanya sama antar company (mis. dua "Jakarta"
+                // di company berbeda) tidak membingungkan saat dipilih.
+                public function selectCabang()
+                {
+                    return response()->json(
+                        DB::table('ms_cabang')
+                            ->leftJoin('group_companies', 'group_companies.id_group', '=', 'ms_cabang.group_id')
+                            ->select(
+                                'ms_cabang.id_cabang',
+                                'ms_cabang.cabang',
+                                'ms_cabang.group_id',
+                                'group_companies.name_group'
+                            )
+                            ->whereNull('ms_cabang.deleted_at')
+                            ->orderBy('ms_cabang.cabang', 'asc')
                             ->get()
                     );
                 }
@@ -991,7 +1176,7 @@ class Administrator extends Controller
 
 
 // code setting application
-   public function SettingApp(AppSettingValidationIndex $request) 
+   public function SettingApp(AppSettingValidationIndex $request)
        {
             $validated = $request->validated();
             $search = $validated['search'] ?? null;
@@ -1032,7 +1217,7 @@ class Administrator extends Controller
         }
 
 
-       public function storeSetting(AppSettingValidationRequest $request)  
+       public function storeSetting(AppSettingValidationRequest $request)
        {
            $data = $request->validated();
 
@@ -1200,6 +1385,77 @@ class Administrator extends Controller
         }
 
 
+        // ════════════════════════════════════════════════════════════
+        // LOGO PER COMPANY (group_companies) -- BUKAN app_settings
+        // ════════════════════════════════════════════════════════════
+        // Logo App Setting di atas itu GLOBAL (1 baris, dipakai semua
+        // company sebagai FALLBACK kalau company yang bersangkutan
+        // belum punya logo sendiri). Endpoint di bawah ini spesifik
+        // buat logo PER company (tabel group_companies) -- dipakai di
+        // halaman Setting Management yang SAMA, cuma section-nya
+        // terpisah (bukan menu baru), soalnya datanya multi-baris (1
+        // baris per company), beda dari app_settings yang cuma 1 baris.
+        //
+        // Pola upload file-nya SAMA PERSIS kayak storeSetting()/
+        // updateSetting() di atas (Storage::disk('public'), hapus file
+        // lama sebelum simpan yang baru) -- cuma folder-nya beda
+        // ('company-logos', bukan 'app-setting').
+        //
+        // Ditampilkan di Sidebar.vue (brandLogoUrl) sesuai company user
+        // yang login (authStore.user.groups.logo).
+
+        public function companyLogos()
+        {
+            $companies = DB::table('group_companies')
+                ->select('id_group', 'name_group', 'logo', 'is_active')
+                ->whereNull('deleted_at')
+                ->orderBy('name_group', 'asc')
+                ->get();
+
+            return ApiResponse::success($companies, 'Success');
+        }
+
+        public function updateCompanyLogo(Request $request, $id_group)
+        {
+            $request->validate([
+                'logo' => ['required', 'image', 'max:2048'],
+            ]);
+
+            $company = DB::table('group_companies')
+                ->where('id_group', $id_group)
+                ->whereNull('deleted_at')
+                ->first();
+
+            if (!$company) {
+                return ApiResponse::error('Company tidak ditemukan', [
+                    'id_group' => ['Data dengan ID tersebut tidak tersedia']
+                ], 404);
+            }
+
+            $folder = 'company-logos';
+
+            // Hapus file lama (kalau ada) sebelum simpan yang baru.
+            if ($company->logo && Storage::disk('public')->exists($folder . '/' . $company->logo)) {
+                Storage::disk('public')->delete($folder . '/' . $company->logo);
+            }
+
+            $file     = $request->file('logo');
+            $filename = uniqid('company_logo_') . '.' . $file->getClientOriginalExtension();
+            $file->storeAs($folder, $filename, 'public');
+
+            DB::table('group_companies')->where('id_group', $id_group)->update([
+                'logo'       => $filename,
+                'updated_at' => now(),
+            ]);
+
+            return ApiResponse::success([
+                'id_group'   => (int) $id_group,
+                'name_group' => $company->name_group,
+                'logo'       => $filename,
+            ], 'Logo company berhasil diperbarui');
+        }
+
+
         public function deleteSetting($id)
             {
                 try {
@@ -1271,7 +1527,7 @@ class Administrator extends Controller
 
             // code for cabang
 
-            public function Cabang(CabangValidationIndex $request) 
+            public function Cabang(CabangValidationIndex $request)
        {
             $validated = $request->validated();
             $search = $validated['search'] ?? null;
@@ -1281,6 +1537,9 @@ class Administrator extends Controller
             $onlyDeleted = $validated['only_deleted'] ?? false;
 
             $query = $this->MsCabang
+                // ── eager load group (company) -- cegah N+1 query pas
+                // CabangResources akses $this->group buat tiap baris ──
+                ->with(['group:id_group,name_group'])
                 ->onlyDeleted($onlyDeleted)
                 ->search($search)
                 ->sort($sortBy, $sortDir);
@@ -1292,7 +1551,7 @@ class Administrator extends Controller
 
         public function showCabang(string $id)
         {
-            $Cabang = $this->MsCabang->find($id);
+            $Cabang = $this->MsCabang->with('group')->find($id);
             if (!$Cabang) {
                 return ApiResponse::error('Cabang not found', [
                     'id' => ['Data with that ID is not available']
@@ -1308,8 +1567,8 @@ class Administrator extends Controller
             $data = $request->validated();
 
             try {
-        
-                $errors = MsCabang::isDuplicate($data); 
+
+                $errors = MsCabang::isDuplicate($data);
                 if (!empty($errors)) {
                         return ApiResponse::error('Validation failed', $errors, 400);
                     }
@@ -1318,6 +1577,8 @@ class Administrator extends Controller
                     'cabang'        => $data['cabang'],
                     'alamat' => $data['alamat'] ?? null,
                     'no_telp' => $data['no_telp'] ?? null,
+                    // ── 1 Cabang = 1 Company ──
+                    'group_id' => $data['group_id'],
                 ]);
 
                 return ApiResponse::success(new CabangResources($Cabang), 'Success Create New Cabang', 201);

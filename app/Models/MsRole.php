@@ -9,7 +9,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 class MsRole extends Model
 {
- 
+
 
      use HasFactory;
      use SoftDeletes;
@@ -20,6 +20,12 @@ class MsRole extends Model
      protected $fillable = [
         'role',
         'description',
+        // ── Urutan tier hirarki (data-driven, dipakai di
+        // Administrator::userHierarchy() supaya urutan tampil
+        // Manager -> Admin -> Sales, dst tidak di-hardcode di source
+        // code) -- lihat migration add_hierarchy_order_to_ms_role_table.
+        // Nullable: role yang belum diisi otomatis jatuh ke paling bawah. ──
+        'hierarchy_order',
     ];
 
      //opsional

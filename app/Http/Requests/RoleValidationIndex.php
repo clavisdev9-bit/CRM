@@ -8,7 +8,12 @@ use Illuminate\Http\Exceptions\HttpResponseException;
 
 class RoleValidationIndex extends FormRequest
 {
-    protected array $allowedSortFields = ['role','created_at'];
+    // ── 'hierarchy_order' ditambahkan supaya tabel Role Management juga
+    // bisa di-sort berdasarkan urutan tier hirarki lewat ?sort_by=hierarchy_order
+    // (lihat roleStore.js::allowedSortColumns di frontend, yang sudah
+    // mengizinkan kolom ini juga). Tanpa perubahan ini, request sort_by
+    // itu akan selalu ditolak 422 oleh rule 'in:' di bawah. ──
+    protected array $allowedSortFields = ['role', 'created_at', 'hierarchy_order'];
     public function authorize(): bool
     {
         return true;

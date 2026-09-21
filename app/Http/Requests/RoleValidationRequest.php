@@ -19,6 +19,12 @@ class RoleValidationRequest extends FormRequest
         return [
             'role'        => ['required', 'string', 'max:255'],
             'description' => ['required', 'string'],
+            // ── Urutan tier hirarki (opsional) -- semakin kecil angkanya,
+            // semakin tinggi posisinya di struktur hirarki. Boleh
+            // dikosongkan (nullable): kalau tidak diisi, role tersebut
+            // otomatis ditaruh paling bawah oleh
+            // Administrator::userHierarchy(). ──
+            'hierarchy_order' => ['nullable', 'integer'],
         ];
     }
 
@@ -30,6 +36,7 @@ class RoleValidationRequest extends FormRequest
         'role.max'             => 'role may not be greater than 255 characters.',
         'description.required' => 'description is required.',
         'description.string'   => 'description must be a string.',
+        'hierarchy_order.integer' => 'hierarchy_order must be a number.',
     ];
 }
 
@@ -39,6 +46,11 @@ class RoleValidationRequest extends FormRequest
         $this->merge([
             'role'        => $this->has('role') ? trim($this->input('role')) : null,
             'description' => $this->has('description') ? trim($this->input('description')) : null,
+            // ── Normalisasi hierarchy_order: string kosong ('') dari form
+            // frontend dianggap "tidak diisi" -> null (bukan gagal validasi
+            // 'integer'), sedangkan nilai yang benar-benar terisi dipaksa
+            // jadi integer murni. ──
+            'hierarchy_order' => $this->filled('hierarchy_order') ? (int) $this->input('hierarchy_order') : null,
         ]);
     }
 }

@@ -135,10 +135,6 @@ class Administrator extends Controller
                 $Role = $this->MsRole->create([
                     'role'        => $data['role'],
                     'description' => $data['description'],
-                    // ── Urutan tier hirarki (data-driven, lihat migration
-                    // add_hierarchy_order_to_ms_role_table) -- opsional,
-                    // dibiarkan null kalau admin belum menentukan posisinya. ──
-                    'hierarchy_order' => $data['hierarchy_order'] ?? null,
                 ]);
 
                 return ApiResponse::success(new RoleResources($Role), 'Success Create New Role', 201);
@@ -846,17 +842,6 @@ class Administrator extends Controller
         // menampilkan atasan user ini, rekan setingkat (user lain yang
         // atasannya sama persis), dan bawahan langsungnya (1 level saja,
         // bukan rekursif -- cukup buat kebutuhan tampilan/modal).
-        //
-        // ── PERUBAHAN (permintaan user) ──
-        // Kalau user yang di-klik itu TOP-LEVEL (tidak punya atasan --
-        // manager_id NULL, misal "Pak Budi"), modal tetap tampil LENGKAP
-        // seperti sebelumnya: rekan setingkat + seluruh bawahan rekursif.
-        //
-        // Tapi kalau user yang di-klik itu BUKAN top-level (punya atasan),
-        // modal HANYA menampilkan: dirinya sendiri, atasannya, dan
-        // bawahannya kalau punya -- daftar "rekan setingkat" (peers)
-        // SENGAJA tidak ditampilkan lagi buat kasus ini (sebelumnya semua
-        // rekan setingkat ikut nongol, sekarang cuma buat top-level user).
         public function userHierarchy($id_user)
         {
             try {
@@ -867,11 +852,6 @@ class Administrator extends Controller
                     ])
                     ->where('id_user', $id_user)
                     ->firstOrFail();
-
-                // Top-level = tidak punya atasan (manager_id NULL). Cuma
-                // untuk kasus inilah "rekan setingkat" (peers) ikut
-                // ditampilkan -- selain top-level, peers selalu dikosongkan.
-                $isTopLevel = is_null($user->manager_id);
 
                 // Rekan setingkat: user lain dengan manager_id YANG SAMA
                 // persis (termasuk sama-sama tidak punya atasan / null),
@@ -888,29 +868,25 @@ class Administrator extends Controller
                 // Khusus role_id = 1 (Administrator/IT) selalu dikecualikan
                 // dari daftar rekan setingkat siapa pun -- role ini teknis/IT,
                 // bukan bagian dari hirarki bisnis (Sales/Manager/Admin).
-                //
-                // Query-nya cuma dijalankan kalau $isTopLevel -- selain itu
-                // langsung dikosongkan (lihat catatan PERUBAHAN di atas).
-                $peers = $isTopLevel
-                    ? $this->MsUsers
-                        ->with(['role', 'division', 'groups', 'cabang'])
-                        ->where('id_user', '!=', $user->id_user)
-                        ->where('role_id', $user->role_id)
-                        ->where('role_id', '!=', 1)
-                        ->where('group_id', $user->group_id)
-                        ->whereNull('manager_id')
-                        ->orderBy('fullname', 'asc')
-                        ->get()
-                    : collect();
+                $peers = $this->MsUsers
+                    ->with(['role', 'division', 'groups', 'cabang'])
+                    ->where('id_user', '!=', $user->id_user)
+                    ->where('role_id', $user->role_id)
+                    ->where('role_id', '!=', 1)
+                    ->where('group_id', $user->group_id)
+                    ->when(
+                        $user->manager_id,
+                        fn($q) => $q->where('manager_id', $user->manager_id),
+                        fn($q) => $q->whereNull('manager_id')
+                    )
+                    ->orderBy('fullname', 'asc')
+                    ->get();
 
                 // Bawahan: ditelusuri REKURSIF ke bawah (bukan cuma 1 level
                 // langsung) -- jadi kalau ada Admin yang punya bawahan Sales
                 // sendiri, Sales itu tetap ikut kebawa walau bukan bawahan
                 // langsung user yang diklik. Role Administrator/IT
                 // (role_id = 1) tetap dikecualikan, sama seperti di peers.
-                // Bagian ini TIDAK berubah oleh perubahan di atas -- bawahan
-                // tetap selalu ditampilkan (kalau ada), baik user yang
-                // diklik itu top-level atau bukan.
                 //
                 // $maxDepth cuma jaga-jaga supaya tidak infinite loop kalau
                 // suatu saat ada data manager_id yang muter (harusnya tidak
@@ -934,35 +910,17 @@ class Administrator extends Controller
                     $frontierIds     = $nextLevel->pluck('id_user')->all();
                 }
 
-                // Dikelompokkan per role, ditampilkan dengan urutan tier
-                // SEKARANG SEPENUHNYA DATA-DRIVEN dari kolom
-                // ms_role.hierarchy_order (bukan array PHP yang di-hardcode
-                // seperti sebelumnya) -- supaya kalau admin nambah role baru
-                // (misal "Supervisor") dan isi angka urutannya lewat form
-                // Role, tier itu otomatis nongol di posisi yang benar tanpa
-                // perlu sentuh source code sama sekali. Semakin kecil
-                // angkanya, semakin tinggi posisinya (ditaruh lebih atas).
-                // Role yang belum diisi hierarchy_order-nya (null) otomatis
-                // jatuh ke PALING BAWAH, dan di antara sesama yang null
-                // diurutkan alfabetis (fallback yang sama seperti sebelumnya).
-                $roleOrderMap = DB::table('ms_role')
-                    ->select('role', 'hierarchy_order')
-                    ->get()
-                    ->reduce(function ($map, $r) {
-                        $map[strtolower($r->role)] = $r->hierarchy_order;
-                        return $map;
-                    }, []);
+                // Dikelompokkan per role, ditampilkan dengan urutan tier:
+                // Manager -> Admin -> Sales. Role lain (kalau ada di masa
+                // depan dan belum terdaftar di $tierOrder) otomatis ditaruh
+                // setelahnya secara alfabetis.
+                $tierOrder = ['manager', 'admin', 'sales'];
 
                 $subordinatesGrouped = $allSubordinates
                     ->groupBy(fn($u) => strtolower($u->role?->role ?? 'lainnya'))
-                    ->sortBy(function ($group, $roleKey) use ($roleOrderMap) {
-                        $order = $roleOrderMap[$roleKey] ?? null;
-                        // Dijadikan string ter-pad (bukan cuma angka) supaya
-                        // urutannya deterministic: role dengan hierarchy_order
-                        // terkecil selalu di depan, dan role yang null
-                        // (dianggap angka besar 999999) tetap ke-tie-break
-                        // alfabetis lewat $roleKey yang disambung di belakang.
-                        return sprintf('%06d-%s', $order ?? 999999, $roleKey);
+                    ->sortBy(function ($group, $roleKey) use ($tierOrder) {
+                        $idx = array_search($roleKey, $tierOrder, true);
+                        return $idx === false ? (count($tierOrder) + 1) : $idx;
                     })
                     ->map(fn($group, $roleKey) => [
                         'role'  => $roleKey,
