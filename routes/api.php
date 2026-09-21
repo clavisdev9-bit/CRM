@@ -32,6 +32,8 @@ use App\Http\Controllers\Api\Users\Sales\Plan\SalesVisitPlanController;
 use App\Http\Controllers\Api\Users\Expense\ExpenseController;
 use App\Http\Controllers\Api\Users\Quotation\QuotationController;
 use App\Http\Controllers\Api\Odoo\OdooSettingsController;
+use App\Http\Controllers\Api\Master\ContactController;
+use App\Http\Controllers\Api\Master\MasterContactType;
 use Illuminate\Support\Facades\Http;
 
 
@@ -286,6 +288,40 @@ Route::prefix('sales/visit-plans')->group(function () {
     Route::post('/', [SalesVisitPlanController::class, 'store']);
     Route::put('/{id}', [SalesVisitPlanController::class, 'update']);
     Route::delete('/{id}', [SalesVisitPlanController::class, 'destroy']);
+});
+
+
+// ============================================================
+// MASTER CONTACT TYPE (Principle, Competitor, + 4 reserved system type)
+// ============================================================
+Route::prefix('master-contact-types')->group(function () {
+ 
+    Route::get('/', [MasterContactType::class, 'index']);
+    Route::get('/{id}', [MasterContactType::class, 'show']);
+    Route::post('/', [MasterContactType::class, 'store']);
+    Route::put('/{id}', [MasterContactType::class, 'update']);
+    Route::delete('/{id}', [MasterContactType::class, 'destroy']);
+});
+
+// ============================================================
+// CONTACT (Principle, Competitor, dll -- standalone & linked)
+// ============================================================
+Route::prefix('contacts')->group(function () {
+    // list (standalone + linked digabung, support search/sort/filter)
+    Route::get('/', [ContactController::class, 'index']);
+    // picker search untuk modal "Link dari Data Existing"
+    // (WAJIB didaftarkan sebelum '/{id}' supaya tidak ketangkep sebagai id)
+    Route::get('/search-source', [ContactController::class, 'searchSourceOptions']);
+    // detail 1 contact (standalone maupun linked, resolveSource() otomatis kalau linked)
+    Route::get('/{id}', [ContactController::class, 'show']);
+    // create contact standalone (Principle, Competitor, dll -- input manual)
+    Route::post('/', [ContactController::class, 'storeStandalone']);
+    // "Link dari Data Existing" -- link ke Customer/Lead/Customer Contact/Branch Contact
+    Route::post('/link', [ContactController::class, 'storeLink']);
+    // update contact standalone (ditolak 403 kalau contact-nya hasil link)
+    Route::put('/{id}', [ContactController::class, 'updateStandalone']);
+    // delete standalone / unlink (untuk linked, cuma hapus baris pointer-nya)
+    Route::delete('/{id}', [ContactController::class, 'destroy']);
 });
 
 
