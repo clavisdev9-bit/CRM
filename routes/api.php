@@ -291,38 +291,32 @@ Route::prefix('sales/visit-plans')->group(function () {
 });
 
 
-// ============================================================
-// MASTER CONTACT TYPE (Principle, Competitor, + 4 reserved system type)
-// ============================================================
-Route::prefix('master-contact-types')->group(function () {
- 
-    Route::get('/', [MasterContactType::class, 'index']);
-    Route::get('/{id}', [MasterContactType::class, 'show']);
-    Route::post('/', [MasterContactType::class, 'store']);
-    Route::put('/{id}', [MasterContactType::class, 'update']);
-    Route::delete('/{id}', [MasterContactType::class, 'destroy']);
-});
+// ==================== MASTER CONTACT TYPE ====================
+// (Principle, Competitor, dll + 4 jenis reserved system)
+Route::get('/master-contact-type', [MasterContactType::class, 'index']);
+Route::get('/master-contact-type-show/{id}', [MasterContactType::class, 'show']);
+Route::post('/store-master-contact-type', [MasterContactType::class, 'store']);
+Route::put('/update-master-contact-type/{id}', [MasterContactType::class, 'update']);
+Route::delete('/delete-master-contact-type/{id}', [MasterContactType::class, 'destroy']);
 
-// ============================================================
-// CONTACT (Principle, Competitor, dll -- standalone & linked)
-// ============================================================
-Route::prefix('contacts')->group(function () {
-    // list (standalone + linked digabung, support search/sort/filter)
-    Route::get('/', [ContactController::class, 'index']);
-    // picker search untuk modal "Link dari Data Existing"
-    // (WAJIB didaftarkan sebelum '/{id}' supaya tidak ketangkep sebagai id)
-    Route::get('/search-source', [ContactController::class, 'searchSourceOptions']);
-    // detail 1 contact (standalone maupun linked, resolveSource() otomatis kalau linked)
-    Route::get('/{id}', [ContactController::class, 'show']);
-    // create contact standalone (Principle, Competitor, dll -- input manual)
-    Route::post('/', [ContactController::class, 'storeStandalone']);
-    // "Link dari Data Existing" -- link ke Customer/Lead/Customer Contact/Branch Contact
-    Route::post('/link', [ContactController::class, 'storeLink']);
-    // update contact standalone (ditolak 403 kalau contact-nya hasil link)
-    Route::put('/{id}', [ContactController::class, 'updateStandalone']);
-    // delete standalone / unlink (untuk linked, cuma hapus baris pointer-nya)
-    Route::delete('/{id}', [ContactController::class, 'destroy']);
-});
+// ==================== CONTACT ====================
+// (standalone + linked, digabung satu listing)
+Route::get('/contact', [ContactController::class, 'index']);
+// picker search untuk modal "Link dari Data Existing"
+// (WAJIB didaftarkan sebelum '/contact-show/{id}' -- sebenarnya path-nya
+// beda kata depan ('contact-search-source' vs 'contact-show'), jadi tidak
+// akan pernah ambigu/ketuker seperti kasus '/contacts/{id}' dulu, tapi
+// tetap didaftarkan di atas supaya urutan route enak dibaca.)
+Route::get('/contact-search-source', [ContactController::class, 'searchSourceOptions']);
+ 
+Route::get('/contact-show/{id}', [ContactController::class, 'show']);
+Route::post('/store-contact', [ContactController::class, 'storeStandalone']);
+Route::post('/link-contact', [ContactController::class, 'storeLink']);
+Route::put('/update-contact/{id}', [ContactController::class, 'updateStandalone']);
+ 
+// dipakai untuk 2 kasus: hapus permanen (standalone) ATAU unlink (linked)
+// -- bedanya cuma pesan sukses, logic-nya sama di ContactController::destroy()
+Route::delete('/delete-contact/{id}', [ContactController::class, 'destroy']);
 
 
 Route::prefix('expenses')->group(function () {

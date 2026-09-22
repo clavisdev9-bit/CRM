@@ -64,8 +64,22 @@ class ContactController extends Controller
 
                 DB::raw("COALESCE(c.company_name, src_customer.company_name, src_lead.company_name, src_cc_parent.company_name, src_bc_parent.branch_name) as company_name"),
                 DB::raw("COALESCE(c.contact_name, src_customer.contact_name, src_lead.contact_name, src_cc.name, src_bc.name) as contact_name"),
-                DB::raw("COALESCE(c.email, src_customer.email, src_lead.email, src_cc.email, src_bc.email) as email"),
-                DB::raw("COALESCE(c.phone, src_customer.phone, src_lead.phone, src_cc.phone, src_bc.phone) as phone"),
+                // ── c.email/c.phone sekarang jsonb (array, khusus contact
+                // STANDALONE -- lihat migration change_contacts_email_phone_to_jsonb
+                // & Contact::$casts). Postgres COALESCE tidak bisa campur tipe
+                // jsonb dengan varchar (kolom email/phone milik customers/leads/
+                // dst yang TETAP varchar tunggal), jadi diratakan dulu jadi TEXT
+                // yang digabung koma lewat subquery -- HANYA untuk tampilan
+                // listing/card ini. Data array yang sesungguhnya (untuk form
+                // edit) tetap didapat dari endpoint show() (Eloquent, kena cast). ──
+                DB::raw("COALESCE(
+                    (SELECT string_agg(e, ', ') FROM jsonb_array_elements_text(c.email) AS e),
+                    src_customer.email, src_lead.email, src_cc.email, src_bc.email
+                ) as email"),
+                DB::raw("COALESCE(
+                    (SELECT string_agg(p, ', ') FROM jsonb_array_elements_text(c.phone) AS p),
+                    src_customer.phone, src_lead.phone, src_cc.phone, src_bc.phone
+                ) as phone"),
                 DB::raw("COALESCE(c.address, src_customer.address, src_lead.address) as address"),
                 DB::raw("COALESCE(src_customer.customer_code, src_cc_parent.customer_code, src_bc_parent.branch_code) as source_code"),
                 DB::raw("CASE

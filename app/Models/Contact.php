@@ -35,6 +35,23 @@ class Contact extends Model
     ];
 
     /**
+     * ── email & phone disimpan sebagai JSON array di kolom jsonb yang
+     * sama (lihat migration change_contacts_email_phone_to_jsonb) supaya
+     * satu contact STANDALONE bisa punya lebih dari 1 email/nomor telepon.
+     * Cast 'array' bikin Eloquent otomatis encode saat disimpan & decode
+     * jadi array PHP saat dibaca -- HANYA berlaku untuk baris contacts
+     * milik model ini sendiri. Untuk contact LINKED, resolveSource() di
+     * bawah TETAP mengembalikan email/phone sebagai string tunggal biasa
+     * (diambil langsung dari kolom varchar milik customers/leads/dst,
+     * yang TIDAK diubah jadi jsonb -- sesuai keputusan scope: multi-value
+     * hanya untuk standalone). ──
+     */
+    protected $casts = [
+        'email' => 'array',
+        'phone' => 'array',
+    ];
+
+    /**
      * ── Daftar source_type yang valid untuk fitur "Link dari Data
      * Existing" (lihat AskUserQuestion waktu desain: customers, leads,
      * customer_contacts, branch_contacts). Dipakai di FormRequest &
@@ -71,7 +88,11 @@ class Contact extends Model
             return $query->where(function ($q) use ($search) {
                 $q->where('company_name', 'like', "%{$search}%")
                     ->orWhere('contact_name', 'like', "%{$search}%")
-                    ->orWhere('email', 'like', "%{$search}%")
+                    // ── email sekarang jsonb (array), operator 'like' biasa
+                    // tidak jalan di tipe jsonb -- di-cast dulu ke text (hasilnya
+                    // representasi JSON-nya, mis. ["a@x.com","b@x.com"]) supaya
+                    // search substring tetap bisa kena salah satu emailnya. ──
+                    ->orWhereRaw('email::text ILIKE ?', ["%{$search}%"])
                     ->orWhere('contact_code', 'like', "%{$search}%");
             });
         }
