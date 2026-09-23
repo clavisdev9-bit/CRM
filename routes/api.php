@@ -34,6 +34,10 @@ use App\Http\Controllers\Api\Users\Quotation\QuotationController;
 use App\Http\Controllers\Api\Odoo\OdooSettingsController;
 use App\Http\Controllers\Api\Master\ContactController;
 use App\Http\Controllers\Api\Master\MasterContactType;
+use App\Http\Controllers\Api\Catalog\CategoryProductCatalogController;
+use App\Http\Controllers\Api\Catalog\ProductCatalogController;
+use App\Http\Controllers\Api\Catalog\CatalogController;
+use App\Http\Controllers\Api\Catalog\CatalogSendController;
 use Illuminate\Support\Facades\Http;
 
 
@@ -412,6 +416,47 @@ Route::prefix('manager-reassign-sales')->group(function () {
     Route::put('/customer/{id}', [SalesReassign::class, 'reassignCustomer']);
     Route::put('/branch/{id}', [SalesReassign::class, 'reassignBranch']);
 });
+
+
+
+// ── Category Product Catalog ──
+Route::get('/category-product-catalog', [CategoryProductCatalogController::class, 'index']);
+Route::get('/category-product-catalog-select', [CategoryProductCatalogController::class, 'selectCategories']);
+Route::get('/category-product-catalog-show/{id}', [CategoryProductCatalogController::class, 'show']);
+Route::post('/store-category-product-catalog', [CategoryProductCatalogController::class, 'store']);
+Route::put('/update-category-product-catalog/{id}', [CategoryProductCatalogController::class, 'update']);
+Route::delete('/delete-category-product-catalog/{id}', [CategoryProductCatalogController::class, 'destroy']);
+ 
+// ── Product Catalog ──
+Route::get('/product-catalog', [ProductCatalogController::class, 'index']);
+Route::get('/product-catalog-show/{id}', [ProductCatalogController::class, 'show']);
+Route::post('/store-product-catalog', [ProductCatalogController::class, 'store']);
+// ── pakai POST + _method=PUT (form-data spoofing) karena ada upload file thumbnail ──
+// Route::post('/update-product-catalog/{id}', [ProductCatalogController::class, 'update']);
+Route::delete('/delete-product-catalog/{id}', [ProductCatalogController::class, 'destroy']);
+ Route::put('/update-product-catalog/{id}', [ProductCatalogController::class, 'update']);
+
+
+
+// ── Catalog Media (PDF/Video) ──
+Route::get('/catalog-media', [CatalogController::class, 'index']); // ?product_id=...
+Route::get('/catalog-media-show/{id}', [CatalogController::class, 'show']);
+Route::post('/store-catalog-media', [CatalogController::class, 'store']);
+// ── pakai POST + _method=PUT (form-data spoofing) karena ada upload file ──
+// Route::post('/update-catalog-media/{id}', [CatalogController::class, 'update']);
+Route::delete('/delete-catalog-media/{id}', [CatalogController::class, 'destroy']);
+ Route::put('/update-catalog-media/{id}', [CatalogController::class, 'update']);
+// ── Catalog Send (Email & WhatsApp log) ──
+Route::get('/catalog-send-logs', [CatalogSendController::class, 'index']);
+Route::post('/send-catalog-email', [CatalogSendController::class, 'sendEmail']);
+Route::post('/log-catalog-whatsapp', [CatalogSendController::class, 'logWhatsapp']);
+
+
+
+
+
+
+
 
 // product routes, untuk GET /products (list product) dan POST /products/sync (sync manual dari Odoo)
 Route::prefix('products')->group(function () {
