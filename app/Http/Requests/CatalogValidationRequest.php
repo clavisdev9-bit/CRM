@@ -29,7 +29,7 @@ class CatalogValidationRequest extends FormRequest
             'file' => [
                 $isUpload && $this->isMethod('post') && !$this->has('_method') ? 'required' : 'nullable',
                 'file',
-                'max:20480',
+                'max:10240',
                 function ($attribute, $value, $fail) {
                     if (!$value) {
                         return;
@@ -66,7 +66,7 @@ class CatalogValidationRequest extends FormRequest
             'source_type.required' => 'Sumber media wajib dipilih.',
             'source_type.in'       => 'Sumber media tidak valid.',
             'file.required'        => 'File wajib diupload untuk sumber media Upload.',
-            'file.max'             => 'Ukuran file maksimal 20MB.',
+            'file.max'             => 'Ukuran file maksimal 10MB.',
             'url.required'         => 'URL wajib diisi untuk sumber media ini.',
         ];
     }
