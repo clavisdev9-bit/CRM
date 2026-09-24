@@ -32,22 +32,6 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
 
-    // ═══════════════════════════════════════════════════════════════════
-    // BROADCASTING -- daftarin routes/channels.php + endpoint otorisasi
-    // channel (/broadcasting/auth). Di-prefix 'api' supaya nyambung 1:1
-    // sama axios instance `api` (baseURL-nya sudah termasuk /api), dan
-    // middleware-nya pakai alias 'jwt.auth' yang sama dipakai route API
-    // lain -- BUKAN default 'web' (session), karena project ini stateless
-    // JWT (Bearer token), bukan cookie/session based.
-    // ═══════════════════════════════════════════════════════════════════
-    ->withBroadcasting(
-        __DIR__.'/../routes/channels.php',
-        [
-            'prefix'     => 'api',
-            'middleware' => ['jwt.auth'],
-        ],
-    )
-
 
     // ═══════════════════════════════════════════════════════════════════
     // SCHEDULER -- daftar command yang dijalankan otomatis (butuh cron
@@ -60,13 +44,6 @@ return Application::configure(basePath: dirname(__DIR__))
         // Detail logic-nya ada di App\Console\Commands\SendFollowUpReminders.
         $schedule->command('follow-up:send-reminders')->hourly();
         // $schedule->command('follow-up:send-reminders')->everyMinute();
-
-        // Notification (Bulk terjadwal & Reminder Daily/Weekly/Monthly/
-        // Scheduled): cek tiap menit, kirim begitu next_run_at (reminder)
-        // atau scheduled_at (bulk) sudah jatuh tempo. Detail logic-nya ada
-        // di App\Console\Commands\ProcessDueNotifications +
-        // App\Services\NotificationDispatcher.
-        $schedule->command('notifications:process-due')->everyMinute();
     })
 
 
@@ -78,12 +55,12 @@ return Application::configure(basePath: dirname(__DIR__))
             'throttle:api',
             FormatUnauthenticated::class,
             UpdateSessionActivity::class,
-
+            
         ]);
          // Middleware bawaan Laravel 12
         $middleware->statefulApi();
 
-
+         
         //  Middleware alias untuk JWT
         $middleware->alias([
             'jwt.auth'    => JWTAuthenticate::class,
@@ -93,7 +70,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'role' => RoleMiddleware::class,
         ]);
     })
-
+    
 ->withExceptions(function (Exceptions $exceptions) {
 
     // 422 Validation

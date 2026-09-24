@@ -38,6 +38,7 @@ use App\Http\Controllers\Api\Catalog\CategoryProductCatalogController;
 use App\Http\Controllers\Api\Catalog\ProductCatalogController;
 use App\Http\Controllers\Api\Catalog\CatalogController;
 use App\Http\Controllers\Api\Catalog\CatalogSendController;
+use App\Http\Controllers\Api\Notification\NotificationController;
 use Illuminate\Support\Facades\Http;
 
 
@@ -219,6 +220,34 @@ Route::put('/customer-branches/{id}',[Costumers::class, 'updateBranch']);
 Route::delete('/customer-branches/{id}',[Costumers::class, 'destroyBranch']);
 
 
+
+// // ── Admin/Manager side: kelola notifikasi yang dibuat (Bulk & Reminder) ──
+// Route::get('/notification', [NotificationController::class, 'index']);
+// Route::get('/notification-show/{id}', [NotificationController::class, 'show']);
+// Route::post('/store-notification', [NotificationController::class, 'store']);
+// Route::post('/toggle-reminder-status/{id}', [NotificationController::class, 'toggleReminderStatus']);
+// Route::delete('/delete-notification/{id}', [NotificationController::class, 'destroy']);
+ 
+// // ── Recipient side: "notifikasi saya" (lonceng & Notification Center) ──
+// Route::get('/my-notifications', [NotificationController::class, 'myNotifications']);
+// Route::get('/notification-unread-count', [NotificationController::class, 'unreadCount']);
+// Route::post('/mark-notification-read/{id}', [NotificationController::class, 'markAsRead']);
+// Route::post('/mark-all-notifications-read', [NotificationController::class, 'markAllAsRead']);
+
+// ── Admin/Manager side: kelola notifikasi yang dibuat (Bulk & Reminder) ──
+Route::get('/notification', [NotificationController::class, 'index']);
+Route::get('/notification-show/{id}', [NotificationController::class, 'show']);
+Route::post('/store-notification', [NotificationController::class, 'store']);
+Route::get('/notification-select-users', [NotificationController::class, 'selectUsers']);
+Route::get('/notification-select-companies', [NotificationController::class, 'selectCompanies']);
+Route::post('/toggle-reminder-status/{id}', [NotificationController::class, 'toggleReminderStatus']);
+Route::delete('/delete-notification/{id}', [NotificationController::class, 'destroy']);
+ 
+// ── Recipient side: "notifikasi saya" (lonceng & Notification Center) ──
+Route::get('/my-notifications', [NotificationController::class, 'myNotifications']);
+Route::get('/notification-unread-count', [NotificationController::class, 'unreadCount']);
+Route::post('/mark-notification-read/{id}', [NotificationController::class, 'markAsRead']);
+Route::post('/mark-all-notifications-read', [NotificationController::class, 'markAllAsRead']);
 
 
 // api sales Follow Up
