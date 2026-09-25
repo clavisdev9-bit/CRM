@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Api\Notification;
 
 use App\Http\Controllers\Controller;
 use App\Helpers\ApiResponse;
-use App\Http\Requests\NotificationValidationIndex;
+use App\Http\Requests\Notificationvalidationindex;
 use App\Http\Requests\NotificationValidationRequest;
 use App\Http\Resources\NotificationResources;
 use App\Http\Resources\NotificationResourcesCollection;
